@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  WHATSAPP
+  EMAIL
+  IN_APP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  SKIPPED
+}
+
+model NotificationLog {
+  id          String             @id @default(uuid())
+  userId      String             @map("user_id")
+  channel     NotificationChannel
+  event       String             @db.VarChar(100) // e.g. 'booking.confirmed'
+  title       String?            @db.VarChar(200)
+  body        String             @db.VarChar(1000)
+  data        Json               @default("{}")
+  status      NotificationStatus @default(QUEUED)
+  providerRef String?            @map("provider_ref") @db.VarChar(200) // FCM message ID, SMS ID etc.
+  errorMsg    String?            @map("error_msg") @db.VarChar(500)
+  sentAt      DateTime?          @map("sent_at")
+  createdAt   DateTime           @default(now()) @map("created_at")
+
+  @@index([userId, createdAt])
+  @@index([event])
+  @@index([status])
+  @@map("notification_logs")
+}

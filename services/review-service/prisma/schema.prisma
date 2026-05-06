@@ -1,0 +1,35 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Review {
+  id          String   @id @default(uuid())
+  bookingId   String   @unique @map("booking_id") // one review per booking
+  customerId  String   @map("customer_id")
+  vendorId    String   @map("vendor_id")
+  rating      Int      // 1-5
+  title       String?  @db.VarChar(200)
+  body        String   @db.Text
+  // Category ratings
+  qualityRating     Int?  @map("quality_rating")
+  valueRating       Int?  @map("value_rating")
+  professionalismRating Int? @map("professionalism_rating")
+  punctualityRating Int?  @map("punctuality_rating")
+  photos      String[] // S3 URLs
+  isPublished Boolean  @default(false) @map("is_published")
+  adminNote   String?  @map("admin_note") @db.VarChar(300)
+  vendorReply String?  @map("vendor_reply") @db.Text
+  vendorRepliedAt DateTime? @map("vendor_replied_at")
+  helpfulCount Int     @default(0) @map("helpful_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([vendorId, isPublished])
+  @@index([customerId])
+  @@map("reviews")
+}

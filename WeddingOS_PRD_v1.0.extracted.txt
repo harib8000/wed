@@ -1,0 +1,2138 @@
+SOURCE: WeddingOS_PRD_v1.0.docx
+PARAGRAPHS: 1824
+
+0001: WEDDING OS
+0002: India's First End-to-End Wedding Operating System
+0003: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+0004: PROJECT REQUIREMENT DOCUMENT
+0005: Full-Stack Implementation Blueprint — Version 1.0
+0006: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+0007: Document Type
+0008: Product Requirement Document (PRD)
+0009: Product Name
+0010: Wedding OS — India's Wedding Operating System
+0011: Version
+0012: 1.0 — Initial Release
+0013: Target Market
+0014: India — Starting Hyderabad, Tier-1 Expansion
+0015: Platform
+0016: Mobile (Flutter/React Native) + Web (React.js)
+0017: Backend
+0018: Node.js Microservices + PostgreSQL + Redis
+0019: Cloud
+0020: AWS Free Tier → Auto-Scaling Architecture
+0021: Revenue Model
+0022: Commission + SaaS + Escrow + AI Packages
+0023: TAM
+0024: ₹2,00,000 Crore — India Wedding Industry
+0025: Launch City
+0026: Hyderabad, Telangana
+0027: CONFIDENTIAL — FOR DEVELOPMENT TEAM USE ONLY
+0028: Zero ₹ Infrastructure | Billion-Dollar Architecture | Production-Grade Security
+0029: 1. EXECUTIVE SUMMARY & VISION
+0030: 1.1 The Problem We Are Solving
+0031: India's wedding industry is worth ₹2,00,000 Crore annually — the second-largest wedding market in the world. Yet, every single wedding is planned through WhatsApp groups, Excel sheets, phone calls, and local referrals. This results in:
+0032: Vendor no-shows causing wedding-day disasters with zero accountability
+0033: No price transparency — couples overpay by 30–40% due to information asymmetry
+0034: Zero coordination between 15–20 vendors working the same event
+0035: Advance payments lost with no escrow protection or dispute resolution
+0036: Planning takes 200+ hours spread over 12–18 months with no central system
+0037: Vendor quality is unpredictable — no verified portfolio or ratings system
+0038: 1.2 Our Solution — The Wedding OS
+0039: Wedding OS is not another listing site. It is the complete operating system for the Indian wedding industry — from first click to final applause.
+0040: We are building the infrastructure layer of India's wedding industry — where every wedding runs on our platform. Think of it as:
+0041: Amazon — for discovering and booking verified wedding vendors
+0042: Zoho CRM — for vendor lead and booking management
+0043: Uber — for real-time coordination on event day
+0044: Jira — for milestone-based task tracking and execution
+0045: Stripe/Escrow — for trusted payment protection
+0046: 1.3 Vision Statement
+0047: "Build the infrastructure layer of India's wedding industry — where every wedding runs through our platform."
+0048: 1.4 Mission
+0049: To eliminate the chaos, trust deficit, and execution failures from every wedding in India by creating a unified, technology-powered platform that connects couples, vendors, and coordinators in one seamless system.
+0050: 1.5 Strategic Positioning
+0051: Dimension
+0052: Others (WedMeGood, WeddingWire)
+0053: Wedding OS
+0054: Core Value
+0055: Discovery & Leads
+0056: End-to-End Execution
+0057: Revenue
+0058: Vendor Subscriptions & Ads
+0059: Commission + SaaS + Escrow
+0060: Vendor Tool
+0061: Basic Profile Page
+0062: Full Booking OS / CRM
+0063: Execution
+0064: None — WhatsApp after
+0065: Built-in Coordination Engine
+0066: Payment
+0067: Off-platform
+0068: Escrow-Protected On-Platform
+0069: Trust Layer
+0070: Self-reported reviews
+0071: Verified + Milestone Payments
+0072: AI
+0073: None
+0074: Budget Optimizer + Matching
+0075: Day-of Tracking
+0076: None
+0077: Real-Time Vendor Check-ins
+0078: 1.6 Market Opportunity
+0079: India conducts ~10 million weddings annually
+0080: Average urban wedding spend: ₹15–25 Lakhs
+0081: Serviceable market (digital-ready): ₹40,000 Crore in Year 1 target cities
+0082: 10% platform commission on ₹1000 Crore GMV = ₹100 Crore Year-3 revenue target
+0083: SaaS revenue from 50,000 vendors at ₹1999/month = ₹120 Crore ARR potential
+0084: 2. PRODUCT ARCHITECTURE
+0085: 2.1 The Three-Core System
+0086: Wedding OS is built on three interconnected systems, each serving a distinct stakeholder:
+0087: System
+0088: Users
+0089: Core Purpose
+0090: Key Differentiator
+0091: Customer App (B2C)
+0092: Couples & Families
+0093: Plan, Book, Coordinate
+0094: AI Wedding Planner + Execution Dashboard
+0095: Vendor OS (B2B SaaS)
+0096: Wedding Vendors
+0097: Manage Business
+0098: Full CRM + Booking Calendar + Payments
+0099: Execution Engine
+0100: All Stakeholders
+0101: Event Day Coordination
+0102: Real-Time Tracking + Task Management
+0103: 2.2 High-Level System Architecture
+0104: ARCHITECTURE PRINCIPLE: Event-driven microservices with domain-separated services, unified API gateway, multi-layer caching, and zero single point of failure.
+0105: 2.2.1 Frontend Layer
+0106: Mobile App: Flutter (iOS + Android from single codebase) — Target: 60fps, <3s cold start
+0107: Web App: React.js + Next.js (SSR for SEO) — Customer-facing + Vendor Dashboard
+0108: Admin Panel: React.js + Ant Design — Internal operations team
+0109: State Management: Zustand (React) / Riverpod (Flutter)
+0110: API Communication: REST + WebSocket (real-time) + GraphQL (complex queries)
+0111: 2.2.2 API Gateway Layer
+0112: Kong API Gateway — Rate limiting, auth, routing, load balancing
+0113: JWT + Refresh Token authentication
+0114: Request/Response validation with Zod schemas
+0115: API versioning: /api/v1/, /api/v2/
+0116: GraphQL Federation for complex data aggregation
+0117: 2.2.3 Microservices Layer
+0118: Service
+0119: Responsibility
+0120: Tech Stack
+0121: DB
+0122: Auth Service
+0123: Authentication, JWT, OAuth
+0124: Node.js + Express
+0125: PostgreSQL + Redis
+0126: User Service
+0127: Profiles, preferences, KYC
+0128: Node.js + Express
+0129: PostgreSQL
+0130: Vendor Service
+0131: Vendor profiles, portfolio
+0132: Node.js + Express
+0133: PostgreSQL + S3
+0134: Search Service
+0135: Discovery, filtering, ranking
+0136: Node.js + Elasticsearch
+0137: Elasticsearch
+0138: Booking Service
+0139: Reservations, scheduling
+0140: Node.js + Express
+0141: PostgreSQL
+0142: Payment Service
+0143: Escrow, payouts, refunds
+0144: Node.js + Express
+0145: PostgreSQL
+0146: Execution Service
+0147: Tasks, timelines, events
+0148: Node.js + Express
+0149: PostgreSQL + Redis
+0150: Notification Service
+0151: Push, SMS, Email, WhatsApp
+0152: Node.js + BullMQ
+0153: Redis
+0154: AI Service
+0155: Recommendations, budgeting
+0156: Python + FastAPI
+0157: PostgreSQL + Pinecone
+0158: Analytics Service
+0159: Metrics, dashboards
+0160: Node.js + ClickHouse
+0161: ClickHouse
+0162: Review Service
+0163: Ratings, feedback
+0164: Node.js + Express
+0165: PostgreSQL
+0166: Chat Service
+0167: In-platform messaging
+0168: Node.js + Socket.io
+0169: MongoDB + Redis
+0170: 2.2.4 Data Layer
+0171: PostgreSQL 16 — Primary relational database (ACID compliance)
+0172: Redis 7 — Session store, caching, pub/sub, rate limiting
+0173: Elasticsearch 8 — Vendor search, full-text search, geo-search
+0174: MongoDB — Chat messages, activity logs (document store)
+0175: ClickHouse — Analytics, event tracking, time-series data
+0176: AWS S3 — Media storage (photos, videos, documents)
+0177: Pinecone — Vector database for AI recommendations
+0178: 2.2.5 Infrastructure Layer
+0179: AWS ECS (Fargate) — Container orchestration, zero idle cost
+0180: AWS RDS — Managed PostgreSQL with Multi-AZ for production
+0181: AWS ElastiCache — Managed Redis
+0182: AWS CloudFront — CDN for media, <50ms global latency
+0183: AWS Application Load Balancer — Traffic distribution
+0184: AWS Lambda — Serverless functions for event triggers
+0185: Terraform — Infrastructure as Code (IaC)
+0186: GitHub Actions — CI/CD pipeline
+0187: 2.3 System Interaction Flow
+0188: All system interactions follow this event-driven pattern:
+0189: Client action triggers API request → Kong Gateway validates + routes
+0190: Service processes request → publishes domain event to message queue (RabbitMQ/SQS)
+0191: Downstream services consume events → update their state independently
+0192: WebSocket server pushes real-time update to connected clients
+0193: Analytics service records event for reporting and ML training
+0194: 3. DATABASE DESIGN
+0195: 3.1 Database Philosophy
+0196: Principle: Read-optimized design with write separation. 80% of traffic is reads. Use denormalization where performance demands it. Every critical table has soft deletes, audit columns, and proper indexing.
+0197: 3.2 Core Entity Relationship Overview
+0198: Primary entities and their relationships:
+0199: USERS → has one PROFILE → has many BOOKINGS → has many PAYMENTS
+0200: VENDORS → has one VENDOR_PROFILE → has many PACKAGES → has many BOOKINGS
+0201: BOOKINGS → belongs to USER + VENDOR → has many MILESTONES → has many TASKS
+0202: EVENTS → has many VENDORS → has many TASKS → has one TIMELINE
+0203: PAYMENTS → belongs to BOOKING → has ESCROW_HOLD → releases to VENDOR_WALLET
+0204: 3.3 Complete Database Schema
+0205: 3.3.1 Users & Authentication
+0206: CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  phone VARCHAR(15) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE,
+  email_verified BOOLEAN DEFAULT FALSE,
+  phone_verified BOOLEAN DEFAULT FALSE,
+  password_hash VARCHAR(255),
+  role ENUM('customer','vendor','admin','coordinator') NOT NULL,
+  status ENUM('active','suspended','deleted') DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE TABLE user_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  full_name VARCHAR(255) NOT NULL,
+  avatar_url TEXT,
+  city VARCHAR(100),
+  state VARCHAR(100),
+  language_preference VARCHAR(20) DEFAULT 'en',
+  notification_preferences JSONB DEFAULT '{}',
+  metadata JSONB DEFAULT '{}'
+);
+
+CREATE TABLE refresh_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  token_hash VARCHAR(255) UNIQUE NOT NULL,
+  device_id VARCHAR(255),
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+0207: 3.3.2 Vendor Schema
+0208: CREATE TABLE vendors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  business_name VARCHAR(255) NOT NULL,
+  category ENUM('venue','catering','photography','videography','decor',
+    'makeup','mehendi','music','transport','invitation','priest','other'),
+  sub_categories TEXT[],
+  description TEXT,
+  verification_status ENUM('pending','verified','rejected') DEFAULT 'pending',
+  kyc_status ENUM('not_submitted','submitted','approved','rejected') DEFAULT 'not_submitted',
+  gst_number VARCHAR(20),
+  pan_number VARCHAR(15),
+  cities_served TEXT[],
+  years_experience INTEGER,
+  team_size INTEGER,
+  base_price DECIMAL(12,2),
+  currency VARCHAR(3) DEFAULT 'INR',
+  rating DECIMAL(3,2) DEFAULT 0.00,
+  total_reviews INTEGER DEFAULT 0,
+  total_bookings INTEGER DEFAULT 0,
+  is_featured BOOLEAN DEFAULT FALSE,
+  subscription_tier ENUM('free','premium','enterprise') DEFAULT 'free',
+  subscription_expiry TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE vendor_packages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID REFERENCES vendors(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price DECIMAL(12,2) NOT NULL,
+  price_type ENUM('fixed','per_plate','per_hour','per_day','custom'),
+  inclusions TEXT[],
+  exclusions TEXT[],
+  min_guests INTEGER,
+  max_guests INTEGER,
+  advance_percentage DECIMAL(5,2) DEFAULT 30.00,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+0209: 3.3.3 Booking & Event Schema
+0210: CREATE TABLE bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_number VARCHAR(20) UNIQUE NOT NULL,
+  customer_id UUID REFERENCES users(id),
+  vendor_id UUID REFERENCES vendors(id),
+  event_id UUID REFERENCES events(id),
+  package_id UUID REFERENCES vendor_packages(id),
+  status ENUM('enquiry','quoted','confirmed','advance_paid',
+    'in_progress','completed','cancelled','disputed') DEFAULT 'enquiry',
+  event_date DATE NOT NULL,
+  event_time TIME,
+  event_location TEXT,
+  total_amount DECIMAL(12,2) NOT NULL,
+  advance_amount DECIMAL(12,2),
+  advance_paid BOOLEAN DEFAULT FALSE,
+  final_amount DECIMAL(12,2),
+  special_requirements TEXT,
+  internal_notes TEXT,
+  cancellation_reason TEXT,
+  cancelled_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID REFERENCES users(id),
+  event_name VARCHAR(255) NOT NULL,
+  event_type ENUM('wedding','engagement','reception','sangeet',
+    'mehendi','haldi','birthday','corporate','other'),
+  wedding_date DATE,
+  venue_city VARCHAR(100),
+  total_budget DECIMAL(12,2),
+  allocated_budget DECIMAL(12,2) DEFAULT 0,
+  guest_count INTEGER,
+  status ENUM('planning','confirmed','in_progress','completed','cancelled'),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+0211: 3.3.4 Payment & Escrow Schema
+0212: CREATE TABLE payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  booking_id UUID REFERENCES bookings(id),
+  payer_id UUID REFERENCES users(id),
+  payee_id UUID REFERENCES users(id),
+  amount DECIMAL(12,2) NOT NULL,
+  currency VARCHAR(3) DEFAULT 'INR',
+  payment_type ENUM('advance','milestone','final','refund','platform_fee'),
+  status ENUM('initiated','processing','success','failed','refunded') DEFAULT 'initiated',
+  gateway ENUM('razorpay','stripe','manual'),
+  gateway_order_id VARCHAR(255),
+  gateway_payment_id VARCHAR(255),
+  gateway_signature VARCHAR(500),
+  failure_reason TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE escrow_holds (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  payment_id UUID REFERENCES payments(id),
+  booking_id UUID REFERENCES bookings(id),
+  vendor_id UUID REFERENCES vendors(id),
+  held_amount DECIMAL(12,2) NOT NULL,
+  platform_fee DECIMAL(12,2) NOT NULL,
+  vendor_payout DECIMAL(12,2) NOT NULL,
+  status ENUM('holding','partial_released','fully_released','refunded','disputed'),
+  hold_expiry TIMESTAMPTZ,
+  release_trigger ENUM('manual','auto_7day','customer_confirm','milestone'),
+  released_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+0213: 3.4 Database Indexing Strategy
+0214: Table
+0215: Index Type
+0216: Columns
+0217: Purpose
+0218: vendors
+0219: B-tree
+0220: category, cities_served
+0221: Filtered search
+0222: vendors
+0223: B-tree
+0224: rating DESC
+0225: Sort by rating
+0226: vendors
+0227: GIN
+0228: sub_categories
+0229: Array search
+0230: bookings
+0231: B-tree
+0232: customer_id, status
+0233: User booking list
+0234: bookings
+0235: B-tree
+0236: vendor_id, event_date
+0237: Vendor calendar
+0238: events
+0239: B-tree
+0240: customer_id, wedding_date
+0241: Event lookup
+0242: payments
+0243: B-tree
+0244: booking_id, status
+0245: Payment tracking
+0246: users
+0247: B-tree
+0248: phone, email
+0249: Auth lookup (unique)
+0250: 4. API DESIGN SPECIFICATION
+0251: 4.1 API Architecture Principles
+0252: RESTful conventions: nouns for resources, HTTP verbs for actions
+0253: Versioned endpoints: /api/v1/ (never break existing consumers)
+0254: Consistent response envelope: { success, data, error, meta }
+0255: Pagination: cursor-based for all list endpoints (not offset)
+0256: Rate limiting: 100 req/min (free), 1000 req/min (premium), 10,000 req/min (vendor)
+0257: Authentication: Bearer JWT for all protected routes
+0258: Idempotency keys: required for all payment and booking mutations
+0259: 4.2 Standard Response Format
+0260: // Success Response
+{
+  "success": true,
+  "data": { ... },
+  "meta": {
+    "request_id": "req_01J9X...",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "pagination": {
+      "cursor": "eyJpZCI6...",
+      "has_next": true,
+      "total_count": 1250
+    }
+  }
+}
+
+// Error Response
+{
+  "success": false,
+  "error": {
+    "code": "VENDOR_NOT_AVAILABLE",
+    "message": "This vendor is not available on the selected date",
+    "field": "event_date",
+    "details": { ... }
+  },
+  "meta": { "request_id": "req_01J9X..." }
+}
+0261: 4.3 Authentication API
+0262: Method
+0263: Endpoint
+0264: Description
+0265: Auth
+0266: POST
+0267: /api/v1/auth/send-otp
+0268: Send OTP to phone
+0269: Public
+0270: POST
+0271: /api/v1/auth/verify-otp
+0272: Verify OTP, return JWT
+0273: Public
+0274: POST
+0275: /api/v1/auth/refresh
+0276: Refresh access token
+0277: Refresh Token
+0278: POST
+0279: /api/v1/auth/logout
+0280: Invalidate refresh token
+0281: Bearer JWT
+0282: POST
+0283: /api/v1/auth/google
+0284: Google OAuth login
+0285: Public
+0286: POST
+0287: /api/v1/auth/register-vendor
+0288: Vendor registration
+0289: Public
+0290: GET
+0291: /api/v1/auth/me
+0292: Get current user
+0293: Bearer JWT
+0294: PUT
+0295: /api/v1/auth/change-password
+0296: Change password
+0297: Bearer JWT
+0298: 4.4 Vendor API
+0299: Method
+0300: Endpoint
+0301: Description
+0302: Auth
+0303: GET
+0304: /api/v1/vendors
+0305: Search/list vendors with filters
+0306: Public
+0307: GET
+0308: /api/v1/vendors/:id
+0309: Get vendor profile
+0310: Public
+0311: GET
+0312: /api/v1/vendors/:id/packages
+0313: Get vendor packages
+0314: Public
+0315: GET
+0316: /api/v1/vendors/:id/reviews
+0317: Get vendor reviews
+0318: Public
+0319: GET
+0320: /api/v1/vendors/:id/availability
+0321: Check date availability
+0322: Public
+0323: GET
+0324: /api/v1/vendors/:id/portfolio
+0325: Get portfolio media
+0326: Public
+0327: PUT
+0328: /api/v1/vendors/me
+0329: Update own vendor profile
+0330: Vendor JWT
+0331: POST
+0332: /api/v1/vendors/me/packages
+0333: Create package
+0334: Vendor JWT
+0335: PUT
+0336: /api/v1/vendors/me/packages/:id
+0337: Update package
+0338: Vendor JWT
+0339: POST
+0340: /api/v1/vendors/me/availability/block
+0341: Block dates
+0342: Vendor JWT
+0343: GET
+0344: /api/v1/vendors/me/bookings
+0345: Get own bookings
+0346: Vendor JWT
+0347: GET
+0348: /api/v1/vendors/me/analytics
+0349: Revenue & booking stats
+0350: Vendor JWT
+0351: 4.5 Booking API
+0352: Method
+0353: Endpoint
+0354: Description
+0355: Auth
+0356: POST
+0357: /api/v1/bookings/enquire
+0358: Send booking enquiry to vendor
+0359: Customer JWT
+0360: GET
+0361: /api/v1/bookings/:id
+0362: Get booking details
+0363: JWT (owner)
+0364: GET
+0365: /api/v1/bookings
+0366: List user bookings
+0367: JWT
+0368: PUT
+0369: /api/v1/bookings/:id/accept
+0370: Vendor accepts booking
+0371: Vendor JWT
+0372: PUT
+0373: /api/v1/bookings/:id/quote
+0374: Vendor sends quote
+0375: Vendor JWT
+0376: PUT
+0377: /api/v1/bookings/:id/confirm
+0378: Customer confirms booking
+0379: Customer JWT
+0380: POST
+0381: /api/v1/bookings/:id/pay-advance
+0382: Pay booking advance
+0383: Customer JWT
+0384: PUT
+0385: /api/v1/bookings/:id/cancel
+0386: Cancel booking
+0387: JWT
+0388: PUT
+0389: /api/v1/bookings/:id/complete
+0390: Mark booking complete
+0391: Customer JWT
+0392: POST
+0393: /api/v1/bookings/:id/dispute
+0394: Raise a dispute
+0395: JWT
+0396: 4.6 Event & Execution API
+0397: Method
+0398: Endpoint
+0399: Description
+0400: Auth
+0401: POST
+0402: /api/v1/events
+0403: Create wedding event
+0404: Customer JWT
+0405: GET
+0406: /api/v1/events/:id
+0407: Get event details + timeline
+0408: JWT
+0409: GET
+0410: /api/v1/events/:id/vendors
+0411: All booked vendors for event
+0412: JWT
+0413: GET
+0414: /api/v1/events/:id/tasks
+0415: All tasks for event
+0416: JWT
+0417: PUT
+0418: /api/v1/tasks/:id/status
+0419: Update task status
+0420: JWT
+0421: POST
+0422: /api/v1/events/:id/check-in
+0423: Vendor check-in on event day
+0424: Vendor JWT
+0425: GET
+0426: /api/v1/events/:id/live-status
+0427: Real-time event status
+0428: JWT
+0429: POST
+0430: /api/v1/events/:id/issue
+0431: Report an issue
+0432: JWT
+0433: 4.7 Payment API
+0434: Method
+0435: Endpoint
+0436: Description
+0437: Auth
+0438: POST
+0439: /api/v1/payments/create-order
+0440: Create Razorpay order
+0441: Customer JWT
+0442: POST
+0443: /api/v1/payments/verify
+0444: Verify payment signature
+0445: Customer JWT
+0446: GET
+0447: /api/v1/payments/:id
+0448: Get payment details
+0449: JWT
+0450: GET
+0451: /api/v1/payments/booking/:bookingId
+0452: All payments for booking
+0453: JWT
+0454: POST
+0455: /api/v1/payments/refund
+0456: Initiate refund
+0457: Admin JWT
+0458: POST
+0459: /api/v1/payments/release-escrow
+0460: Release escrow to vendor
+0461: Admin/Auto
+0462: GET
+0463: /api/v1/vendors/me/wallet
+0464: Vendor wallet balance
+0465: Vendor JWT
+0466: POST
+0467: /api/v1/vendors/me/withdraw
+0468: Request payout to bank
+0469: Vendor JWT
+0470: 5. SECURITY ARCHITECTURE
+0471: SECURITY PHILOSOPHY: Zero-trust architecture. Every request is authenticated, every action is authorized, every piece of data is encrypted, every input is validated. Security is not a feature — it is the foundation.
+0472: 5.1 Authentication & Authorization
+0473: 5.1.1 JWT Token Strategy
+0474: Access Token: Short-lived (15 minutes), RS256 signed (asymmetric key)
+0475: Refresh Token: Long-lived (30 days), stored as httpOnly cookie + DB hash
+0476: Token Rotation: Each refresh generates new access + refresh pair
+0477: Token Revocation: Blacklist in Redis with TTL matching token expiry
+0478: Device binding: Refresh tokens bound to device_id fingerprint
+0479: 5.1.2 Role-Based Access Control (RBAC)
+0480: Role
+0481: Permissions
+0482: Scope
+0483: customer
+0484: Read vendors, create bookings, manage own events
+0485: Own resources only
+0486: vendor
+0487: Manage own profile, view/manage own bookings, access Vendor OS
+0488: Own business only
+0489: coordinator
+0490: View all bookings, manage tasks, coordinate events
+0491: Assigned events only
+0492: admin
+0493: Full system access, approve vendors, manage disputes
+0494: System-wide
+0495: super_admin
+0496: All admin + billing, user deletion, system config
+0497: Unrestricted
+0498: 5.1.3 OTP Security
+0499: OTP: 6-digit, cryptographically random, 10-minute expiry
+0500: Rate limiting: 3 OTP requests per phone per 10 minutes
+0501: Lockout: After 5 failed attempts, 30-minute lockout
+0502: OTP never stored in plaintext — SHA-256 hash only
+0503: SMS delivery via Twilio/MSG91 with delivery confirmation
+0504: 5.2 Data Security
+0505: 5.2.1 Encryption
+0506: Data in transit: TLS 1.3 enforced everywhere, HSTS headers
+0507: Data at rest: AES-256 encryption for all S3 objects and DB backups
+0508: PII fields: phone, PAN, bank accounts encrypted with field-level encryption (AES-256-GCM)
+0509: Passwords: bcrypt with cost factor 12 (never use MD5/SHA1)
+0510: Payment data: Tokenized via Razorpay — never stored on our servers
+0511: 5.2.2 PII Data Handling
+0512: DPDP Act (India 2023) compliance built-in from day one
+0513: Data minimization: Collect only what is necessary
+0514: Right to erasure: Soft delete + PII anonymization endpoint
+0515: Consent tracking: All consent events logged with timestamp + IP
+0516: Data retention: 7 years for financial records, 2 years for usage data
+0517: 5.3 API Security
+0518: 5.3.1 Rate Limiting (Kong)
+0519: Endpoint Type
+0520: Limit
+0521: Window
+0522: Action on Breach
+0523: Public endpoints
+0524: 100 req
+0525: 1 minute
+0526: 429 + Retry-After header
+0527: Auth endpoints
+0528: 5 req
+0529: 1 minute
+0530: 429 + temporary IP block
+0531: OTP endpoint
+0532: 3 req
+0533: 10 minutes
+0534: 429 + lockout
+0535: Search endpoint
+0536: 200 req
+0537: 1 minute
+0538: 429
+0539: Payment endpoints
+0540: 20 req
+0541: 1 minute
+0542: 429 + alert
+0543: Vendor OS API
+0544: 1000 req
+0545: 1 minute
+0546: Throttle gracefully
+0547: 5.3.2 Input Validation & Sanitization
+0548: All inputs validated with Zod schema before any processing
+0549: SQL injection: Parameterized queries only via Prisma ORM — no raw SQL with interpolation
+0550: XSS: All output HTML-escaped; Content-Security-Policy headers
+0551: CSRF: SameSite=Strict cookies + CSRF tokens for state-changing requests
+0552: File uploads: Type validation, size limits, virus scan via ClamAV
+0553: Path traversal: All file paths resolved and validated against allowed directories
+0554: 5.4 Infrastructure Security
+0555: VPC: All services in private subnets; only ALB exposed publicly
+0556: Security Groups: Least-privilege network rules between services
+0557: WAF: AWS WAF rules for OWASP Top 10 protection
+0558: Secrets: AWS Secrets Manager (never .env files in production)
+0559: Container security: Read-only file systems, non-root user, no privileged containers
+0560: Dependency scanning: Snyk + GitHub Dependabot in CI/CD pipeline
+0561: SAST: SonarQube static analysis on every PR
+0562: 5.5 Fraud Prevention
+0563: Velocity checks: Flag unusual booking patterns (3+ same-day bookings)
+0564: Device fingerprinting: Detect account sharing / suspicious multi-account
+0565: Payment fraud: Razorpay's built-in fraud detection + custom rules
+0566: Vendor fraud: KYC verification before first payout
+0567: Review fraud: ML-based fake review detection
+0568: Escrow protection: 7-day hold post-event before vendor payout
+0569: 6. CUSTOMER APP — FEATURE SPECIFICATION
+0570: 6.1 Onboarding & Authentication
+0571: Screen: Welcome / Splash
+0572: App logo + tagline animation (Lottie), 2.5s max
+0573: Auto-login check: if valid token → skip to home
+0574: CTA: Get Started / Login
+0575: Screen: Phone OTP Login
+0576: Phone number input with country code picker (default +91)
+0577: OTP sent via SMS + option to resend after 60s
+0578: Auto-read OTP from SMS (Android: SMS User Consent API)
+0579: Google Sign-In as alternative
+0580: Skip option for browse-only mode (limited features)
+0581: Screen: Onboarding Wizard (First-time users)
+0582: Step 1: Wedding type selection (own wedding / relative / corporate)
+0583: Step 2: Approx wedding date picker
+0584: Step 3: City selection (searchable dropdown)
+0585: Step 4: Guest count slider (50 / 100 / 200 / 300 / 500 / 500+)
+0586: Step 5: Budget range selector (₹5L / ₹10L / ₹20L / ₹30L / custom)
+0587: Auto-generates AI Wedding Plan after Step 5
+0588: 6.2 Home Dashboard
+0589: Personalized Home Screen Components
+0590: AI Wedding Plan Card — budget breakdown, days to wedding, completion %
+0591: Active Bookings Widget — vendor count, next milestone
+0592: Vendor Categories Quick Access — 8 category chips with icons
+0593: Featured Vendors Carousel — curated, location-based
+0594: Budget Tracker Mini — spent vs remaining gauge chart
+0595: Upcoming Tasks — next 3 tasks with due dates
+0596: Recently Viewed Vendors — continuation flow
+0597: Seasonal Promotions — contextual offers
+0598: 6.3 AI Wedding Planner Engine
+0599: This is the HOOK FEATURE. First thing user sees after signup. Must feel magical and personalized. This is what differentiates us from every competitor.
+0600: 6.3.1 Plan Generation Algorithm
+0601: Input: city + budget + guest count + event type + date
+0602: AI service retrieves city-specific pricing averages from DB
+0603: Budget allocation algorithm distributes budget across categories
+0604: Generates 3 plan variants: Budget / Standard / Premium
+0605: Each variant shows category budgets + recommended vendors
+0606: User can adjust sliders to customize allocations
+0607: 6.3.2 Budget Allocation Logic (Default — 500 guests, ₹15L)
+0608: Category
+0609: Budget %
+0610: Amount (₹15L)
+0611: Min Vendors Needed
+0612: Venue
+0613: 35%
+0614: ₹5,25,000
+0615: 1
+0616: Catering
+0617: 28%
+0618: ₹4,20,000
+0619: 1
+0620: Decor
+0621: 15%
+0622: ₹2,25,000
+0623: 1
+0624: Photography + Video
+0625: 10%
+0626: ₹1,50,000
+0627: 1–2
+0628: Makeup + Mehendi
+0629: 5%
+0630: ₹75,000
+0631: 2
+0632: Music / DJ
+0633: 4%
+0634: ₹60,000
+0635: 1
+0636: Transport
+0637: 2%
+0638: ₹30,000
+0639: 1
+0640: Invitations
+0641: 1%
+0642: ₹15,000
+0643: 1
+0644: 6.3.3 Plan Features
+0645: Editable: User can drag budget sliders to reallocate
+0646: Shareable: Generate PDF or WhatsApp-share link
+0647: Saveable: Multiple plan versions (Budget / Dream / Final)
+0648: Smart alerts: 'Your catering budget is 15% below market rate for 500 guests'
+0649: Vendor suggestions: Each category shows top 3 recommended vendors in budget
+0650: 6.4 Vendor Discovery
+0651: 6.4.1 Search & Filter
+0652: Search bar with autocomplete (vendor name, category, service)
+0653: Filter: Category, City, Price range, Rating, Availability date, Verified only
+0654: Sort: Relevance / Price (low-high) / Rating / Newest / Most Booked
+0655: Map view: Vendors on Google Maps with cluster pins
+0656: List view: Card layout with photo, rating, price, availability badge
+0657: 6.4.2 Vendor Profile Page — Must Show
+0658: Cover photo + logo, verification badge
+0659: Business name, category, cities served, years experience
+0660: Portfolio gallery: photos grid + video reels (YouTube-style)
+0661: Packages section: All packages with inclusions/exclusions, price
+0662: Reviews section: Verified reviews with photos, avg rating breakdown
+0663: Availability calendar: Booked/available dates at a glance
+0664: Quick actions: Enquire Now / Check Availability / Save / Share
+0665: Similar vendors: 4 recommendations at bottom
+0666: 6.5 Booking Flow
+0667: Step-by-Step Booking UX
+0668: Select Package → review inclusions, price
+0669: Select Date → calendar with real-time availability
+0670: Add Requirements → text field for special requests
+0671: Send Enquiry → vendor receives in-app + SMS + push notification
+0672: Vendor responds with quote (custom or package price)
+0673: Customer reviews quote → Accept/Negotiate/Reject
+0674: Customer confirms → Advance payment trigger
+0675: Advance Payment → Razorpay checkout → Escrow hold
+0676: Booking confirmed → Both parties notified
+0677: Timeline tasks auto-generated for this booking
+0678: 6.6 Event Execution Dashboard
+0679: 6.6.1 Timeline View (Customer)
+0680: T-180 days: Create event, start planning
+0681: T-90 days: Venue confirmed, catering shortlisted
+0682: T-60 days: All major vendors booked, advance paid
+0683: T-30 days: Guest list finalized, invitations sent
+0684: T-14 days: Final headcount, menu confirmed
+0685: T-7 days: Final coordination call with all vendors
+0686: T-1 day: Vendor arrival times, runsheet ready
+0687: Event Day: Real-time check-ins, live status
+0688: T+1 day: Reviews prompt, final payment release
+0689: 6.6.2 Day-Of Dashboard
+0690: Live vendor check-in tracker: Green/Red per vendor
+0691: Timeline of events: Ceremony, reception, dinner timings
+0692: One-tap vendor call / WhatsApp from dashboard
+0693: Issue reporting: Photo + description → escalated to coordinator
+0694: Guest arrival counter (manual input)
+0695: Weather widget for outdoor events
+0696: 6.7 Guest Management
+0697: Import guests: Excel upload / Google Contacts sync
+0698: RSVP tracking: Online RSVP link + manual confirmation
+0699: Group management: Family groups, sides (bride/groom)
+0700: Meal preference tracking (veg/non-veg/Jain)
+0701: Table assignment (for sit-down dinners)
+0702: WhatsApp bulk invite sender integration
+0703: Guest count feeds directly into catering requirements
+0704: 6.8 Budget Tracker
+0705: Real-time: Total budget vs committed vs paid
+0706: Category breakdown: Pie chart of allocations
+0707: Commitment register: All vendor bookings listed
+0708: Overspend alerts: Push notification when 90% budget committed
+0709: Savings suggestions: AI tips to reduce spend
+0710: Export: PDF report for family sharing
+0711: 7. VENDOR OS — B2B SAAS SPECIFICATION
+0712: Vendor OS is the product that ensures vendor retention and locks them in. If vendors love their OS, they will never leave the platform — and their customers follow them.
+0713: 7.1 Vendor Onboarding
+0714: Step 1: Registration
+0715: Business name, category, city, phone (OTP verified)
+0716: GST / PAN number (for KYC)
+0717: Bank account for payouts (verified via penny drop)
+0718: Subscription plan selection (Free → Premium upgrade later)
+0719: Step 2: Profile Setup Wizard
+0720: Portfolio upload: Drag-and-drop, up to 50 photos, 5 videos
+0721: Package creation: Name, description, price, inclusions
+0722: Service area: Cities/areas served (polygon or city list)
+0723: Availability: Set weekly working days + block holidays
+0724: Team info: Number of staff, key team members
+0725: Step 3: Verification
+0726: Document upload: PAN card, Aadhar, business proof
+0727: Admin review: 24–48 hour verification SLA
+0728: Verification badge: Prominent display on profile
+0729: 7.2 Lead Management (CRM)
+0730: 7.2.1 Lead Pipeline View
+0731: Kanban board: New Enquiry → Quoted → Negotiating → Confirmed → Completed
+0732: Lead card: Customer name, event date, budget, service required
+0733: Quick response: Reply to enquiry within app with template or custom message
+0734: Lead scoring: AI suggests priority leads based on conversion probability
+0735: 7.2.2 Enquiry Management
+0736: Instant notification (push + SMS) for new enquiries
+0737: Response templates: Pre-saved responses for common questions
+0738: Quote builder: Select package or create custom quote with line items
+0739: Follow-up reminders: Auto-reminder after 24h if not responded
+0740: Enquiry history: Full conversation thread per booking
+0741: 7.3 Booking Calendar
+0742: Monthly/weekly/daily view of confirmed bookings
+0743: Colour-coded: Advance Paid / Confirmed / Enquiry / Blocked
+0744: Block dates: Personal leave, other commitments
+0745: Booking details: Click any booking → full details
+0746: Conflict prevention: System blocks double-booking on same date
+0747: Upcoming events: 7-day and 30-day view
+0748: 7.4 Financial Dashboard
+0749: 7.4.1 Revenue Tracker
+0750: Total earnings: This month / this quarter / this year
+0751: Pending escrow: Amount held, expected release date
+0752: Payout history: All transfers to bank with status
+0753: Invoice generation: Auto-generate GST invoice per booking
+0754: Tax summary: Monthly TDS, GST collected report
+0755: 7.4.2 Payment Milestones
+0756: Milestone setup: Advance (30%) / Pre-event (40%) / Post-event (30%)
+0757: Customer payment status: Shows which milestones are paid
+0758: Reminder: Auto-send payment reminder to customer for due milestones
+0759: Escrow visibility: See exact held amount and release trigger
+0760: 7.5 Performance Analytics
+0761: Metric
+0762: Description
+0763: Frequency
+0764: Profile Views
+0765: How many couples viewed your profile
+0766: Daily
+0767: Enquiry Rate
+0768: Views → Enquiries conversion %
+0769: Weekly
+0770: Booking Rate
+0771: Enquiries → Bookings conversion %
+0772: Weekly
+0773: Response Time
+0774: Avg time to respond to enquiries
+0775: Real-time
+0776: Rating Trend
+0777: Rating over last 12 months
+0778: Monthly
+0779: Revenue Per Event
+0780: Average booking value
+0781: Monthly
+0782: Competitor Benchmark
+0783: Your rank vs similar vendors
+0784: Monthly
+0785: Lead Sources
+0786: Where your leads are coming from
+0787: Monthly
+0788: 7.6 Vendor Subscription Tiers
+0789: Feature
+0790: Free
+0791: Premium (₹1999/mo)
+0792: Enterprise (₹4999/mo)
+0793: Profile Page
+0794: Basic
+0795: Enhanced + Featured Badge
+0796: Priority Position
+0797: Portfolio Photos
+0798: 20
+0799: Unlimited
+0800: Unlimited + Video
+0801: Packages
+0802: 3
+0803: Unlimited
+0804: Unlimited
+0805: Lead Access
+0806: 5/month
+0807: Unlimited
+0808: Unlimited + Priority
+0809: Analytics
+0810: Basic
+0811: Full Dashboard
+0812: Full + Export
+0813: CRM / Pipeline
+0814: No
+0815: Yes
+0816: Yes + AI Insights
+0817: Invoice Generation
+0818: No
+0819: Yes
+0820: Yes + GST Reports
+0821: Priority Support
+0822: No
+0823: Yes
+0824: Dedicated Manager
+0825: Booking Calendar
+0826: Basic
+0827: Full + Sync
+0828: Full + API Access
+0829: Commission Rate
+0830: 12%
+0831: 10%
+0832: 8%
+0833: 8. EXECUTION ENGINE — THE SECRET WEAPON
+0834: The Execution Engine is what no competitor has built. This is the moat. While others stop at booking, we own the entire event lifecycle from day of booking to day of event and beyond.
+0835: 8.1 Task & Timeline Engine
+0836: 8.1.1 Auto-Generated Task Templates
+0837: When a booking is confirmed, the system auto-generates a task list based on:
+0838: Event type (wedding, reception, mehendi, etc.)
+0839: Days until event (D-90, D-60, D-30, D-14, D-7, D-1, D+0, D+1)
+0840: Which vendors are booked and which are still needed
+0841: Budget allocation — tasks for pending vendor categories
+0842: Sample auto-generated tasks for a 90-day wedding:
+0843: Task
+0844: Due
+0845: Owner
+0846: Dependency
+0847: Book venue
+0848: D-90
+0849: Customer
+0850: None
+0851: Finalize catering menu
+0852: D-60
+0853: Customer + Caterer
+0854: Venue booked
+0855: Send save-the-dates
+0856: D-60
+0857: Customer
+0858: Guest list ready
+0859: Photography briefing call
+0860: D-30
+0861: Customer + Photographer
+0862: Booking confirmed
+0863: Final headcount to caterer
+0864: D-14
+0865: Customer
+0866: RSVPs collected
+0867: Create vendor runsheet
+0868: D-7
+0869: Coordinator
+0870: All vendors confirmed
+0871: Venue walkthrough
+0872: D-3
+0873: Customer + Venue
+0874: None
+0875: Vendor arrival briefing
+0876: D-1
+0877: All vendors
+0878: Runsheet shared
+0879: Vendor check-in
+0880: D+0 morning
+0881: Coordinator
+0882: None
+0883: Release escrow payment
+0884: D+1
+0885: System (auto)
+0886: Customer confirms
+0887: 8.2 Event Day Coordination System
+0888: 8.2.1 Day-Of Flow
+0889: D-1: System sends runsheet to all vendors via WhatsApp + in-app
+0890: Event day 8 AM: Auto-reminder push to all vendors with event details
+0891: Vendor check-in: Tap 'I have arrived' button with GPS verification
+0892: Coordinator sees live check-in status dashboard
+0893: Alert: Any vendor not checked in 30 min before scheduled time → escalation
+0894: Real-time issue reporting: Anyone can flag an issue → coordinator notified
+0895: Event completion: Customer marks event complete
+0896: Post-event: Escrow auto-release trigger after 7-day window
+0897: 8.2.2 Runsheet Engine
+0898: Auto-generated based on event type and booked vendors
+0899: Customizable: Drag-and-drop timeline editing
+0900: Shared with: All vendors, customer, coordinator
+0901: Format: In-app + PDF + WhatsApp message
+0902: Contains: Vendor name, contact, arrival time, task, duration
+0903: 8.3 Real-Time Notification Engine
+0904: 8.3.1 Notification Channels
+0905: Channel
+0906: Use Case
+0907: Priority
+0908: Cost
+0909: In-App Push
+0910: All activity notifications
+0911: All levels
+0912: Free
+0913: SMS (MSG91)
+0914: OTP, booking confirmed, payment
+0915: High
+0916: ₹0.12/SMS
+0917: WhatsApp (360dialog)
+0918: Runsheet, D-day reminders
+0919: High
+0920: ₹0.30/msg
+0921: Email (SendGrid)
+0922: Receipts, reports, invoices
+0923: Medium
+0924: Free tier
+0925: WebSocket
+0926: Real-time: check-ins, chat, status
+0927: Instant
+0928: Free
+0929: 8.3.2 Notification Templates
+0930: Booking enquiry: 'New enquiry from [Name] for [Date]'
+0931: Booking confirmed: 'Your booking with [Vendor] is confirmed! ₹[Amount] advance received.'
+0932: Payment received: 'Payment of ₹[Amount] received for [Event]'
+0933: Task due: '[Task Name] is due in 3 days'
+0934: Vendor check-in: '[Vendor Name] has arrived at your venue'
+0935: Escrow release: 'Payment of ₹[Amount] released to your account'
+0936: 8.4 Dispute Resolution System
+0937: 8.4.1 Dispute Flow
+0938: Customer/Vendor raises dispute within 48h of event
+0939: System freezes escrow payment
+0940: Both parties submit evidence (photos, messages, contract)
+0941: Platform coordinator reviews within 72 hours
+0942: Resolution: Full release / Partial release / Full refund
+0943: Decision communicated with reason to both parties
+0944: Appeals: One appeal allowed within 7 days
+0945: 8.4.2 Dispute Categories & Default Resolutions
+0946: Dispute Type
+0947: Evidence Required
+0948: Default Resolution
+0949: Vendor no-show
+0950: GPS check-in logs, customer photo
+0951: Full refund to customer
+0952: Quality not as promised
+0953: Photos vs portfolio comparison
+0954: 50% refund, case-by-case
+0955: Service incomplete
+0956: Checklist vs deliverables
+0957: Proportional refund
+0958: Customer cancellation
+0959: Booking cancellation policy
+0960: Per policy (30–100% retention
+0961: Damage claims
+0962: Photos, vendor statement
+0963: Insurance/case-by-case
+0964: 9. AI/ML LAYER SPECIFICATION
+0965: 9.1 AI Features Overview
+0966: AI Feature
+0967: Input
+0968: Output
+0969: Model
+0970: Budget Optimizer
+0971: City, guests, budget, event type
+0972: Category-wise budget breakdown
+0973: Custom regression model
+0974: Vendor Recommender
+0975: User preferences, bookings, rating
+0976: Ranked vendor list
+0977: Collaborative filtering
+0978: Price Predictor
+0979: Vendor, date, guests, city
+0980: Price estimate range
+0981: XGBoost regression
+0982: Review Analyzer
+0983: Review text
+0984: Sentiment, authenticity score
+0985: Fine-tuned BERT
+0986: Fraud Detector
+0987: User behavior patterns
+0988: Risk score 0–100
+0989: Isolation Forest
+0990: Smart Scheduling
+0991: Vendor availability, event timeline
+0992: Optimal task schedule
+0993: Constraint optimization
+0994: Chatbot (Planning)
+0995: User questions
+0996: Wedding planning guidance
+0997: Claude API / GPT-4o
+0998: 9.2 Budget Optimizer Implementation
+0999: The budget optimizer is a rule-based + ML hybrid. Rules handle basic allocation; ML personalizes based on historical data from similar weddings in the same city.
+1000: 9.2.1 Algorithm
+1001: Base allocation: Fixed % weights per category (from 6.3.2)
+1002: City adjustment: Apply city-specific cost multipliers (e.g., Mumbai ×1.4 vs Hyderabad ×1.0)
+1003: Guest adjustment: Non-linear scaling (500 guests ≠ 2× cost of 250 guests)
+1004: Seasonal adjustment: Peak season (Nov–Feb) costs 15–25% more
+1005: Personalization: Based on similar user profiles and past platform data
+1006: Output: 3 tiers (Budget/Standard/Premium) with confidence intervals
+1007: 9.3 Vendor Recommendation Engine
+1008: 9.3.1 Ranking Algorithm (Multi-Factor)
+1009: Score = (Rating × 0.30) + (Relevance × 0.25) + (Availability × 0.20) + (Price Match × 0.15) + (Response Rate × 0.10)
+1010: Rating: Normalized avg rating × review count log
+1011: Relevance: TF-IDF similarity between user requirements and vendor tags
+1012: Availability: Penalize vendors with <30% availability in requested month
+1013: Price Match: How closely vendor pricing matches user's budget segment
+1014: Response Rate: Vendors who reply within 2h rank higher
+1015: 9.4 AI Planning Chatbot
+1016: Powered by Claude API (claude-sonnet-4) with system prompt optimized for wedding planning
+1017: Context: User's event details, booked vendors, budget, city automatically injected
+1018: Capabilities: Answer questions, suggest vendors, explain tasks, provide etiquette advice
+1019: Escalation: Complex queries escalated to human coordinator
+1020: Language: English + Hindi + Telugu (regional languages Phase 4)
+1021: 10. PAYMENT & ESCROW SYSTEM
+1022: The escrow system is the single biggest trust-builder in the platform. Customers are protected from vendor fraud. Vendors are protected from customer cancellations. The platform earns on every transaction.
+1023: 10.1 Payment Flow Architecture
+1024: 10.1.1 Complete Payment Journey
+1025: Customer initiates payment → POST /api/v1/payments/create-order
+1026: Server creates Razorpay order → returns order_id to client
+1027: Client opens Razorpay checkout (UPI, cards, NetBanking, wallets)
+1028: Customer completes payment → Razorpay sends webhook to our server
+1029: Server verifies webhook signature (HMAC-SHA256)
+1030: Payment recorded in DB → Escrow hold created
+1031: Booking status updated → Notifications sent to all parties
+1032: Platform fee deducted (10%) → Vendor payout amount calculated
+1033: Escrow hold until event completion + 7-day review window
+1034: Vendor payout triggered → Razorpay payout to vendor bank account
+1035: 10.2 Escrow Logic
+1036: 10.2.1 Escrow States
+1037: State
+1038: Description
+1039: Trigger
+1040: HOLDING
+1041: Money received, waiting for event
+1042: Payment verified
+1043: PARTIAL_RELEASED
+1044: Some milestones released
+1045: Milestone completed + confirmed
+1046: RELEASE_PENDING
+1047: Customer marked event complete, 7-day window
+1048: Event completion
+1049: FULLY_RELEASED
+1050: Full vendor payout sent
+1051: 7-day window passed or manual release
+1052: DISPUTED
+1053: Dispute raised, frozen
+1054: Dispute filed within 48h of event
+1055: REFUNDED
+1056: Customer refund processed
+1057: Dispute resolved in customer's favour
+1058: 10.2.2 Auto-Release Rules
+1059: Auto-release after 7 days post-event if no dispute filed
+1060: Immediate release if customer explicitly confirms satisfaction
+1061: Partial release for milestone-based bookings (photography delivery, etc.)
+1062: Weekend/holiday buffer: Auto-release process runs on business days only
+1063: 10.3 Platform Fee Structure
+1064: Transaction Type
+1065: Platform Fee
+1066: GST on Fee
+1067: Net to Platform
+1068: Standard booking
+1069: 10%
+1070: 18% on fee
+1071: 8.2% net
+1072: Premium vendor booking
+1073: 8%
+1074: 18% on fee
+1075: 6.56% net
+1076: Featured vendor booking
+1077: 10% + ₹500 premium
+1078: 18%
+1079: Higher margin
+1080: Cancellation penalty
+1081: 2% retention
+1082: 18%
+1083: Processing fee cover
+1084: 10.4 Razorpay Integration Details
+1085: 10.4.1 Razorpay Features Used
+1086: Payment Gateway: Cards, UPI, NetBanking, Wallets (Paytm, PhonePe)
+1087: Razorpay Route: Split payments for instant partial payout to vendors
+1088: Razorpay Payouts: Bulk payouts to vendor bank accounts via IMPS/NEFT
+1089: Razorpay Subscriptions: Vendor SaaS subscription billing
+1090: Razorpay Webhook: Payment events consumed via verified HMAC-SHA256
+1091: 10.4.2 Webhook Handler Security
+1092: // CRITICAL: Always verify Razorpay webhook signature
+const crypto = require('crypto');
+
+function verifyWebhookSignature(body, signature, secret) {
+  const expectedSig = crypto
+    .createHmac('sha256', secret)
+    .update(JSON.stringify(body))
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(expectedSig), Buffer.from(signature)
+  );
+}
+1093: 10.5 Vendor Payout System
+1094: Payout schedule: Daily batch at 10 PM for all released escrows
+1095: Minimum payout: ₹500 (smaller amounts accumulate in wallet)
+1096: Payout method: IMPS (instant) for <₹2L, NEFT for larger
+1097: Bank verification: Penny drop verification before first payout
+1098: TDS deduction: 1% TDS on payouts >₹30,000 per year (Form 26AS)
+1099: GST compliance: Auto-generate invoice for each payout
+1100: 11. PERFORMANCE ARCHITECTURE
+1101: TARGET BENCHMARKS: API P99 < 200ms | App startup < 3s | Search results < 500ms | Image load < 1s | 99.9% uptime | Support 100,000 concurrent users by Year 2
+1102: 11.1 Caching Strategy
+1103: 11.1.1 Cache Layers
+1104: Layer
+1105: Technology
+1106: What is Cached
+1107: TTL
+1108: CDN
+1109: AWS CloudFront
+1110: Static assets, images, videos
+1111: 1 year (with versioning)
+1112: Application Cache
+1113: Redis
+1114: Vendor search results
+1115: 5 minutes
+1116: Application Cache
+1117: Redis
+1118: User session data
+1119: 15 minutes
+1120: Application Cache
+1121: Redis
+1122: Vendor profiles (hot)
+1123: 30 minutes
+1124: Application Cache
+1125: Redis
+1126: AI recommendations
+1127: 1 hour
+1128: DB Query Cache
+1129: PostgreSQL
+1130: Common filtered queries
+1131: Query-level
+1132: Mobile Cache
+1133: SQLite (Flutter)
+1134: User bookings, events
+1135: Offline-capable
+1136: Browser Cache
+1137: Service Worker
+1138: Static app shell
+1139: Indefinite
+1140: 11.1.2 Cache Invalidation Strategy
+1141: Write-through: On any vendor profile update → invalidate vendor cache
+1142: Event-driven: Domain events trigger cache invalidation via Redis pub/sub
+1143: TTL-based: All caches have max TTL as safety net
+1144: Selective: Only invalidate the specific vendor/booking, not entire namespace
+1145: 11.2 Database Performance
+1146: 11.2.1 Connection Pooling
+1147: PgBouncer: Connection pooler in front of PostgreSQL (transaction mode)
+1148: Pool size: min 10, max 100 connections per service
+1149: Idle timeout: 30 minutes
+1150: Max connection age: 1 hour (prevents connection leaks)
+1151: 11.2.2 Query Optimization Rules
+1152: All queries use indexed columns in WHERE clauses
+1153: N+1 query prevention: Use JOINs or DataLoader for batch fetching
+1154: Large result sets: Always cursor-paginate, never fetch >1000 rows
+1155: Read replicas: All GET endpoints read from replica; writes go to primary
+1156: EXPLAIN ANALYZE: Required in PR review for any new query
+1157: 11.3 Scalability Design
+1158: 11.3.1 Horizontal Scaling Triggers
+1159: Service
+1160: Scale Trigger
+1161: Scale Action
+1162: Max Instances
+1163: API Gateway
+1164: CPU >70% or RPS >5000
+1165: Add ECS task
+1166: 20
+1167: Auth Service
+1168: CPU >60%
+1169: Add ECS task
+1170: 10
+1171: Search Service
+1172: P99 latency >300ms
+1173: Add ECS task + Elasticsearch node
+1174: 8
+1175: Notification Service
+1176: Queue depth >10,000
+1177: Add consumer
+1178: 15
+1179: AI Service
+1180: CPU >80%
+1181: Add ECS task (GPU optional)
+1182: 5
+1183: WebSocket Service
+1184: Connections >10,000/pod
+1185: Add pod
+1186: 10
+1187: 11.4 Mobile Performance
+1188: Image optimization: WebP format, lazy loading, progressive JPEG fallback
+1189: Bundle splitting: Route-based code splitting, <500KB initial bundle
+1190: Offline mode: SQLite local DB + sync queue for poor network areas
+1191: Network resilience: Retry logic with exponential backoff
+1192: Animation: 60fps target; complex animations on separate Isolate (Flutter)
+1193: Memory: Max 150MB RAM usage target; dispose resources properly
+1194: 11.5 Infrastructure Cost Optimization
+1195: Zero INR infrastructure philosophy: Start free, scale efficiently. Use managed services that start cheap and scale with revenue.
+1196: Phase
+1197: Monthly Infra Cost
+1198: Strategy
+1199: Validation (0–2 months)
+1200: ₹0
+1201: AWS Free Tier, Vercel free, Supabase free
+1202: MVP (2–5 months)
+1203: ₹5,000–15,000
+1204: t3.small RDS, ECS Fargate minimal
+1205: Traction (5–10 months)
+1206: ₹30,000–60,000
+1207: Auto-scaling kicks in with revenue
+1208: Growth (10–18 months)
+1209: ₹1–3L/month
+1210: Multi-AZ, Read replicas, ElastiCache
+1211: Scale (18+ months)
+1212: ₹5–15L/month
+1213: Multi-region, CDN, dedicated resources
+1214: 12. DEVOPS, CI/CD & INFRASTRUCTURE
+1215: 12.1 Repository Structure
+1216: wedding-os/
+├── apps/
+│   ├── mobile/           # Flutter app
+│   ├── web/              # Next.js customer web
+│   ├── vendor-web/       # React.js Vendor OS
+│   └── admin/            # React.js Admin Panel
+├── services/
+│   ├── api-gateway/      # Kong configuration
+│   ├── auth-service/     # Authentication microservice
+│   ├── user-service/     # User management
+│   ├── vendor-service/   # Vendor profiles
+│   ├── search-service/   # Elasticsearch service
+│   ├── booking-service/  # Booking management
+│   ├── payment-service/  # Payment + Escrow
+│   ├── execution-service/# Tasks + Timeline
+│   ├── notification-service/ # Multi-channel notifications
+│   ├── ai-service/       # Python FastAPI AI service
+│   └── chat-service/     # WebSocket chat
+├── packages/
+│   ├── shared-types/     # TypeScript types (shared)
+│   ├── shared-utils/     # Common utilities
+│   └── ui-components/    # Shared React components
+├── infrastructure/
+│   ├── terraform/        # IaC for all environments
+│   ├── docker/           # Dockerfiles
+│   └── k8s/              # Kubernetes configs (Phase 3+)
+└── docs/                 # API docs, architecture diagrams
+1217: 12.2 CI/CD Pipeline
+1218: 12.2.1 GitHub Actions Workflow
+1219: PR Created → Trigger: lint + type-check + unit tests
+1220: All tests pass → Trigger: SAST (SonarQube) + dependency scan (Snyk)
+1221: Security gate passed → Build Docker image + tag with commit SHA
+1222: Merge to develop → Deploy to staging environment (auto)
+1223: Manual approval → Deploy to production (one-click)
+1224: Post-deploy → Smoke tests + health check + Slack notification
+1225: 12.2.2 Environment Strategy
+1226: Environment
+1227: Branch
+1228: Purpose
+1229: Deploy Trigger
+1230: Local
+1231: feature/*
+1232: Developer testing
+1233: Manual
+1234: Staging
+1235: develop
+1236: QA + integration testing
+1237: Auto on merge to develop
+1238: Pre-prod
+1239: release/*
+1240: Final validation, load test
+1241: Auto on release branch
+1242: Production
+1243: main
+1244: Live users
+1245: Manual approval required
+1246: 12.3 Monitoring & Observability
+1247: 12.3.1 Three Pillars of Observability
+1248: Metrics: CloudWatch + Grafana dashboards (system + business metrics)
+1249: Logs: Structured JSON logging → AWS CloudWatch Logs → Loki
+1250: Traces: OpenTelemetry → Jaeger for distributed request tracing
+1251: 12.3.2 Key Alerts
+1252: API error rate >1% → PagerDuty alert → On-call engineer
+1253: P99 latency >500ms for >5 minutes → Auto-scale + alert
+1254: Payment service down → CRITICAL → Immediate escalation
+1255: DB CPU >80% → Alert + auto read-replica creation
+1256: Escrow payment stuck >48h → Manual review alert
+1257: 12.4 Disaster Recovery
+1258: RTO (Recovery Time Objective): 1 hour
+1259: RPO (Recovery Point Objective): 15 minutes
+1260: DB backups: Automated daily snapshots + point-in-time recovery
+1261: Multi-AZ: Primary DB + hot standby in different AZ
+1262: Runbook: Documented recovery procedures for all failure scenarios
+1263: DR drill: Monthly tabletop exercise + quarterly actual failover test
+1264: 13. PHASE-WISE IMPLEMENTATION PLAN
+1265: 13.1 Phase Overview
+1266: Phase
+1267: Duration
+1268: Goal
+1269: Revenue Target
+1270: Phase 1: Validation
+1271: Month 0–2
+1272: Prove demand without heavy tech
+1273: ₹0 (invest mode)
+1274: Phase 2: MVP
+1275: Month 2–5
+1276: Live bookable platform
+1277: ₹1–5L GMV/month
+1278: Phase 3: Traction
+1279: Month 5–10
+1280: Product-market fit
+1281: ₹50L+ GMV/month
+1282: Phase 4: Differentiation
+1283: Month 10–18
+1284: Execution Engine live
+1285: ₹2Cr+ GMV/month
+1286: Phase 5: Scale
+1287: Month 18+
+1288: Multi-city, AI-powered
+1289: ₹20Cr+ GMV/month
+1290: 13.2 Phase 1: Validation (Month 0–2)
+1291: RULE: Do NOT write complex code in Phase 1. Use no-code tools. Validate demand with a landing page and manual operations.
+1292: 13.2.1 What to Build
+1293: Landing page (Next.js or Webflow): Wedding planner tool, vendor discovery
+1294: Google Form: Vendor onboarding application form
+1295: Airtable: Vendor database (manual CRM replacement)
+1296: WhatsApp Business: Customer support and lead qualification
+1297: Instagram: Organic content — 'Perfect Hyderabad wedding' series
+1298: 13.2.2 Validation Metrics (Go/No-Go for Phase 2)
+1299: 500+ landing page visitors in first 30 days
+1300: 50+ vendor onboarding applications
+1301: 10+ couples complete AI budget planner form
+1302: 3+ couples willing to pay advance through platform (test payment link)
+1303: 13.3 Phase 2: MVP (Month 2–5)
+1304: 13.3.1 Tech Stack Decisions
+1305: Backend: Node.js + Express (monolith first, break into services at Month 5)
+1306: Database: PostgreSQL on Supabase (managed, free tier starts)
+1307: Frontend: Next.js web + basic Flutter mobile
+1308: Auth: Supabase Auth (OTP + JWT built-in)
+1309: Payments: Razorpay test mode → production at Month 3
+1310: Storage: Supabase Storage (S3-compatible, free tier 1GB)
+1311: 13.3.2 MVP Feature Set (Strict Priority)
+1312: Feature
+1313: Priority
+1314: Effort (days)
+1315: Week Target
+1316: OTP Auth (Phone)
+1317: P0
+1318: 3
+1319: Week 1
+1320: Vendor Profile CRUD
+1321: P0
+1322: 5
+1323: Week 1–2
+1324: Vendor Search (basic)
+1325: P0
+1326: 4
+1327: Week 2
+1328: Enquiry System
+1329: P0
+1330: 3
+1331: Week 2–3
+1332: Booking Confirmation
+1333: P0
+1334: 4
+1335: Week 3
+1336: Razorpay Integration
+1337: P0
+1338: 5
+1339: Week 3–4
+1340: Basic Escrow Hold
+1341: P0
+1342: 4
+1343: Week 4
+1344: Push Notifications
+1345: P1
+1346: 3
+1347: Week 5
+1348: Vendor Dashboard
+1349: P1
+1350: 6
+1351: Week 5–6
+1352: AI Budget Planner (v1)
+1353: P1
+1354: 8
+1355: Week 7–8
+1356: Review System
+1357: P1
+1358: 4
+1359: Week 8
+1360: Customer Dashboard
+1361: P1
+1362: 5
+1363: Week 8–10
+1364: 13.4 Phase 3: Traction (Month 5–10)
+1365: 13.3.1 Features to Add
+1366: Advanced search with Elasticsearch
+1367: Full Vendor OS (CRM, analytics, subscription)
+1368: Guest management module
+1369: Budget tracker with real-time updates
+1370: SMS + WhatsApp notifications
+1371: Admin panel (vendor verification, dispute management)
+1372: Review system with photo uploads
+1373: Referral system (₹500 per successful referral)
+1374: 13.5 Phase 4: Differentiation (Month 10–18)
+1375: 13.5.1 The Moat Features
+1376: Execution Engine: Task system, timeline, day-of dashboard
+1377: Escrow 2.0: Milestone-based release, automated payout
+1378: AI Planner 2.0: Personalized recommendations, chatbot
+1379: Vendor Verification 2.0: Video verification, physical visit (premium)
+1380: Coordinator Portal: Assigned coordinators manage events
+1381: Analytics 2.0: ClickHouse-powered real-time business intelligence
+1382: 13.6 Phase 5: Scale (Month 18+)
+1383: City expansion: Mumbai, Delhi, Bangalore, Chennai, Pune
+1384: Vernacular language support: Hindi, Telugu, Tamil, Marathi
+1385: Wedding loans: Partner with NBFC for wedding financing
+1386: Insurance: Wedding insurance product integration
+1387: Corporate events: Expand execution engine to corporate segment
+1388: International: NRI weddings — India-destination wedding planning
+1389: 14. AI DEVELOPER PROMPT LIBRARY
+1390: Use these prompts verbatim with Claude/GPT-4 to generate production-quality code for each module. Always provide the database schema and existing code context with each prompt.
+1391: 14.1 Auth Service Prompt
+1392: SYSTEM CONTEXT: You are a senior Node.js backend engineer building a production wedding platform.
+TECH: Node.js 20, Express.js, Prisma ORM, PostgreSQL, Redis, JWT RS256.
+
+TASK: Build the complete Authentication Service with these endpoints:
+- POST /auth/send-otp: Generate cryptographically random 6-digit OTP, hash with SHA-256, store in Redis with 10min TTL, send via MSG91 SMS API
+- POST /auth/verify-otp: Retrieve hashed OTP from Redis, compare, generate RS256 JWT (15min) + refresh token (30 days), store refresh token hash in PostgreSQL, set httpOnly cookie
+- POST /auth/refresh: Validate refresh token from cookie, check not revoked in DB, issue new token pair (rotate)
+- POST /auth/logout: Revoke refresh token in DB, blacklist access token in Redis
+
+REQUIREMENTS:
+- Rate limit: 3 OTP requests per phone per 10 minutes (Redis counter)
+- Lockout: 5 failed OTP attempts → 30-min lockout (Redis key)
+- All tokens validated against Redis blacklist on every request
+- Zod validation on all inputs
+- Proper error codes: INVALID_OTP, OTP_EXPIRED, RATE_LIMITED, ACCOUNT_LOCKED
+- Full TypeScript with interfaces
+
+Generate: Complete production code for all 4 endpoints including middleware, error handling, and tests.
+1393: 14.2 Vendor Search Prompt
+1394: SYSTEM CONTEXT: Senior engineer, Elasticsearch 8, Node.js, production wedding platform.
+Database: PostgreSQL (vendor data) + Elasticsearch (search index).
+
+TASK: Build vendor search with:
+- Full-text search on business_name, description, services
+- Filter: category (enum), cities_served (array), price_min/max, rating_min, availability_date, verified_only
+- Sort: relevance, price_asc, price_desc, rating_desc, newest
+- Geo search: vendors within X km of lat/lng
+- Pagination: cursor-based
+- Elasticsearch index mapping with nested availability objects
+- Auto-complete endpoint for search suggestions
+
+PERFORMANCE: Results in <500ms including DB lookup for photos.
+RANKING: Custom scoring using rating, response_rate, completion_rate, featured status.
+
+Generate: Elasticsearch index mapping, Node.js route handler, query builder, and sync mechanism to keep ES in sync with PostgreSQL.
+1395: 14.3 Payment & Escrow Prompt
+1396: SYSTEM CONTEXT: Senior Node.js engineer. Production payment system. India market.
+Stack: Node.js, Razorpay SDK, PostgreSQL, Redis, Prisma.
+
+TASK: Build complete Razorpay escrow payment flow:
+1. POST /payments/create-order: Create Razorpay order, store in DB with idempotency key
+2. POST /payments/verify: Verify HMAC-SHA256 webhook signature, update payment status, create escrow_hold record, update booking status
+3. POST /payments/release-escrow: Admin/auto trigger, calculate platform fee (10%), initiate Razorpay payout to vendor bank, update escrow status
+4. Webhook handler: Verify signatures, handle payment.captured, payment.failed, refund.created events
+
+REQUIREMENTS:
+- Idempotency: Duplicate webhooks must not double-process
+- Atomic transactions: Payment verification + escrow creation in single DB transaction
+- All amounts in paise (Razorpay standard), stored in rupees (divide by 100 before storing)
+- Full audit log for every state transition
+- Retry logic for failed payouts (3 retries with exponential backoff)
+- TDS deduction: Track cumulative payout per vendor, deduct 1% when >₹30,000
+
+Generate: Complete production implementation with webhook handler, escrow logic, and payout system.
+1397: 14.4 Flutter Mobile App Prompt
+1398: SYSTEM CONTEXT: Senior Flutter developer. Production wedding app for India market.
+Stack: Flutter 3.19, Riverpod 2.0, Dio, go_router, Isar (local DB), Firebase Messaging.
+
+TASK: Build the complete Vendor Discovery screen with:
+- Search bar with debounced API calls (300ms)
+- Filter bottom sheet: category chips, price range slider, rating stars, date picker
+- Vendor list: LazyList with Card widget (photo, name, rating, price, availability badge)
+- Map view toggle: Google Maps with vendor markers, clustering
+- Skeleton loading states during API calls
+- Error state with retry
+- Offline mode: Show cached results from Isar DB
+- Smooth 60fps scrolling with efficient image caching (cached_network_image)
+- Share vendor: Deep link generation
+- Save vendor: Heart button with optimistic UI update
+
+STATE MANAGEMENT: Riverpod AsyncNotifier for search state, FilterState for filter state.
+PERFORMANCE: Implement virtual scrolling for >100 results.
+
+Generate: Complete screens, providers, models, and API integration code.
+1399: 14.5 AI Budget Planner Prompt
+1400: SYSTEM CONTEXT: Python FastAPI engineer. AI budget planning service for Indian weddings.
+Stack: Python 3.11, FastAPI, PostgreSQL (SQLAlchemy), pandas, scikit-learn.
+
+TASK: Build the Wedding Budget Optimizer API:
+POST /ai/budget-plan
+Input: { city, budget_inr, guest_count, event_type, wedding_date }
+Output: {
+  plan_basic: { venue: X, catering: X, decor: X, ... },
+  plan_standard: { ... },
+  plan_premium: { ... },
+  insights: ["Your catering budget is 15% below market for 500 guests in Hyderabad"],
+  vendor_suggestions: { venue: [vendor_id1, vendor_id2], ... }
+}
+
+ALGORITHM:
+1. Base allocation weights per category (hardcoded business logic)
+2. City cost multipliers (Hyderabad=1.0, Mumbai=1.35, Delhi=1.25, Bangalore=1.20)
+3. Guest-based scaling (non-linear: venue cost doesn't scale linearly with guests)
+4. Seasonal pricing (+15% Nov-Feb peak, +10% Oct, -10% Jun-Aug)
+5. Generate smart insights comparing to historical bookings data
+
+DATA: Query platform historical booking data for price benchmarks.
+FALLBACK: Rule-based calculation when historical data insufficient.
+
+Generate: Complete FastAPI service with endpoint, algorithm, and unit tests.
+1401: 14.6 Execution Engine / Task System Prompt
+1402: SYSTEM CONTEXT: Senior Node.js engineer. Task and timeline system for event management.
+Stack: Node.js, PostgreSQL, Redis, BullMQ (job queue), Socket.io.
+
+TASK: Build the Event Execution Engine:
+1. Task auto-generation: When booking confirmed, generate tasks from template based on event_type and days_until_event
+2. Task templates: Stored in DB with relative day offsets (D-90, D-60, etc.) and category assignments
+3. Task management API: List, update status, assign, add custom tasks
+4. Timeline visualization data: Return ordered task list with status for frontend Gantt chart
+5. Due date alerts: BullMQ job for each task → publish to notification service when due
+6. Event day check-in: Vendors check-in via API with GPS coordinates, broadcast to all stakeholders via Socket.io
+7. Real-time status: WebSocket room per event_id, broadcast task status changes instantly
+
+SCHEMA: Use existing events, bookings, tasks, task_templates tables.
+PERFORMANCE: Socket.io with Redis adapter for horizontal scaling.
+
+Generate: Complete service implementation with Socket.io events, BullMQ workers, and REST API.
+1403: 15. GO-TO-MARKET STRATEGY
+1404: 15.1 Launch City: Hyderabad
+1405: Why Hyderabad first:
+1406: ₹15,000–40,000 Crore local wedding market
+1407: Tech-savvy population, high smartphone penetration
+1408: Strong Telugu diaspora — referral-friendly
+1409: Lower competition from national platforms
+1410: Good vendor density: 2,000+ wedding vendors in city
+1411: Founder's location advantage (lower acquisition cost)
+1412: 15.2 Vendor Acquisition Strategy
+1413: Month 0–2: Groundwork
+1414: Visit 200 vendors in person: Function halls, photographers, caterers
+1415: Pitch: 'Free listing + guaranteed leads + no commission for 3 months'
+1416: Target: 50 vendors onboarded before customer launch
+1417: Incentive: Featured badge for first 50 vendors (lifetime)
+1418: Month 2–5: Scale Vendor Base
+1419: Referral: Existing vendors refer other vendors → ₹2,000 credit
+1420: Category fill: Map which categories have <5 vendors → targeted outreach
+1421: Industry events: Attend wedding expos, vendor trade shows
+1422: Partnership: Wedding venue tie-ups → they recommend our app to couples
+1423: 15.3 Customer Acquisition Strategy
+1424: Organic (Month 0–6)
+1425: Instagram Reels: '10 must-know tips before booking a Hyderabad venue'
+1426: YouTube Shorts: Wedding planning content in Telugu and English
+1427: Pinterest: Wedding inspiration boards linked to vendor profiles
+1428: SEO: Target 'wedding venues in Hyderabad', 'photographers Hyderabad price'
+1429: Google My Business: Claim and optimize for local searches
+1430: Paid (Month 3+, ₹10K/month start)
+1431: Meta Ads: Target engaged couples, recently engaged, wedding interest
+1432: Google Search Ads: High-intent keywords ('book wedding photographer Hyderabad')
+1433: Instagram influencer: 2–3 Hyderabad wedding influencers (20K–100K followers)
+1434: Referral program: Couple refers couple → ₹500 off next booking each
+1435: 15.4 First 100 Users Strategy
+1436: CRITICAL: Manually manage first 100 weddings. Be the concierge. Use our own platform to coordinate. Collect photos and testimonials. This content becomes our marketing engine.
+1437: Identify 10 wedding couples with events in next 3–6 months in Hyderabad
+1438: Offer them: Free premium planning + ₹5,000 off total booking via platform
+1439: Assign a personal coordinator from our team for each
+1440: Over-deliver: Check in weekly, resolve every issue personally
+1441: Document the journey: Photos, behind-the-scenes, testimonial videos
+1442: Post-event: 5-star review + video testimonial + Instagram feature
+1443: Repeat 10 times → 100 weddings → 100 testimonials → credibility established
+1444: 15.5 Pricing Strategy (Launch)
+1445: Stage
+1446: Commission
+1447: Vendor Subscription
+1448: Customer Fees
+1449: Month 0–3 (Launch)
+1450: 0% (waived)
+1451: Free for all
+1452: Free planning tools
+1453: Month 3–6 (Build)
+1454: 5% (intro rate)
+1455: Free / ₹999 premium
+1456: Free planning tools
+1457: Month 6+ (Normal)
+1458: 10% standard
+1459: Free / ₹1999 / ₹4999
+1460: Free planning tools
+1461: Scale (18+ months)
+1462: 8–12% tiered
+1463: Full SaaS pricing
+1464: Premium AI features paid
+1465: 16. TESTING STRATEGY
+1466: 16.1 Testing Philosophy
+1467: Test pyramid: 70% unit tests, 20% integration tests, 10% E2E tests. Every payment flow has 100% coverage. Every auth endpoint has 100% coverage. Everything else: minimum 80% coverage.
+1468: 16.2 Test Coverage Requirements
+1469: Service/Module
+1470: Unit Test Coverage
+1471: Integration Coverage
+1472: Tools
+1473: Auth Service
+1474: 100%
+1475: 100%
+1476: Jest + Supertest
+1477: Payment Service
+1478: 100%
+1479: 100%
+1480: Jest + Razorpay mock
+1481: Escrow System
+1482: 100%
+1483: 100%
+1484: Jest + DB transactions
+1485: Booking Service
+1486: 90%
+1487: 90%
+1488: Jest + Supertest
+1489: Search Service
+1490: 80%
+1491: 80%
+1492: Jest + ES test cluster
+1493: Vendor Service
+1494: 80%
+1495: 80%
+1496: Jest + Supertest
+1497: AI Service
+1498: 70%
+1499: 70%
+1500: Pytest
+1501: Flutter App
+1502: 70%
+1503: E2E critical paths
+1504: Flutter Test + Patrol
+1505: React Web
+1506: 70%
+1507: E2E critical paths
+1508: Vitest + Playwright
+1509: 16.3 E2E Critical Paths (Must Pass Before Every Deploy)
+1510: User registers → OTP → login → create event → success
+1511: Customer searches vendors → views profile → sends enquiry → success
+1512: Vendor receives enquiry → sends quote → customer accepts → advance payment → success
+1513: Payment captured → escrow created → booking confirmed → success
+1514: Vendor check-in → event completed → escrow released → vendor payout → success
+1515: Customer raises dispute → admin reviews → refund processed → success
+1516: 16.4 Load Testing
+1517: Tool: k6 (open source)
+1518: Baseline: 1,000 concurrent users for 5 minutes → all APIs P99 <200ms
+1519: Stress: Ramp to 10,000 concurrent users → identify breaking point
+1520: Soak: 500 concurrent users for 2 hours → check for memory leaks
+1521: Spike: 0 → 5,000 users in 30 seconds → auto-scale response
+1522: Run before every major release and monthly in production mirror
+1523: 17. UI/UX DESIGN SYSTEM
+1524: 17.1 Design Philosophy
+1525: Design must feel premium, trustworthy, and warm — like a personal wedding planner, not a cold marketplace. Every screen should reduce anxiety and increase confidence. India-first: support for multiple languages, RTL, varied network speeds.
+1526: 17.2 Color System
+1527: Token
+1528: Hex Value
+1529: Usage
+1530: --color-primary
+1531: #7B2D8B
+1532: Brand purple — CTAs, links, key highlights
+1533: --color-secondary
+1534: #E91E8C
+1535: Pink accent — love, emotion, special moments
+1536: --color-gold
+1537: #C9A82C
+1538: Gold — premium, milestone, celebration
+1539: --color-success
+1540: #2E7D32
+1541: Green — confirmed, complete, verified
+1542: --color-error
+1543: #C62828
+1544: Red — errors, alerts, cancellations
+1545: --color-warning
+1546: #F57F17
+1547: Amber — warnings, pending, due soon
+1548: --color-neutral-900
+1549: #1A0A2E
+1550: Near-black for body text
+1551: --color-neutral-100
+1552: #F5F5F7
+1553: Light grey for backgrounds
+1554: --color-white
+1555: #FFFFFF
+1556: Cards, modals
+1557: 17.3 Typography Scale
+1558: Style
+1559: Size
+1560: Weight
+1561: Usage
+1562: Display XL
+1563: 48px / 3rem
+1564: 700 Bold
+1565: Hero headlines only
+1566: Display L
+1567: 36px / 2.25rem
+1568: 700 Bold
+1569: Page titles
+1570: Heading 1
+1571: 28px / 1.75rem
+1572: 600 SemiBold
+1573: Section titles
+1574: Heading 2
+1575: 22px / 1.375rem
+1576: 600 SemiBold
+1577: Card titles, sub-sections
+1578: Heading 3
+1579: 18px / 1.125rem
+1580: 600 SemiBold
+1581: Form labels, sidebar titles
+1582: Body L
+1583: 16px / 1rem
+1584: 400 Regular
+1585: Primary body text
+1586: Body M
+1587: 14px / 0.875rem
+1588: 400 Regular
+1589: Secondary text, descriptions
+1590: Caption
+1591: 12px / 0.75rem
+1592: 400 Regular
+1593: Meta information, timestamps
+1594: Button
+1595: 14px / 0.875rem
+1596: 600 SemiBold
+1597: All button labels
+1598: 17.4 Core Component Library
+1599: Button Variants
+1600: Primary: bg-purple-700 text-white, hover bg-purple-800, 8px radius
+1601: Secondary: border-purple-700 text-purple-700, hover bg-purple-50
+1602: Danger: bg-red-700 text-white (delete, cancel actions)
+1603: Ghost: text-purple-700 no border (tertiary actions)
+1604: Loading state: Spinner replaces text, disabled interaction
+1605: Card Component (Vendor Card)
+1606: Aspect ratio 16:9 image with lazy load and skeleton
+1607: Verified badge: Purple checkmark, top-left overlay
+1608: Featured badge: Gold ribbon, top-right overlay
+1609: Rating: Star + number + review count
+1610: Price: Starting price prominently, per-plate or fixed callout
+1611: Availability: Green dot 'Available' or red 'Booked on [date]'
+1612: Actions: Save (heart) + Quick Enquire + View Profile
+1613: 17.5 Mobile UX Guidelines
+1614: Minimum touch target: 44×44px (Apple HIG / Material Design)
+1615: Bottom navigation: 5 items max (Home, Search, Events, Bookings, Profile)
+1616: Safe area: Respect iPhone notch and Android gesture bar
+1617: Haptic feedback: On successful actions (booking confirmed, payment done)
+1618: Pull-to-refresh: All list screens
+1619: Empty states: Illustration + descriptive text + CTA (never blank screen)
+1620: Error states: Friendly language, retry button, contact support link
+1621: 17.6 Accessibility Standards
+1622: WCAG 2.1 Level AA compliance
+1623: Color contrast: Minimum 4.5:1 for text, 3:1 for large text
+1624: Screen reader: All images have alt text, all buttons have labels
+1625: Keyboard navigation: Full support on web
+1626: Font scaling: UI supports system font size scaling (up to 200%)
+1627: Language: Plain language, avoid jargon, Flesch score >60
+1628: 18. BUSINESS RULES & EDGE CASES
+1629: 18.1 Booking Business Rules
+1630: A vendor can have maximum 3 bookings on same date (for multi-team vendors)
+1631: Minimum advance booking: 7 days before event (no same-week bookings in MVP)
+1632: Maximum advance booking: 24 months
+1633: Enquiry response window: Vendor must respond within 48h or enquiry auto-expires
+1634: Quote validity: Vendor quotes are valid for 72 hours after sending
+1635: Booking confirmation: Customer must pay advance within 24h of accepting quote
+1636: Double booking protection: Optimistic lock on booking slot during payment flow
+1637: 18.2 Cancellation Policy
+1638: Days Before Event
+1639: Advance Refund %
+1640: Platform Fee Refunded
+1641: 90+ days
+1642: 100% refund
+1643: Yes (full)
+1644: 60–89 days
+1645: 75% refund
+1646: No
+1647: 30–59 days
+1648: 50% refund
+1649: No
+1650: 14–29 days
+1651: 25% refund
+1652: No
+1653: 7–13 days
+1654: 0% refund
+1655: No
+1656: <7 days
+1657: 0% refund
+1658: No
+1659: Vendor cancels (any time)
+1660: 100% refund + penalty to vendor
+1661: Yes (full)
+1662: Force majeure (govt declared)
+1663: 100% refund, waive penalty
+1664: Yes (full)
+1665: 18.3 Edge Cases to Handle
+1666: Vendor Side
+1667: Vendor account suspended mid-event → Coordinator takes over, emergency vendor replacement
+1668: Vendor changes price after quote accepted → Not allowed, original quote locked
+1669: Vendor requests event date change → Requires customer approval via platform
+1670: Vendor uploads fake portfolio → Report system + admin review + suspension policy
+1671: Customer Side
+1672: Customer books same vendor twice for same event → Warn and prevent duplicate
+1673: Customer changes guest count after booking → Notify vendor, re-quote if significant (>20%)
+1674: Customer disputes after review window closed → Case-by-case, max 30 days post-event
+1675: Customer no-shows at their own event → Platform still releases vendor payment after 7 days
+1676: Payment Edge Cases
+1677: Payment gateway down → Queue payment attempts, retry every 5 min for 1 hour, alert customer
+1678: Partial payment received → Do not confirm booking; hold in 'partial payment' state
+1679: Currency mismatch → All amounts stored in INR paise; convert only at display layer
+1680: Refund to original payment method → Always refund to source (card/UPI/wallet)
+1681: 18.4 Compliance & Legal
+1682: RBI payment aggregator compliance: Platform is payment aggregator, requires license if turnover >₹10L/year
+1683: GST registration: Required if turnover >₹20L/year; platform collects and remits GST on commissions
+1684: TDS on vendor payouts: Deduct 1% TDS if cumulative payment >₹30,000/year per vendor
+1685: DPDP Act 2023: Data localization (store Indian user data in Indian data centers — AWS ap-south-1)
+1686: Consumer Protection Act: Refund SLA of 5–7 business days
+1687: 19. GLOSSARY & TECHNOLOGY REFERENCES
+1688: 19.1 Platform Terminology
+1689: Term
+1690: Definition
+1691: Wedding OS
+1692: Our platform — the complete operating system for wedding planning and execution
+1693: Vendor OS
+1694: The B2B SaaS product within Wedding OS used by vendors to manage their business
+1695: Execution Engine
+1696: The real-time coordination system active from event booking to event completion
+1697: Escrow Hold
+1698: Payment collected from customer but held by platform until event satisfactory completion
+1699: Verified Badge
+1700: Purple checkmark indicating vendor has passed KYC and portfolio verification
+1701: Event Day Dashboard
+1702: Real-time coordination screen active on the day of the event
+1703: Runsheet
+1704: Auto-generated minute-by-minute schedule shared with all vendors 24h before event
+1705: GMV
+1706: Gross Merchandise Value — total booking value transacted through platform
+1707: D-XX
+1708: Days before event (D-30 = 30 days before the wedding date)
+1709: Coordinator
+1710: Platform-assigned human coordinator for premium events
+1711: 19.2 Technology Stack Reference
+1712: Technology
+1713: Version
+1714: Purpose
+1715: License
+1716: Flutter
+1717: 3.19+
+1718: Cross-platform mobile app
+1719: BSD
+1720: React.js
+1721: 18+
+1722: Web frontend
+1723: MIT
+1724: Next.js
+1725: 14+
+1726: Web SSR + SEO
+1727: MIT
+1728: Node.js
+1729: 20 LTS
+1730: Backend services
+1731: MIT
+1732: PostgreSQL
+1733: 16+
+1734: Primary database
+1735: PostgreSQL License
+1736: Redis
+1737: 7+
+1738: Cache + session + queue
+1739: BSD
+1740: Elasticsearch
+1741: 8+
+1742: Full-text + geo search
+1743: SSPL / Commercial
+1744: Kong
+1745: 3.5+
+1746: API Gateway
+1747: Apache 2.0
+1748: BullMQ
+1749: 5+
+1750: Job queue (Redis-based)
+1751: MIT
+1752: Socket.io
+1753: 4+
+1754: WebSocket real-time
+1755: MIT
+1756: Prisma
+1757: 5+
+1758: PostgreSQL ORM
+1759: Apache 2.0
+1760: Zod
+1761: 3+
+1762: Runtime type validation
+1763: MIT
+1764: Razorpay
+1765: Latest SDK
+1766: Payment processing
+1767: Commercial
+1768: AWS ECS Fargate
+1769: Latest
+1770: Container orchestration
+1771: Commercial
+1772: Terraform
+1773: 1.6+
+1774: Infrastructure as Code
+1775: MPL 2.0
+1776: 19.3 Third-Party Services
+1777: Service
+1778: Purpose
+1779: Free Tier
+1780: Paid Starts At
+1781: MSG91
+1782: OTP SMS delivery India
+1783: ₹1,000 trial credits
+1784: ₹0.12/SMS
+1785: 360dialog / Interakt
+1786: WhatsApp Business API
+1787: Free trial
+1788: ₹2,999/month
+1789: SendGrid
+1790: Transactional email
+1791: 100 emails/day free
+1792: $19.95/month
+1793: Firebase
+1794: Push notifications
+1795: Spark plan free
+1796: Blaze pay-as-you-go
+1797: Razorpay
+1798: Payments + Payouts
+1799: No setup fee
+1800: 2% per transaction
+1801: AWS
+1802: Cloud infrastructure
+1803: 12-month free tier
+1804: Pay as you go
+1805: Supabase
+1806: PostgreSQL + Auth (Phase 1)
+1807: 500MB + 50k MAU free
+1808: $25/month
+1809: Cloudinary
+1810: Image CDN + transformation
+1811: 25GB free
+1812: $89/month
+1813: Pinecone
+1814: Vector database (AI)
+1815: 1 index free
+1816: $70/month
+1817: Sentry
+1818: Error tracking
+1819: 5K errors/month free
+1820: $26/month
+1821: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1822: END OF DOCUMENT
+1823: Wedding OS — Project Requirement Document v1.0
+1824: Build the infrastructure layer of India's wedding industry.

@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  SKIPPED
+}
+
+enum TaskCategory {
+  VENDOR_BOOKING
+  VENUE
+  CATERING
+  DECORATION
+  CEREMONY
+  GUEST_MANAGEMENT
+  PHOTOGRAPHY
+  ENTERTAINMENT
+  LOGISTICS
+  LEGAL
+  OTHER
+}
+
+model WeddingTimeline {
+  id          String   @id @default(uuid())
+  customerId  String   @unique @map("customer_id")
+  weddingDate DateTime @map("wedding_date") @db.Date
+  title       String   @default("My Wedding") @db.VarChar(200)
+  tasks       TimelineTask[]
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("wedding_timelines")
+}
+
+model TimelineTask {
+  id          String         @id @default(uuid())
+  timelineId  String         @map("timeline_id")
+  timeline    WeddingTimeline @relation(fields: [timelineId], references: [id], onDelete: Cascade)
+  title       String         @db.VarChar(300)
+  description String?        @db.Text
+  category    TaskCategory   @default(OTHER)
+  status      TaskStatus     @default(PENDING)
+  dueDate     DateTime?      @map("due_date") @db.Date
+  dueDaysBeforeWedding Int?  @map("due_days_before_wedding")
+  linkedBookingId String?    @map("linked_booking_id")
+  assignedVendorId String?   @map("assigned_vendor_id")
+  completedAt DateTime?      @map("completed_at")
+  sortOrder   Int            @default(0) @map("sort_order")
+  isSystemGenerated Boolean  @default(false) @map("is_system_generated")
+
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@index([timelineId, status])
+  @@index([dueDate])
+  @@map("timeline_tasks")
+}
+
+// Default task templates seeded by category
+model TaskTemplate {
+  id          String       @id @default(uuid())
+  title       String       @db.VarChar(300)
+  description String?      @db.Text
+  category    TaskCategory @default(OTHER)
+  dueDaysBeforeWedding Int @map("due_days_before_wedding")
+  sortOrder   Int          @default(0) @map("sort_order")
+  isActive    Boolean      @default(true) @map("is_active")
+
+  @@map("task_templates")
+}

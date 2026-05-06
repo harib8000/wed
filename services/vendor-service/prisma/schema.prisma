@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VendorStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  SUSPENDED
+  BLACKLISTED
+}
+
+enum VendorCategory {
+  PHOTOGRAPHER
+  VIDEOGRAPHER
+  CATERER
+  DECORATOR
+  VENUE
+  DJ_SOUND
+  BAND_ENTERTAINMENT
+  BRIDAL_MAKEUP
+  GROOM_MAKEUP
+  MEHENDI
+  PANDIT_PRIEST
+  WEDDING_PLANNER
+  INVITATIONS
+  CHOREOGRAPHER
+  BARTENDER
+  LIGHTING
+  FIREWORKS
+  TENT_HOUSE
+  TRANSPORTATION
+  FLORIST
+}
+
+enum PackageType {
+  BASIC
+  STANDARD
+  PREMIUM
+  CUSTOM
+}
+
+model Vendor {
+  id              String        @id @default(uuid())
+  userId          String        @unique @map("user_id")
+  businessName    String        @map("business_name") @db.VarChar(200)
+  slug            String        @unique @db.VarChar(220)
+  category        VendorCategory
+  subCategories   VendorCategory[] @map("sub_categories")
+  status          VendorStatus  @default(DRAFT)
+
+  // Location
+  city            String        @db.VarChar(100)
+  state           String        @db.VarChar(100)
+  pincode         String        @db.VarChar(10)
+  serviceCities   String[]      @map("service_cities") @db.VarChar(100)
+
+  // Profile
+  tagline         String?       @db.VarChar(300)
+  description     String?       @db.Text
+  yearsExperience Int?          @map("years_experience")
+  teamSize        Int?          @map("team_size")
+  coverPhoto      String?       @map("cover_photo") @db.VarChar(500)
+  logoUrl         String?       @map("logo_url") @db.VarChar(500)
+
+  // Contact
+  whatsappNumber  String?       @map("whatsapp_number") @db.VarChar(15)
+  websiteUrl      String?       @map("website_url") @db.VarChar(500)
+  instagramUrl    String?       @map("instagram_url") @db.VarChar(500)
+
+  // Business legal
+  gstNumber       String?       @map("gst_number") @db.VarChar(20)
+  panNumber       String?       @map("pan_number") @db.VarChar(20)
+  bankAccountNo   String?       @map("bank_account_no") @db.VarChar(30)
+  bankIfsc        String?       @map("bank_ifsc") @db.VarChar(15)
+  bankAccountName String?       @map("bank_account_name") @db.VarChar(200)
+
+  // Ratings (denormalized for Elasticsearch)
+  avgRating       Float         @default(0) @map("avg_rating")
+  reviewCount     Int           @default(0) @map("review_count")
+  bookingCount    Int           @default(0) @map("booking_count")
+  responseRatePercent Int       @default(0) @map("response_rate_percent")
+  avgResponseHours  Float       @default(0) @map("avg_response_hours")
+
+  // Platform flags
+  plusMember      Boolean       @default(false) @map("plus_member")
+  isFeatured      Boolean       @default(false) @map("is_featured")
+  adminNote       String?       @map("admin_note") @db.VarChar(500)
+
+  packages        VendorPackage[]
+  portfolio       PortfolioItem[]
+  availability    AvailabilityBlock[]
+  tags            VendorTag[]
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([category, city, status])
+  @@index([slug])
+  @@index([avgRating])
+  @@map("vendors")
+}
+
+model VendorPackage {
+  id            String      @id @default(uuid())
+  vendorId      String      @map("vendor_id")
+  vendor        Vendor      @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  packageType   PackageType @default(BASIC) @map("package_type")
+  name          String      @db.VarChar(200)
+  description   String?     @db.Text
+  priceFromPaise Int        @map("price_from_paise")
+  priceUpToPaise Int?       @map("price_up_to_paise")
+  isCustomQuote  Boolean    @default(false) @map("is_custom_quote")
+  inclusions    String[]
+  exclusions    String[]
+  deliverables  String[]
+  isActive      Boolean     @default(true) @map("is_active")
+  sortOrder     Int         @default(0) @map("sort_order")
+
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  @@index([vendorId, isActive])
+  @@map("vendor_packages")
+}
+
+model PortfolioItem {
+  id          String   @id @default(uuid())
+  vendorId    String   @map("vendor_id")
+  vendor      Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  s3Key       String   @map("s3_key") @db.VarChar(500)
+  publicUrl   String   @map("public_url") @db.VarChar(500)
+  thumbUrl    String?  @map("thumb_url") @db.VarChar(500)
+  caption     String?  @db.VarChar(300)
+  mediaType   String   @default("image") @map("media_type") @db.VarChar(10)
+  sortOrder   Int      @default(0) @map("sort_order")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([vendorId])
+  @@map("portfolio_items")
+}
+
+model AvailabilityBlock {
+  id         String   @id @default(uuid())
+  vendorId   String   @map("vendor_id")
+  vendor     Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  blockedDate DateTime @map("blocked_date") @db.Date
+  reason     String?  @db.VarChar(200)
+  // null reason = booked; 'holiday' | 'personal' | 'travel' etc.
+
+  @@unique([vendorId, blockedDate])
+  @@index([vendorId, blockedDate])
+  @@map("availability_blocks")
+}
+
+model VendorTag {
+  id       String @id @default(uuid())
+  vendorId String @map("vendor_id")
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  tag      String @db.VarChar(50)
+
+  @@unique([vendorId, tag])
+  @@index([tag])
+  @@map("vendor_tags")
+}

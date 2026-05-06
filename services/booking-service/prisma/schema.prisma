@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  ENQUIRY
+  QUOTE_SENT
+  QUOTE_ACCEPTED
+  ADVANCE_PENDING
+  ADVANCE_PAID
+  CONFIRMED
+  CHECKIN
+  COMPLETED
+  CANCELLED_BY_CUSTOMER
+  CANCELLED_BY_VENDOR
+  DISPUTED
+  REFUNDED
+}
+
+enum EventType {
+  WEDDING_CEREMONY
+  RECEPTION
+  ENGAGEMENT
+  HALDI
+  MEHNDI
+  SANGEET
+  BACHELOR_PARTY
+  PRE_WEDDING_SHOOT
+  BIRTHDAY
+  ANNIVERSARY
+  CORPORATE
+  OTHER
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  bookingNumber   String        @unique @map("booking_number") @db.VarChar(30)
+
+  customerId      String        @map("customer_id")
+  vendorId        String        @map("vendor_id")
+  packageId       String?       @map("package_id")
+
+  status          BookingStatus @default(ENQUIRY)
+  eventDate       DateTime      @map("event_date") @db.Date
+  eventType       EventType     @map("event_type")
+  eventCity       String        @map("event_city") @db.VarChar(100)
+
+  // Financials (all in paise)
+  quotedAmountPaise    Int?      @map("quoted_amount_paise")
+  advanceAmountPaise   Int?      @map("advance_amount_paise")
+  finalAmountPaise     Int?      @map("final_amount_paise")
+  platformFeePaise     Int?      @map("platform_fee_paise")
+  gstOnFeePaise        Int?      @map("gst_on_fee_paise")
+
+  // Customer notes
+  requirements    String?       @db.Text
+  guestCount      Int?          @map("guest_count")
+  specialNotes    String?       @map("special_notes") @db.VarChar(1000)
+
+  // Vendor actions
+  vendorQuoteNote String?       @map("vendor_quote_note") @db.VarChar(1000)
+  cancellationReason String?    @map("cancellation_reason") @db.VarChar(500)
+
+  // Timestamps
+  quoteSentAt     DateTime?     @map("quote_sent_at")
+  quoteAcceptedAt DateTime?     @map("quote_accepted_at")
+  confirmedAt     DateTime?     @map("confirmed_at")
+  completedAt     DateTime?     @map("completed_at")
+  cancelledAt     DateTime?     @map("cancelled_at")
+
+  // Version for optimistic locking
+  version         Int           @default(0)
+
+  events          BookingEvent[]
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([customerId, status])
+  @@index([vendorId, status])
+  @@index([eventDate])
+  @@index([bookingNumber])
+  @@map("bookings")
+}
+
+model BookingEvent {
+  id          String   @id @default(uuid())
+  bookingId   String   @map("booking_id")
+  booking     Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  eventType   String   @map("event_type") @db.VarChar(50) // status_changed, note_added, etc.
+  actorId     String   @map("actor_id")
+  actorRole   String   @map("actor_role") @db.VarChar(20)
+  payload     Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([bookingId])
+  @@map("booking_events")
+}

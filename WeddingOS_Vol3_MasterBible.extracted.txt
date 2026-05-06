@@ -1,0 +1,2368 @@
+SOURCE: WeddingOS_Vol3_MasterBible.docx
+PARAGRAPHS: 2365
+
+0001: WEDDING OS
+0002: Volume III — The Final Layer
+0003: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+0004: ZERO-GAP ENGINEERING MASTER BIBLE
+0005: Code Architecture · Financial Model · Ops Manual · Capacity Planning · Third-Party APIs · Release Process · Growth Playbook
+0006: Document
+0007: Wedding OS — Volume III: Zero-Gap Engineering Master Bible
+0008: Covers
+0009: 22 deep-dive sections filling every remaining implementation gap
+0010: Series
+0011: Read Volumes I + II + III together for complete blueprint
+0012: Audience
+0013: Senior engineers, DevOps, Finance, Growth, Operations
+0014: Philosophy
+0015: Zero ₹ infra start → Billion-dollar architecture at scale
+0016: CONFIDENTIAL — DEVELOPMENT TEAM ONLY
+0017: 1. COMPLETE CODE ARCHITECTURE & FOLDER STRUCTURE
+0018: Every folder, every file convention, every naming rule documented. No developer should ever ask 'where does this go?'. Consistency is the foundation of a maintainable codebase.
+0019: 1.1 Monorepo Root Structure
+0020: wedding-os/
+0021: ├── apps/
+0022: │   ├── mobile/              # Flutter cross-platform app
+0023: │   ├── web/                 # Next.js 14 — Customer web app
+0024: │   ├── vendor-web/          # Vite+React — Vendor OS web
+0025: │   └── admin/               # Vite+React+AntDesign — Admin panel
+0026: ├── services/
+0027: │   ├── api-gateway/         # Kong config + custom plugins
+0028: │   ├── auth-service/        # JWT, OTP, OAuth
+0029: │   ├── user-service/        # Profiles, preferences
+0030: │   ├── vendor-service/      # Vendor CRUD, portfolio, packages
+0031: │   ├── search-service/      # Elasticsearch + autocomplete
+0032: │   ├── booking-service/     # Bookings, enquiries, quotes
+0033: │   ├── payment-service/     # Razorpay, escrow, payouts
+0034: │   ├── execution-service/   # Tasks, timeline, event day
+0035: │   ├── notification-service/# SMS/Push/Email/WhatsApp fan-out
+0036: │   ├── ai-service/          # Python FastAPI — ML + recommendations
+0037: │   ├── chat-service/        # Socket.io in-booking chat
+0038: │   ├── review-service/      # Reviews, ratings, moderation
+0039: │   └── media-service/       # Upload presign, processing webhook
+0040: ├── packages/
+0041: │   ├── shared-types/        # TypeScript interfaces shared across services
+0042: │   ├── shared-utils/        # Date, money, validation helpers
+0043: │   ├── shared-errors/       # Error classes + error codes
+0044: │   ├── shared-events/       # Domain event type definitions
+0045: │   └── ui-kit/              # Shared React components (web apps)
+0046: ├── infrastructure/
+0047: │   ├── terraform/
+0048: │   │   ├── modules/         # Reusable TF modules
+0049: │   │   ├── staging/         # Staging environment vars
+0050: │   │   └── production/      # Production environment vars
+0051: │   ├── docker/
+0052: │   │   ├── Dockerfile.node  # Base Node.js image
+0053: │   │   └── Dockerfile.python# Base Python image
+0054: │   └── kong/                # Kong declarative config (deck)
+0055: ├── scripts/
+0056: │   ├── seed/                # Development seed data
+0057: │   ├── migrate/             # Migration helpers
+0058: │   └── deploy/              # Deployment helper scripts
+0059: ├── docs/
+0060: │   ├── openapi/             # API specs per service
+0061: │   ├── adr/                 # Architecture Decision Records
+0062: │   └── runbooks/            # Ops runbooks
+0063: ├── .github/workflows/       # CI/CD pipelines
+0064: ├── pnpm-workspace.yaml      # Workspace definition
+0065: ├── docker-compose.dev.yml   # Local dev stack
+0066: └── turbo.json               # Turborepo build pipeline
+0067: 1.2 Node.js Service Internal Structure
+0068: Every backend service follows this identical structure (convention over configuration):
+0069: auth-service/
+0070: ├── src/
+0071: │   ├── app.ts               # Express app setup, middleware registration
+0072: │   ├── server.ts            # HTTP server, port binding, graceful shutdown
+0073: │   ├── config/
+0074: │   │   ├── index.ts         # Validated env vars (using Zod)
+0075: │   │   └── database.ts      # Prisma client singleton
+0076: │   ├── routes/
+0077: │   │   ├── index.ts         # Route registration
+0078: │   │   └── auth.routes.ts   # Route definitions (thin — no logic)
+0079: │   ├── controllers/
+0080: │   │   └── auth.controller.ts # Request parsing, response formatting
+0081: │   ├── services/
+0082: │   │   ├── otp.service.ts   # Business logic: OTP generation, verification
+0083: │   │   ├── jwt.service.ts   # Token sign, verify, refresh
+0084: │   │   └── user.service.ts  # User lookup, creation
+0085: │   ├── middleware/
+0086: │   │   ├── auth.middleware.ts# JWT verification
+0087: │   │   ├── validate.ts      # Zod request validation
+0088: │   │   ├── rateLimit.ts     # Redis-based rate limiting
+0089: │   │   └── requestId.ts     # Inject X-Request-ID
+0090: │   ├── repositories/
+0091: │   │   ├── user.repo.ts     # All DB queries for users
+0092: │   │   └── token.repo.ts    # Refresh token DB queries
+0093: │   ├── events/
+0094: │   │   ├── producers/       # Publish domain events to queue
+0095: │   │   └── consumers/       # Consume events from other services
+0096: │   ├── jobs/
+0097: │   │   └── cleanup.job.ts   # BullMQ job definitions
+0098: │   ├── types/
+0099: │   │   └── index.ts         # Local TypeScript types
+0100: │   └── utils/
+0101: │       ├── logger.ts        # Structured JSON logger (pino)
+0102: │       └── crypto.ts        # Hashing, random generation
+0103: ├── prisma/
+0104: │   ├── schema.prisma        # Database schema
+0105: │   └── migrations/          # Migration files
+0106: ├── tests/
+0107: │   ├── unit/                # Jest unit tests
+0108: │   ├── integration/         # Supertest integration tests
+0109: │   └── fixtures/            # Test data factories
+0110: ├── Dockerfile
+0111: ├── package.json
+0112: └── tsconfig.json
+0113: 1.3 Flutter App Internal Structure
+0114: apps/mobile/lib/
+0115: ├── main.dart                # App entry, ProviderScope
+0116: ├── app.dart                 # MaterialApp, router, theme
+0117: ├── core/
+0118: │   ├── config/
+0119: │   │   ├── app_config.dart  # Env-based config (API URLs, keys)
+0120: │   │   └── theme.dart       # Material 3 theme tokens
+0121: │   ├── router/
+0122: │   │   └── router.dart      # GoRouter with guards
+0123: │   ├── network/
+0124: │   │   ├── api_client.dart  # Dio client, interceptors
+0125: │   │   └── auth_interceptor.dart # Auto-attach + refresh token
+0126: │   ├── storage/
+0127: │   │   └── secure_storage.dart # flutter_secure_storage wrapper
+0128: │   ├── error/
+0129: │   │   ├── app_error.dart   # Typed error classes
+0130: │   │   └── error_handler.dart # Global error to user message
+0131: │   └── utils/
+0132: │       ├── currency.dart    # ₹ formatting (Indian system)
+0133: │       ├── date.dart        # Date formatting utilities
+0134: │       └── validators.dart  # Form validation functions
+0135: ├── features/
+0136: │   ├── auth/
+0137: │   │   ├── data/            # API calls, local storage
+0138: │   │   ├── domain/          # Models, use cases
+0139: │   │   └── presentation/    # Screens, widgets, providers
+0140: │   ├── home/                # Same structure per feature
+0141: │   ├── search/
+0142: │   ├── vendor/
+0143: │   ├── booking/
+0144: │   ├── payment/
+0145: │   ├── event/
+0146: │   ├── execution/
+0147: │   ├── guest/
+0148: │   ├── budget/
+0149: │   ├── profile/
+0150: │   ├── notifications/
+0151: │   └── support/
+0152: ├── shared/
+0153: │   ├── widgets/             # Reusable UI components
+0154: │   ├── models/              # Shared data models
+0155: │   └── constants/           # App-wide constants
+0156: └── l10n/                    # Localization ARB files
+0157: 2. FINANCIAL MODEL & UNIT ECONOMICS
+0158: Every business decision must be grounded in unit economics. Know your numbers before you spend a rupee on growth. This model is your north star.
+0159: 2.1 Revenue Model Deep Dive
+0160: Revenue Stream
+0161: Unit
+0162: Price
+0163: Margin
+0164: Start Month
+0165: Booking Commission
+0166: % of GMV
+0167: 10% standard / 8% premium vendor
+0168: ~90% gross margin
+0169: Month 3
+0170: Vendor Subscription — Premium
+0171: Per vendor/month
+0172: ₹1,999/month
+0173: ~95% gross margin
+0174: Month 5
+0175: Vendor Subscription — Enterprise
+0176: Per vendor/month
+0177: ₹4,999/month
+0178: ~95% gross margin
+0179: Month 8
+0180: Featured Listing
+0181: Per vendor/month
+0182: ₹2,999/month top position
+0183: ~95% gross margin
+0184: Month 6
+0185: Promoted Package
+0186: Per listing boost
+0187: ₹999/boost/7 days
+0188: ~95% gross margin
+0189: Month 6
+0190: AI Premium Planning
+0191: Per customer/event
+0192: ₹499 one-time
+0193: ~85% gross margin
+0194: Month 10
+0195: Coordinator Service
+0196: Per event managed
+0197: ₹15,000–30,000
+0198: ~40% margin
+0199: Month 8
+0200: Wedding Insurance
+0201: Commission on policy
+0202: 15% of premium
+0203: ~15% margin
+0204: Month 18
+0205: Wedding Loans
+0206: Commission on disbursal
+0207: 1–2% of loan value
+0208: ~100% margin
+0209: Month 18
+0210: 2.2 Monthly GMV & Revenue Projection
+0211: Month
+0212: Weddings/Month
+0213: Avg Booking Value
+0214: GMV
+0215: Commission Rev
+0216: SaaS Rev
+0217: Total Rev
+0218: M1
+0219: 5
+0220: ₹50,000
+0221: ₹2.5L
+0222: ₹0 (waived)
+0223: ₹0
+0224: ₹0
+0225: M2
+0226: 12
+0227: ₹55,000
+0228: ₹6.6L
+0229: ₹0 (waived)
+0230: ₹0
+0231: ₹0
+0232: M3
+0233: 25
+0234: ₹60,000
+0235: ₹15L
+0236: ₹75K (5%)
+0237: ₹0
+0238: ₹75K
+0239: M4
+0240: 45
+0241: ₹65,000
+0242: ₹29L
+0243: ₹1.45L
+0244: ₹20K
+0245: ₹1.65L
+0246: M5
+0247: 70
+0248: ₹65,000
+0249: ₹45L
+0250: ₹2.25L
+0251: ₹40K
+0252: ₹2.65L
+0253: M6
+0254: 110
+0255: ₹70,000
+0256: ₹77L
+0257: ₹7.7L
+0258: ₹80K
+0259: ₹8.5L
+0260: M9
+0261: 250
+0262: ₹75,000
+0263: ₹1.9Cr
+0264: ₹19L
+0265: ₹3L
+0266: ₹22L
+0267: M12
+0268: 500
+0269: ₹80,000
+0270: ₹4Cr
+0271: ₹40L
+0272: ₹8L
+0273: ₹48L
+0274: M18
+0275: 1,200
+0276: ₹85,000
+0277: ₹10.2Cr
+0278: ₹1.02Cr
+0279: ₹25L
+0280: ₹1.27Cr
+0281: M24
+0282: 3,000
+0283: ₹90,000
+0284: ₹27Cr
+0285: ₹2.7Cr
+0286: ₹60L
+0287: ₹3.3Cr
+0288: 2.3 Cost Structure
+0289: Cost Category
+0290: Month 1–3
+0291: Month 6
+0292: Month 12
+0293: Month 24
+0294: Notes
+0295: Infrastructure (AWS)
+0296: ₹0
+0297: ₹8K
+0298: ₹40K
+0299: ₹2L
+0300: Free tier → auto-scale
+0301: SMS / WhatsApp
+0302: ₹2K
+0303: ₹8K
+0304: ₹25K
+0305: ₹80K
+0306: Volume discounts at scale
+0307: Payment Gateway
+0308: ₹0
+0309: ₹1.5L
+0310: ₹8L
+0311: ₹54L
+0312: 2% Razorpay fee on GMV
+0313: Team (Engineering)
+0314: ₹3L
+0315: ₹6L
+0316: ₹15L
+0317: ₹40L
+0318: Hire as revenue grows
+0319: Team (Ops/Support)
+0320: ₹0
+0321: ₹1.5L
+0322: ₹4L
+0323: ₹10L
+0324: Start with founder
+0325: Marketing (Paid)
+0326: ₹0
+0327: ₹1L
+0328: ₹5L
+0329: ₹20L
+0330: 0 until M5, organic first
+0331: Legal & Compliance
+0332: ₹20K
+0333: ₹20K
+0334: ₹30K
+0335: ₹50K
+0336: One-time setup then fixed
+0337: Misc (Tools, Office)
+0338: ₹10K
+0339: ₹20K
+0340: ₹40K
+0341: ₹80K
+0342: Total OpEx
+0343: ₹3.3L
+0344: ₹10.4L
+0345: ₹32.35L
+0346: ₹1.27Cr
+0347: 2.4 Key Unit Economics
+0348: Metric
+0349: Calculation
+0350: Month 6 Target
+0351: Month 12 Target
+0352: Customer LTV
+0353: Avg bookings × Avg commission
+0354: ₹3,500 (2.5 bookings × ₹1,400)
+0355: ₹7,000 (repeat + referral)
+0356: CAC (Paid)
+0357: Marketing spend / New customers
+0358: ₹400
+0359: ₹300 (scale efficiency)
+0360: CAC (Organic)
+0361: Team time cost / Organic customers
+0362: ₹150
+0363: ₹100
+0364: Blended CAC
+0365: Weighted avg of paid + organic
+0366: ₹250
+0367: ₹180
+0368: LTV:CAC Ratio
+0369: LTV / Blended CAC
+0370: 14:1
+0371: 38:1
+0372: Payback Period
+0373: CAC / Monthly revenue per customer
+0374: 2.1 months
+0375: 1.4 months
+0376: Vendor LTV
+0377: Subscription + commission earned
+0378: ₹48,000/year (premium)
+0379: ₹60,000/year
+0380: Vendor CAC
+0381: Outreach + onboarding cost
+0382: ₹800/vendor
+0383: ₹500/vendor
+0384: Gross Margin
+0385: (Revenue - COGS) / Revenue
+0386: 72%
+0387: 78%
+0388: Net Revenue Retention
+0389: Vendor rev M13 / M1
+0390: —
+0391: 120% target
+0392: 2.5 Fundraising Milestones
+0393: Stage
+0394: Target Raise
+0395: Valuation
+0396: Key Metrics to Hit
+0397: Use of Funds
+0398: Pre-Seed (Bootstrap)
+0399: ₹0 (founder funds)
+0400: —
+0401: 50 vendors, 10 bookings
+0402: Product build
+0403: Friends & Family
+0404: ₹25–50L
+0405: ₹2–3Cr
+0406: 100 weddings, ₹50L GMV/month
+0407: Team + marketing
+0408: Seed Round
+0409: ₹1–2Cr
+0410: ₹8–15Cr
+0411: ₹2Cr GMV/month, PMF metrics
+0412: City expansion, team
+0413: Series A
+0414: ₹10–25Cr
+0415: ₹75–150Cr
+0416: ₹20Cr GMV/month, 3 cities
+0417: Tech + multi-city scale
+0418: 3. THIRD-PARTY API INTEGRATION PLAYBOOK
+0419: Complete integration details for every external API the platform uses. Each integration includes endpoint, auth, error handling, and test procedure.
+0420: 3.1 Razorpay — Complete Integration
+0421: 3.1.1 Payment Order Creation
+0422: const Razorpay = require('razorpay');
+0423: const rzp = new Razorpay({key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET});
+0424: // Step 1: Create order
+0425: const order = await rzp.orders.create({
+0426: amount: amountInPaise,          // ALWAYS in paise (₹500 = 50000 paise)
+0427: currency: 'INR',
+0428: receipt: `booking_${bookingId}`,// Max 40 chars
+0429: notes: { booking_id: bookingId, customer_id: customerId }, // Stored by Razorpay
+0430: payment_capture: 1              // Auto-capture on success
+0431: });
+0432: // Step 2: Return order to frontend
+0433: return { order_id: order.id, amount: order.amount, currency: order.currency };
+0434: // Step 3: Frontend opens Razorpay checkout, payment happens
+0435: // Step 4: Webhook arrives at POST /webhooks/razorpay
+0436: // CRITICAL: Verify signature BEFORE processing
+0437: const crypto = require('crypto');
+0438: const body = JSON.stringify(req.body);
+0439: const expectedSig = crypto.createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET)
+0440: .update(body).digest('hex');
+0441: if (!crypto.timingSafeEqual(Buffer.from(expectedSig), Buffer.from(req.headers['x-razorpay-signature'])))
+0442: return res.status(400).json({ error: 'Invalid signature' });
+0443: 3.1.2 Razorpay Events to Handle
+0444: Event
+0445: When
+0446: Our Action
+0447: payment.captured
+0448: Payment successful
+0449: Create escrow_hold, update booking status, send confirmation
+0450: payment.failed
+0451: Payment declined
+0452: Update payment status to failed, notify customer, release booking lock
+0453: refund.created
+0454: Refund initiated
+0455: Update payment, notify customer of refund timeline
+0456: refund.processed
+0457: Refund completed
+0458: Confirm refund to customer, close dispute if related
+0459: order.paid
+0460: Order fully paid (all captures)
+0461: Final order confirmation
+0462: subscription.charged
+0463: Vendor monthly billing
+0464: Extend subscription, issue invoice
+0465: subscription.halted
+0466: Failed recurring charge
+0467: Downgrade vendor, notify to update payment method
+0468: payout.processed
+0469: Vendor payout completed
+0470: Update escrow to released, notify vendor
+0471: payout.failed
+0472: Vendor payout failed
+0473: Alert ops team, retry or manual resolution
+0474: 3.2 MSG91 — OTP & SMS Integration
+0475: 3.2.1 Send OTP
+0476: // POST https://api.msg91.com/api/v5/otp
+0477: const response = await axios.post('https://api.msg91.com/api/v5/otp', {
+0478: template_id: process.env.MSG91_OTP_TEMPLATE_ID,
+0479: mobile: phoneInE164format,    // E.g. 919876543210 (no + prefix)
+0480: authkey: process.env.MSG91_AUTH_KEY,
+0481: otp_length: 6,
+0482: otp_expiry: 10,               // Minutes
+0483: });
+0484: // Verify OTP
+0485: // POST https://api.msg91.com/api/v5/otp/verify
+0486: const verifyRes = await axios.post('.../otp/verify', {
+0487: mobile: phone, otp: userEnteredOtp, authkey: process.env.MSG91_AUTH_KEY
+0488: });
+0489: // verifyRes.data.type === 'success' means valid OTP
+0490: 3.3 DigiLocker API — KYC Verification
+0491: 3.3.1 PAN Card Verification
+0492: // Use Sandbox: https://sandbox.digilocker.gov.in
+0493: // Production: https://api.digilocker.gov.in
+0494: // Step 1: Get auth URL
+0495: const authUrl = `https://api.digilocker.gov.in/public/oauth2/1/authorize
+0496: ?response_type=code&client_id=${CLIENT_ID}
+0497: &redirect_uri=${REDIRECT_URI}&state=${state}&scope=aadhaar_number`
+0498: // Step 2: Exchange auth code for access token
+0499: // Step 3: Pull document using issued_documents API
+0500: // Step 4: Verify PAN name matches vendor business name
+0501: 3.3.2 Alternative: NSDL PAN Verification (Simpler)
+0502: // Via Surepass or AuthBridge API (aggregators)
+0503: // POST https://kyc-api.surepass.io/api/v1/pan/pan-comprehensive
+0504: // Headers: Authorization: Bearer {token}
+0505: // Body: { id_number: 'ABCDE1234F' }
+0506: // Response: { name, father_name, dob, address, is_valid }
+0507: 3.4 Bank Account Penny Drop Verification
+0508: // Via Razorpay Fund Account API or direct NPCI
+0509: // Step 1: Create fund account
+0510: const fundAccount = await rzp.fundAccount.create({
+0511: contact_id: razorpayContactId,
+0512: account_type: 'bank_account',
+0513: bank_account: { name: vendorName, ifsc: ifscCode, account_number: accNumber }
+0514: });
+0515: // Step 2: Create validation (penny drop)
+0516: const validation = await rzp.fundAccount.validate({
+0517: account_number: '2323230074343447', // Your Razorpay account
+0518: fund_account: { id: fundAccount.id },
+0519: amount: 100, // ₹1 in paise
+0520: currency: 'INR',
+0521: notes: { purpose: 'bank_verification' }
+0522: });
+0523: // validation.status === 'completed' means bank account is valid
+0524: 3.5 GST Number Verification
+0525: // Free API: https://apisetu.gov.in/gst
+0526: // Or paid: Surepass GST API
+0527: const res = await axios.get(`https://sheet.gstincheck.co.in/check/${apiKey}/${gstNumber}`);
+0528: // res.data.flag = true means valid GSTIN
+0529: // Also returns: legal_name, trade_name, registration_date, status
+0530: 3.6 Firebase Cloud Messaging (FCM)
+0531: 3.6.1 Send Push Notification
+0532: const admin = require('firebase-admin');
+0533: admin.initializeApp({ credential: admin.credential.cert(serviceAccountJson) });
+0534: async function sendPush(fcmToken, title, body, data = {}) {
+0535: await admin.messaging().send({
+0536: token: fcmToken,
+0537: notification: { title, body },
+0538: data: { ...data, click_action: 'FLUTTER_NOTIFICATION_CLICK' },
+0539: android: { priority: 'high', notification: { sound: 'default', channelId: 'bookings' } },
+0540: apns: { payload: { aps: { sound: 'default', badge: 1 } } }
+0541: });
+0542: }
+0543: 3.7 WhatsApp Business API (360dialog)
+0544: // Send template message
+0545: await axios.post(`https://waba.360dialog.io/v1/messages`, {
+0546: to: phoneInE164,              // E.g. +919876543210
+0547: type: 'template',
+0548: template: {
+0549: namespace: 'your_namespace',
+0550: name: 'booking_confirmed',  // Approved template name
+0551: language: { policy: 'deterministic', code: 'en' },
+0552: components: [{ type: 'body', parameters: [
+0553: { type: 'text', text: customerName },
+0554: { type: 'text', text: vendorName },
+0555: { type: 'text', text: eventDate },
+0556: ]}]
+0557: }
+0558: }, { headers: { 'D360-API-KEY': process.env.WHATSAPP_API_TOKEN } });
+0559: 3.8 Google Maps / Places API
+0560: Usage
+0561: API
+0562: Cost
+0563: Implementation
+0564: Vendor location input
+0565: Places Autocomplete API
+0566: $17/1000 req
+0567: Vendor profile setup — address search
+0568: City selection (customer)
+0569: Places Autocomplete API
+0570: $17/1000 req
+0571: Onboarding city picker
+0572: Vendor map view (search)
+0573: Maps JavaScript API
+0574: $7/1000 loads
+0575: Search results map view
+0576: GPS check-in (event day)
+0577: Geolocation (device native)
+0578: Free
+0579: Flutter location package
+0580: Distance calculation
+0581: Distance Matrix API
+0582: $10/1000 elem
+0583: Geo-search radius filter
+0584: City centroid for search
+0585: Geocoding API
+0586: $5/1000 req
+0587: City name → lat/lng for ES geo filter
+0588: 4. CAPACITY PLANNING & SCALING PLAYBOOK
+0589: Know exactly when to scale what. Over-scaling wastes money. Under-scaling loses users. This table tells you at which traffic level to add what resource.
+0590: 4.1 Traffic Volume Assumptions
+0591: Phase
+0592: Monthly Active Users
+0593: Peak RPS
+0594: Concurrent WebSocket
+0595: DB Connections Needed
+0596: MVP (Month 3)
+0597: 500
+0598: 10
+0599: 50
+0600: 20
+0601: Traction (Month 6)
+0602: 5,000
+0603: 100
+0604: 500
+0605: 100
+0606: Growth (Month 12)
+0607: 25,000
+0608: 500
+0609: 2,500
+0610: 400
+0611: Scale (Month 18)
+0612: 1,00,000
+0613: 2,000
+0614: 10,000
+0615: 1,200
+0616: Regional (Month 24)
+0617: 5,00,000
+0618: 10,000
+0619: 50,000
+0620: 4,000
+0621: 4.2 Infrastructure Scaling Roadmap
+0622: Phase
+0623: Database
+0624: Cache
+0625: API Servers
+0626: Search
+0627: Notes
+0628: MVP
+0629: Supabase free (500MB)
+0630: Upstash Redis free
+0631: 1 ECS task / service
+0632: ES single node free
+0633: All on free tiers
+0634: Month 5
+0635: RDS t3.small (20GB)
+0636: ElastiCache t3.micro
+0637: 2 tasks / service
+0638: ES t3.small 1 node
+0639: ~₹8K/month
+0640: Month 9
+0641: RDS t3.medium + 1 read replica
+0642: ElastiCache t3.small cluster
+0643: 3–5 tasks / service auto
+0644: ES t3.medium 3 nodes
+0645: ~₹35K/month
+0646: Month 14
+0647: RDS r6g.large multi-AZ
+0648: ElastiCache r6g.large cluster
+0649: 5–15 tasks auto-scale
+0650: ES r6g.large 3 nodes
+0651: ~₹1.2L/month
+0652: Month 18
+0653: RDS r6g.xlarge + 2 replicas + PgBouncer
+0654: ElastiCache cluster mode
+0655: 10–50 tasks per service
+0656: ES 5-node cluster
+0657: ~₹4L/month
+0658: Month 24
+0659: Aurora PostgreSQL global
+0660: Global Redis + regional caches
+0661: Multi-region ECS
+0662: ES 10-node multi-AZ
+0663: ~₹12L/month
+0664: 4.3 Database Capacity Calculations
+0665: Table
+0666: Rows/Month
+0667: Row Size
+0668: Annual Storage
+0669: Action at Limit
+0670: users
+0671: 5,000
+0672: ~2KB
+0673: ~120MB/year
+0674: Partition by signup_year at 10M rows
+0675: vendors
+0676: 500
+0677: ~5KB
+0678: ~30MB/year
+0679: No partitioning needed long-term
+0680: bookings
+0681: 10,000
+0682: ~3KB
+0683: ~360MB/year
+0684: Partition by created_year at 5M rows
+0685: payments
+0686: 15,000
+0687: ~2KB
+0688: ~360MB/year
+0689: Archive to S3 after 2 years
+0690: audit_logs
+0691: 500,000
+0692: ~1KB
+0693: ~6GB/year
+0694: Partition by month, archive after 90 days
+0695: analytics events
+0696: 5,000,000
+0697: ~0.5KB
+0698: ~30GB/year
+0699: Store in ClickHouse, not PostgreSQL
+0700: chat messages
+0701: 100,000
+0702: ~0.5KB
+0703: ~600MB/year
+0704: MongoDB sharding at 50M messages
+0705: media_objects
+0706: 50,000
+0707: ~0.5KB
+0708: ~300MB/year (metadata only; files in S3)
+0709: No issue — S3 unlimited
+0710: 4.4 Elasticsearch Capacity
+0711: Index size estimation: 500 vendors × ~50KB per doc = 25MB (trivially small)
+0712: At 100,000 vendors: ~5GB — single t3.medium node handles this
+0713: At 1,000,000 vendors: ~50GB — scale to 3-node cluster with sharding
+0714: Shard strategy: 1 primary shard per index at MVP; add shard per 50GB data
+0715: Replica: 1 replica always (for high availability)
+0716: 4.5 S3 Media Cost Estimation
+0717: Content Type
+0718: Per Vendor/Customer
+0719: 10K Vendors
+0720: Storage Cost (AWS S3)
+0721: Portfolio photos (processed)
+0722: ~50MB (50 photos × 3 variants)
+0723: 500GB
+0724: ₹850/month
+0725: Portfolio videos
+0726: ~500MB (5 videos transcoded)
+0727: 5TB
+0728: ₹8,500/month
+0729: Review photos
+0730: ~10MB avg
+0731: Variable
+0732: ₹170/month per 10K reviews
+0733: KYC documents
+0734: ~2MB
+0735: 20GB
+0736: ₹34/month
+0737: Total at 10K vendors
+0738: —
+0739: ~5.5TB
+0740: ~₹9,500/month
+0741: 5. MOBILE APP RELEASE PROCESS
+0742: 5.1 Version Numbering
+0743: Format: MAJOR.MINOR.PATCH (semantic versioning)
+0744: MAJOR: Breaking changes or complete redesign (rare — 1.x.x → 2.x.x)
+0745: MINOR: New features, new screens, significant additions (1.0.x → 1.1.x)
+0746: PATCH: Bug fixes, crash fixes, minor tweaks (1.1.0 → 1.1.1)
+0747: Build number: Auto-incremented integer (CI sets this from pipeline run number)
+0748: Over-the-air (OTA) updates: Use Shorebird for Dart-only changes (no native changes)
+0749: 5.2 Release Cadence
+0750: Release Type
+0751: Frequency
+0752: Who Triggers
+0753: Review Required
+0754: Rollout Strategy
+0755: Bug Fix Patch
+0756: As needed (same week)
+0757: Engineering lead
+0758: Automated tests only
+0759: 100% immediate
+0760: Feature Minor
+0761: Every 2 weeks
+0762: Product owner
+0763: Full regression + store review
+0764: 10% → 50% → 100% (staged)
+0765: Major Release
+0766: Quarterly
+0767: Founder approval
+0768: Full QA + stakeholder demo
+0769: 5% → 25% → 100% over 1 week
+0770: OTA (Shorebird)
+0771: As needed (hours)
+0772: Engineering lead
+0773: Automated tests only
+0774: 100% — no store review needed
+0775: 5.3 Google Play Store Submission Checklist
+0776: Pre-Submission
+0777: App signed with production keystore (keystore stored in AWS Secrets Manager)
+0778: Build created: flutter build appbundle --release
+0779: App Bundle uploaded to Play Console Internal Testing track first
+0780: Privacy Policy URL set in Play Console (must be live public URL)
+0781: All permissions declared and justified in permission rationale
+0782: Data safety form completed (what data we collect, share, and encrypt)
+0783: Content rating questionnaire completed (expected: Everyone)
+0784: Screenshots: At least 2, up to 8 per form factor (phone, tablet)
+0785: Feature graphic: 1024×500px banner
+0786: App icon: 512×512px PNG
+0787: Required Screenshots
+0788: Screen
+0789: Why Required
+0790: Format
+0791: Home Dashboard
+0792: Shows core value immediately
+0793: 1080×1920 or 1284×2778
+0794: Vendor Search & Results
+0795: Discovery feature showcase
+0796: Same
+0797: Vendor Profile
+0798: Portfolio + rating showcase
+0799: Same
+0800: AI Budget Planner
+0801: Unique value prop
+0802: Same
+0803: Event Timeline
+0804: Execution Engine showcase
+0805: Same
+0806: Event Day Dashboard
+0807: Differentiator feature
+0808: Same
+0809: Booking Confirmation
+0810: Trust + payment
+0811: Same
+0812: Vendor OS (if marketing dual-sided)
+0813: B2B feature highlight
+0814: Same
+0815: 5.4 Apple App Store Submission Checklist
+0816: Additional iOS Requirements
+0817: Apple Developer Program membership active ($99/year)
+0818: Distribution certificate and provisioning profile configured in Xcode
+0819: Build uploaded via: flutter build ipa --release → Xcode Organizer → App Store Connect
+0820: App Review Information: Test account credentials provided (test phone + OTP test mode)
+0821: Export Compliance: Answer HTTPS encryption question (answer: Yes, standard encryption)
+0822: Sign-in with Apple: Required if Google Sign-In is available (Apple rule)
+0823: App Privacy labels: Accurately reflect all data collected
+0824: Age rating: Complete questionnaire — expected 4+ rating
+0825: In-App Purchases: Not applicable (payments go to vendor, not Apple IAP)
+0826: Review notes: Explain OTP-based login flow (common rejection reason — testers need test mode)
+0827: 5.5 App Store Optimisation (ASO)
+0828: Element
+0829: Content
+0830: Character Limit
+0831: App Name (iOS)
+0832: Wedding OS - Plan & Book
+0833: 30 chars
+0834: Subtitle (iOS)
+0835: India's Wedding Operating System
+0836: 30 chars
+0837: Keywords (iOS)
+0838: wedding,planner,vendors,photographer,venue,caterer,booking,hyderabad
+0839: 100 chars
+0840: Short Description (Play)
+0841: Plan your wedding end-to-end — book vendors, track tasks, coordinate on the day.
+0842: 80 chars
+0843: Full Description
+0844: 500-word SEO-optimized description targeting wedding planning keywords
+0845: 4000 chars
+0846: What's New
+0847: Clear changelog per release, written for users (not engineers)
+0848: 500 chars
+0849: 6. OPERATIONS MANUAL
+0850: The operations team runs the business, not just the technology. This manual covers the human workflows that make the platform actually work.
+0851: 6.1 Daily Operations Checklist
+0852: Every Morning (9 AM)
+0853: Check dashboard: GMV yesterday, new signups, new vendor applications
+0854: Review overnight errors in Sentry: Any new crash patterns?
+0855: Check dispute queue: Any new disputes? Assign reviewer.
+0856: Check payment alerts: Any stuck escrows, failed payouts?
+0857: Review vendor verification queue: Process pending KYC submissions (SLA: 24h)
+0858: Scan support tickets: Any SEV-1 or SEV-2 issues overnight?
+0859: Every Evening (6 PM)
+0860: Review day's metrics vs targets
+0861: Check tomorrow's events: Any weddings scheduled? Coordinate with vendors.
+0862: Vendor payout batch: Verify all releases processed correctly
+0863: Team standup notes: Log blockers, decisions made
+0864: 6.2 Vendor Acquisition Workflow
+0865: Week 1: Target List Building
+0866: Build spreadsheet: 200 vendors per category in Hyderabad from Google Maps, JustDial, Sulekha
+0867: Filter: Priority = Vendors with active Instagram/website (digitally aware)
+0868: Categorise: Function halls, photographers, caterers, decorators, makeup, mehendi
+0869: Assign: Each team member takes 50 vendors to outreach
+0870: Outreach Script (In-Person Visit)
+0871: 'Hi, I'm from Wedding OS. We're launching India's first complete wedding platform in Hyderabad. We give you FREE digital presence, a booking calendar, and we bring you guaranteed leads — completely free for the first 3 months. We've already onboarded [X] vendors this week. Can I show you how it works on my phone?'
+0872: Vendor Follow-Up Sequence
+0873: Day
+0874: Action
+0875: Channel
+0876: Goal
+0877: Day 0
+0878: In-person pitch + app demo
+0879: In-person
+0880: Get agreement to try
+0881: Day 1
+0882: Send WhatsApp: registration link + video walkthrough
+0883: WhatsApp
+0884: Get them registered
+0885: Day 3
+0886: Call if not registered: offer to do profile setup together
+0887: Phone
+0888: Remove friction
+0889: Day 7
+0890: Follow-up: 'You have 2 customer enquiries waiting!'
+0891: WhatsApp
+0892: Activate with real lead
+0893: Day 14
+0894: Check-in: Any questions? Show analytics dashboard
+0895: WhatsApp/Visit
+0896: Deepen engagement
+0897: Day 30
+0898: Subscription pitch: 'Upgrade to premium for priority leads'
+0899: In-person
+0900: Revenue conversion
+0901: 6.3 Customer Success — First 100 Weddings Protocol
+0902: The first 100 weddings are not transactions. They are case studies. Every one is managed personally. The stories from these 100 weddings become the platform's marketing for the next 1,000.
+0903: Intake Process
+0904: Customer signs up and starts planning → Ops team gets alert
+0905: Personal call within 2 hours: 'Hi! I'm your dedicated Wedding OS coordinator for your big day.'
+0906: Discovery: Event date, size, city, specific concerns, budget
+0907: Assign dedicated coordinator from team (1 coordinator per 5 active events)
+0908: Set up WhatsApp group: Customer + family + coordinator
+0909: Weekly Touchpoints
+0910: Every Sunday: WhatsApp check-in — 'How's planning going? Any vendor issues?'
+0911: Proactively flag: If customer hasn't booked a critical vendor with <60 days to go
+0912: Introduce vendors: Personally warm-introduce customer to shortlisted vendors
+0913: Resolve issues: Any vendor complaint → coordinator escalates immediately
+0914: Event Day Protocol
+0915: Coordinator is on-call 6 AM to midnight on the wedding day
+0916: Vendor check-in monitoring: Confirm each vendor checks in via app
+0917: Issue handling: Any no-show → immediately find replacement from platform vendor pool
+0918: Post-event: Next morning call to couple — 'How was your day?' → prompt review
+0919: 6.4 Vendor Dispute Resolution SOP
+0920: Step-by-Step Process
+0921: Dispute received → Create dispute ticket → Freeze escrow
+0922: Acknowledge to both parties within 2 hours (SMS + in-app)
+0923: Collect evidence from both within 24 hours:
+0924: Customer: Photos, videos, specific complaint details, contract
+0925: Vendor: Check-in proof, delivery photos, contract, communication history
+0926: Coordinator reviews all evidence — use platform's audit log for GPS check-in data
+0927: Apply standard resolution matrix (see Vol I, Section 8.4.2)
+0928: Communicate decision with clear reasoning within 72 hours
+0929: Process payout or refund within 2 business days of decision
+0930: Close dispute, update vendor performance record
+0931: 7. GROWTH & MARKETING AUTOMATION
+0932: 7.1 Customer Drip Email Sequence (Post-Signup)
+0933: Day
+0934: Subject
+0935: Content Goal
+0936: CTA
+0937: D+0 (Instant)
+0938: Welcome! Your wedding journey starts here
+0939: Onboarding guide, app download links
+0940: Download App
+0941: D+1
+0942: Your AI Wedding Plan is waiting 🎉
+0943: Prompt to complete onboarding, preview of budget planner
+0944: Complete Plan
+0945: D+3
+0946: 5 most-booked venues in Hyderabad right now
+0947: Educational + discovery, feature top venues
+0948: Browse Venues
+0949: D+7
+0950: Your wedding checklist for {X} months away
+0951: Personalised based on their date, tasks they should do now
+0952: View Checklist
+0953: D+14
+0954: [First Name], 2 photographers match your budget
+0955: Show 2 relevant vendors, urgency (dates filling up)
+0956: View Vendors
+0957: D+21
+0958: How {Couple Name} planned their perfect wedding
+0959: Case study from platform — real testimonial
+0960: Read Story
+0961: D+30
+0962: Budget tip: Save ₹40,000 on your wedding
+0963: Educational — how to negotiate, what's overpriced
+0964: Open App
+0965: D+60 (if no booking)
+0966: Still planning? Our coordinators can help
+0967: Personal touch — offer coordinator call
+0968: Book a Call
+0969: 7.2 Vendor Onboarding Drip Sequence
+0970: Day
+0971: Medium
+0972: Message
+0973: Goal
+0974: D+0
+0975: In-app + Email
+0976: Welcome! Here's how to set up your profile in 10 minutes
+0977: Profile completion
+0978: D+1
+0979: Push
+0980: Your profile is 60% complete. Add 5 more photos to attract more leads.
+0981: Photo upload
+0982: D+2
+0983: WhatsApp
+0984: Quick tip: Vendors with packages get 3× more enquiries. Add a package now!
+0985: Package creation
+0986: D+3
+0987: Email
+0988: Your profile has been seen by 12 potential customers today
+0989: Social proof → complete profile
+0990: D+7
+0991: Push (if no enquiry)
+0992: Set up your availability calendar to start receiving bookings
+0993: Calendar activation
+0994: D+7
+0995: In-app
+0996: Your first lead is waiting! Set up your profile to connect.
+0997: Activation urgency
+0998: D+14
+0999: WhatsApp
+1000: [Vendor Name], you have a lead for [Date] event. Reply now!
+1001: Lead engagement
+1002: D+30
+1003: Email
+1004: Upgrade to Premium: Get 3× more leads and priority listing
+1005: Monetisation
+1006: D+45
+1007: Email
+1008: Top photographers on Wedding OS earn ₹2L+ per month. Are you maximising?
+1009: Aspirational upgrade
+1010: 7.3 Re-Engagement Campaigns
+1011: Segment
+1012: Trigger
+1013: Message
+1014: Channel
+1015: Customer — 14 days inactive
+1016: No app open for 14 days
+1017: Your wedding is in {X} days. {Y} tasks need attention.
+1018: Push + Email
+1019: Customer — no booking 30 days
+1020: Signed up, no booking after 30 days
+1021: Still looking? These 5 vendors have openings on your date.
+1022: Email + WhatsApp
+1023: Vendor — 7 days no login
+1024: Vendor inactive 7 days
+1025: You have {X} unread enquiries waiting for response.
+1026: Push + SMS
+1027: Vendor — low response rate
+1028: Response rate drops below 70%
+1029: Your response rate has dropped. Customers choose fast responders!
+1030: In-app + Email
+1031: Post-event — no review
+1032: Event completed, no review after 3 days
+1033: How was your wedding? Share your experience to help others.
+1034: Push + Email
+1035: 7.4 Social Media Content Calendar (Month 1–2)
+1036: Week
+1037: Platform
+1038: Content Theme
+1039: Format
+1040: Goal
+1041: W1
+1042: Instagram
+1043: 'Behind Hyderabad's best weddings'
+1044: Reels — vendor BTS footage
+1045: Brand awareness
+1046: W1
+1047: Instagram
+1048: Vendor spotlight: top photographer
+1049: Static post — portfolio photos
+1050: Vendor acquisition
+1051: W2
+1052: Instagram
+1053: '5 wedding planning mistakes to avoid'
+1054: Carousel — educational
+1055: Leads to app
+1056: W2
+1057: YouTube
+1058: 'How Wedding OS works — 3 min demo'
+1059: Screen recording + voiceover
+1060: Conversion
+1061: W3
+1062: Instagram
+1063: Customer story: 'How I planned my wedding in 2 months'
+1064: Reel — interview style
+1065: Social proof
+1066: W3
+1067: Pinterest
+1068: Hyderabad wedding inspiration boards
+1069: Pinned photos from vendor portfolios
+1070: SEO + discovery
+1071: W4
+1072: Instagram
+1073: 'What ₹10L gets you for a Hyderabad wedding'
+1074: Carousel with budget breakdown
+1075: Viral potential
+1076: W4
+1077: Instagram
+1078: Live Q&A: Wedding planning tips (Stories)
+1079: Instagram Live
+1080: Engagement + followers
+1081: 8. DATA PIPELINE & ANALYTICS WAREHOUSE
+1082: Operational data (PostgreSQL) and analytics data (ClickHouse) must stay separate. Never run heavy analytical queries on the production database. Build the data pipeline from Day 1.
+1083: 8.1 Data Pipeline Architecture
+1084: Source: PostgreSQL (operational) → CDC via Debezium (Change Data Capture)
+1085: Stream: Kafka (or AWS Kinesis for managed option — start free with Kinesis)
+1086: Sink: ClickHouse (analytics) + S3 (data lake for ML)
+1087: Orchestration: Apache Airflow (or Prefect — simpler setup)
+1088: Transformation: dbt (data build tool) — SQL-based transformations
+1089: BI: Metabase (open-source, self-hosted — zero cost)
+1090: 8.2 Key Analytics Tables (ClickHouse)
+1091: -- Events fact table
+1092: CREATE TABLE analytics.events (
+1093: event_id UUID,
+1094: event_name LowCardinality(String),
+1095: user_id UUID,
+1096: session_id String,
+1097: city LowCardinality(String),
+1098: platform LowCardinality(String),
+1099: properties String,          -- JSON
+1100: timestamp DateTime64(3, 'UTC')
+1101: ) ENGINE = MergeTree()
+1102: PARTITION BY toYYYYMM(timestamp)
+1103: ORDER BY (event_name, user_id, timestamp);
+1104: -- Daily GMV aggregation (pre-computed for dashboards)
+1105: CREATE TABLE analytics.daily_gmv (
+1106: date Date,
+1107: city LowCardinality(String),
+1108: category LowCardinality(String),
+1109: booking_count UInt32,
+1110: gmv_paise UInt64,
+1111: platform_fee_paise UInt64
+1112: ) ENGINE = SummingMergeTree()
+1113: PARTITION BY toYYYYMM(date)
+1114: ORDER BY (date, city, category);
+1115: 8.3 dbt Model Structure
+1116: models/
+1117: ├── staging/              # 1:1 with source tables, basic cleaning
+1118: │   ├── stg_bookings.sql
+1119: │   ├── stg_payments.sql
+1120: │   └── stg_vendors.sql
+1121: ├── intermediate/         # Business logic combinations
+1122: │   ├── int_booking_payments.sql
+1123: │   └── int_vendor_performance.sql
+1124: └── marts/                # Final wide tables for BI tools
+1125: ├── mart_vendor_scorecard.sql
+1126: ├── mart_customer_ltv.sql
+1127: └── mart_daily_kpis.sql
+1128: 8.4 Key Reports for Business
+1129: Report
+1130: Frequency
+1131: Audience
+1132: Key Metrics
+1133: Daily Dashboard
+1134: Daily — auto-emailed 8 AM
+1135: Founder + heads
+1136: GMV, bookings, signups, active disputes
+1137: Weekly Vendor Health
+1138: Every Monday
+1139: Ops team
+1140: Vendor activity, churn risk, top performers
+1141: Weekly Growth Report
+1142: Every Monday
+1143: Marketing
+1144: CAC, conversion rates, channel attribution
+1145: Monthly P&L
+1146: 1st of month
+1147: Founder + finance
+1148: Revenue, costs, EBITDA, GMV by category
+1149: Quarterly Investor Update
+1150: Quarterly
+1151: Investors (when applicable)
+1152: GMV trend, unit economics, city expansion
+1153: City Expansion Readiness
+1154: On demand
+1155: Founder
+1156: Vendor supply, demand signals, competitive analysis
+1157: 9. PARTNERSHIP INTEGRATION SPECIFICATION
+1158: 9.1 Venue Partnership Program
+1159: Venues are the anchor booking — everything else follows. A couple books the venue first, then they need photographers, caterers, decorators. Own the venue relationship and you own the full wallet.
+1160: Venue Partnership Tiers
+1161: Tier
+1162: Benefit to Venue
+1163: Benefit to Us
+1164: Requirements
+1165: Preferred Partner
+1166: 'Preferred Partner' badge, guaranteed lead flow
+1167: Exclusive preferred listing, 8% commission (vs 10%)
+1168: Minimum 12 bookings/year commitment
+1169: Featured Venue
+1170: Top position in venue search, homepage feature
+1171: Premium visibility, 10% commission + ₹2,999/month listing
+1172: KYC verified, minimum 4.0 rating
+1173: Standard
+1174: Free listing, platform enquiries
+1175: 10% commission on bookings
+1176: KYC verified
+1177: Venue Integration Workflow
+1178: Venue signs partnership agreement (digital via DocuSign)
+1179: Venue staff trained on Vendor OS (1-hour onboarding session)
+1180: Venue provides customer list — we reach out to recently-booked couples with opt-in
+1181: Venue displays QR code at reception: 'Plan your vendors with Wedding OS'
+1182: Revenue share on referred vendor bookings: Venue gets 0.5% of referred bookings (logged in referral system)
+1183: 9.2 Photographer/Videographer Bundle Deals
+1184: Package deal: Customer books photography + videography together → 10% bundle discount
+1185: Implementation: Both vendors agree to bundle pricing on platform
+1186: Commission: Applied to combined booking value
+1187: Display: 'Bundle & Save' badge on both vendor profiles
+1188: 9.3 Financial Service Partnerships
+1189: Wedding Loan Integration (Month 18+)
+1190: Partner
+1191: Product
+1192: Our Commission
+1193: Customer Benefit
+1194: Integration
+1195: Axis Bank
+1196: Wedding Personal Loan
+1197: 1.5% of disbursed amount
+1198: Pre-approved based on booking value
+1199: API: Check eligibility, apply in-app
+1200: HDFC
+1201: Wedding Loan 0% processing fee
+1202: 1% of disbursed amount
+1203: Lowest rate for premium customers
+1204: API: Credit check + application
+1205: LoanTap (NBFC)
+1206: Instant approval wedding loan
+1207: 2% of disbursed amount
+1208: Approval in 24 hours
+1209: API: Direct application
+1210: Wedding Insurance (Month 18+)
+1211: Partner: Acko / ICICI Lombard — wedding event insurance
+1212: Coverage: Vendor cancellation, weather disruption, venue damage
+1213: Premium: 0.5–1% of total wedding budget
+1214: Commission: 15% of premium collected
+1215: Integration: In-app offer shown after first booking is confirmed
+1216: 10. LOAD TESTING SCRIPTS (k6)
+1217: Run these before every major release. Load test against staging, never production. Results must pass acceptance criteria before deploying to production.
+1218: 10.1 Acceptance Criteria
+1219: Scenario
+1220: Users
+1221: Duration
+1222: P95 Latency
+1223: Error Rate
+1224: Pass Condition
+1225: Baseline
+1226: 100
+1227: 5 min
+1228: <150ms
+1229: <0.1%
+1230: All green
+1231: Normal load
+1232: 500
+1233: 10 min
+1234: <200ms
+1235: <0.5%
+1236: All green
+1237: Peak load
+1238: 2,000
+1239: 5 min
+1240: <400ms
+1241: <1%
+1242: All green
+1243: Stress test
+1244: 5,000
+1245: 3 min
+1246: <800ms
+1247: <2%
+1248: No crash
+1249: Soak test
+1250: 500
+1251: 2 hours
+1252: <200ms
+1253: <0.5%
+1254: No memory leak (flat RSS)
+1255: 10.2 Vendor Search Load Test
+1256: // k6 script: load-test-search.js
+1257: import http from 'k6/http';
+1258: import { check, sleep } from 'k6';
+1259: export const options = {
+1260: stages: [
+1261: { duration: '2m', target: 500 },  // Ramp up
+1262: { duration: '5m', target: 500 },  // Sustain
+1263: { duration: '2m', target: 0   },  // Ramp down
+1264: ],
+1265: thresholds: {
+1266: http_req_duration: ['p(95)<400'],  // 95th percentile < 400ms
+1267: http_req_failed: ['rate<0.01'],    // Error rate < 1%
+1268: },
+1269: };
+1270: const CITIES = ['hyderabad','mumbai','delhi','bangalore'];
+1271: const CATEGORIES = ['photography','venue','catering','decor','makeup'];
+1272: export default function () {
+1273: const city = CITIES[Math.floor(Math.random() * CITIES.length)];
+1274: const cat  = CATEGORIES[Math.floor(Math.random() * CATEGORIES.length)];
+1275: const res  = http.get(`${__ENV.API_URL}/api/v1/vendors?city=${city}&category=${cat}&limit=20`);
+1276: check(res, {
+1277: 'status 200': r => r.status === 200,
+1278: 'has vendors': r => JSON.parse(r.body).data.vendors.length > 0,
+1279: 'fast response': r => r.timings.duration < 400,
+1280: });
+1281: sleep(1);
+1282: }
+1283: 10.3 Booking Flow Load Test
+1284: // k6 script: load-test-booking.js
+1285: import http from 'k6/http';
+1286: import { check, sleep } from 'k6';
+1287: // Pre-created test tokens from seed data
+1288: const TEST_TOKENS = open('./test-tokens.json');
+1289: const tokens = JSON.parse(TEST_TOKENS);
+1290: export default function () {
+1291: const token = tokens[Math.floor(Math.random() * tokens.length)];
+1292: const headers = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+1293: // Step 1: View vendor
+1294: http.get(`${__ENV.API_URL}/api/v1/vendors/test-vendor-id`, { headers });
+1295: sleep(0.5);
+1296: // Step 2: Check availability
+1297: http.get(`${__ENV.API_URL}/api/v1/vendors/test-vendor-id/availability?date=2024-12-15`, { headers });
+1298: sleep(0.5);
+1299: // Step 3: Submit enquiry
+1300: const enquiry = http.post(`${__ENV.API_URL}/api/v1/bookings/enquire`,
+1301: JSON.stringify({ vendor_id: 'test-vendor-id', event_date: '2024-12-15', package_id: 'pkg-1', message: 'Test' }),
+1302: { headers }
+1303: );
+1304: check(enquiry, { 'enquiry 201': r => r.status === 201 });
+1305: sleep(1);
+1306: }
+1307: 11. PRIVACY CENTER & COOKIE CONSENT IMPLEMENTATION
+1308: 11.1 Cookie Categories
+1309: Category
+1310: Cookies
+1311: Required
+1312: User Can Disable
+1313: Essential
+1314: Session cookie, CSRF token, auth token
+1315: Yes — cannot disable
+1316: No
+1317: Analytics
+1318: PostHog session, page view tracking
+1319: No
+1320: Yes
+1321: Marketing
+1322: Meta Pixel, Google Ads conversion
+1323: No
+1324: Yes
+1325: Preferences
+1326: Language, theme, notification preferences
+1327: No
+1328: Yes
+1329: 11.2 Consent Banner Implementation
+1330: Show on first visit to any page (web) — full-screen overlay on mobile app first launch
+1331: Three options: Accept All / Manage Preferences / Reject Non-Essential
+1332: 'Manage Preferences': Granular toggle per category with plain-language explanation
+1333: Consent stored: localStorage (web) + secure storage (app) + server-side (DB)
+1334: Consent version: Update consent version when policy changes → re-prompt affected users
+1335: No dark patterns: 'Accept All' and 'Reject' buttons must be same visual prominence
+1336: 11.3 Data Subject Request Portal
+1337: Request Type
+1338: Endpoint
+1339: Processing Time
+1340: Verification
+1341: Download My Data
+1342: GET /api/v1/users/me/data-export
+1343: Generate within 48h, email ZIP link
+1344: OTP verification before download
+1345: Delete My Account
+1346: DELETE /api/v1/users/me
+1347: Anonymise PII within 7 days
+1348: OTP + confirmation checkbox
+1349: Correct My Data
+1350: PUT /api/v1/users/me
+1351: Immediate
+1352: Standard auth
+1353: Opt Out of Marketing
+1354: PUT /api/v1/users/me/consent
+1355: Immediate
+1356: Standard auth
+1357: Withdraw Processing Consent
+1358: POST /api/v1/users/me/withdraw-consent
+1359: Account suspension — no more processing
+1360: OTP verification
+1361: 11.4 Data Export Format
+1362: // ZIP file sent to user's registered email
+1363: user-data-export-{userId}-{date}.zip
+1364: ├── profile.json          // All profile data
+1365: ├── bookings.json         // All booking history
+1366: ├── payments.json         // Payment history (masked card numbers)
+1367: ├── events.json           // All created events
+1368: ├── reviews.json          // Reviews given and received
+1369: ├── messages.json         // In-platform chat history
+1370: ├── notifications.json    // Notification history
+1371: └── consent-log.json      // All consent events with timestamps
+1372: 12. OPENAPI SPECIFICATION TEMPLATE
+1373: Every service has its own openapi.yaml. Use this template. Generate interactive docs from it using Swagger UI or Redoc. Docs auto-deployed to docs.weddingos.in per service.
+1374: 12.1 Base OpenAPI Structure
+1375: openapi: '3.1.0'
+1376: info:
+1377: title: Wedding OS Auth Service
+1378: version: 1.0.0
+1379: description: Authentication — OTP, JWT, OAuth
+1380: contact:
+1381: name: Wedding OS Engineering
+1382: email: tech@weddingos.in
+1383: servers:
+1384: - url: https://api.weddingos.in/api/v1
+1385: description: Production
+1386: - url: https://staging-api.weddingos.in/api/v1
+1387: description: Staging
+1388: - url: http://localhost:4001/api/v1
+1389: description: Local
+1390: components:
+1391: securitySchemes:
+1392: BearerAuth:
+1393: type: http
+1394: scheme: bearer
+1395: bearerFormat: JWT
+1396: schemas:
+1397: SuccessResponse:
+1398: type: object
+1399: properties:
+1400: success: { type: boolean, example: true }
+1401: data: { type: object }
+1402: meta:
+1403: type: object
+1404: properties:
+1405: request_id: { type: string }
+1406: timestamp:  { type: string, format: date-time }
+1407: ErrorResponse:
+1408: type: object
+1409: properties:
+1410: success: { type: boolean, example: false }
+1411: error:
+1412: type: object
+1413: properties:
+1414: code:    { type: string, example: AUTH_1003 }
+1415: message: { type: string }
+1416: field:   { type: string }
+1417: paths:
+1418: /auth/send-otp:
+1419: post:
+1420: summary: Send OTP to phone number
+1421: operationId: sendOtp
+1422: tags: [Authentication]
+1423: requestBody:
+1424: required: true
+1425: content:
+1426: application/json:
+1427: schema:
+1428: type: object
+1429: required: [phone]
+1430: properties:
+1431: phone:
+1432: type: string
+1433: pattern: '^\+91[6-9]\d{9}$'
+1434: example: '+919876543210'
+1435: responses:
+1436: '200':
+1437: description: OTP sent successfully
+1438: content:
+1439: application/json:
+1440: schema: { $ref: '#/components/schemas/SuccessResponse' }
+1441: '429':
+1442: description: Rate limited
+1443: content:
+1444: application/json:
+1445: schema: { $ref: '#/components/schemas/ErrorResponse' }
+1446: 13. MULTI-CITY EXPANSION ARCHITECTURE
+1447: Architecture must support multi-city from Day 1 even if only Hyderabad is launched. Retrofitting city support into existing schema is painful. Build it in.
+1448: 13.1 City Data Model
+1449: CREATE TABLE cities (
+1450: id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+1451: name VARCHAR(100) NOT NULL,       -- 'Hyderabad'
+1452: slug VARCHAR(100) UNIQUE NOT NULL, -- 'hyderabad'
+1453: state VARCHAR(100),
+1454: country VARCHAR(3) DEFAULT 'IND',
+1455: lat DECIMAL(9,6),
+1456: lng DECIMAL(9,6),
+1457: timezone VARCHAR(50) DEFAULT 'Asia/Kolkata',
+1458: currency VARCHAR(3) DEFAULT 'INR',
+1459: language_codes TEXT[] DEFAULT '{en}',
+1460: is_active BOOLEAN DEFAULT FALSE,  -- Enable when ready to launch
+1461: launch_date DATE,
+1462: cost_multiplier DECIMAL(4,2) DEFAULT 1.00, -- For AI budget optimizer
+1463: metadata JSONB DEFAULT '{}'
+1464: );
+1465: 13.2 City Expansion Playbook
+1466: Phase
+1467: Action
+1468: Timeline
+1469: Resource Required
+1470: T-60 days
+1471: Vendor acquisition begins: visit 200+ vendors in new city
+1472: 2 months before launch
+1473: 1 BD person on ground
+1474: T-45 days
+1475: Onboard minimum 50 verified vendors across all categories
+1476: —
+1477: Vendor success team
+1478: T-30 days
+1479: Create city landing page, start SEO content
+1480: —
+1481: Marketing + content
+1482: T-14 days
+1483: Local influencer tie-ups, press outreach
+1484: —
+1485: Marketing
+1486: T-7 days
+1487: Full load test on staging with city-specific data
+1488: —
+1489: Engineering
+1490: T-0
+1491: Enable city in DB (is_active = true), run launch campaigns
+1492: —
+1493: All teams
+1494: T+30 days
+1495: Review: GMV, vendor activity, customer satisfaction
+1496: —
+1497: Founder
+1498: 13.3 City-Specific Configuration
+1499: Config
+1500: Type
+1501: Example (Hyderabad)
+1502: Example (Mumbai)
+1503: Cost Multiplier
+1504: Float
+1505: 1.00 (baseline)
+1506: 1.35
+1507: Peak Season Months
+1508: Array
+1509: [11,12,1,2]
+1510: [11,12,1,2]
+1511: Local Holidays
+1512: Array
+1513: ['Bonalu','Bathukamma']
+1514: ['Ganesh Chaturthi']
+1515: Primary Language
+1516: String
+1517: 'te' (Telugu)
+1518: 'mr' (Marathi)
+1519: Support Number
+1520: String
+1521: +91-40-XXXX-XXXX
+1522: +91-22-XXXX-XXXX
+1523: Featured Vendor Categories
+1524: Array
+1525: ['venue','catering','photography']
+1526: ['venue','decor']
+1527: 14. CONTENT MANAGEMENT SYSTEM
+1528: 14.1 CMS Strategy
+1529: Tool: Contentful (free tier: 2 users, 25K records) OR Sanity (free tier: 3 users)
+1530: Use CMS for: Blog posts, city landing pages, FAQ content, promotional banners, email templates
+1531: Do NOT use CMS for: Vendor profiles, bookings, payments — these stay in PostgreSQL
+1532: Delivery: Fetch content at build time (Next.js SSG) for blog/static; ISR for semi-dynamic
+1533: 14.2 Content Types
+1534: Content Type
+1535: Fields
+1536: Used On
+1537: Update Frequency
+1538: Blog Post
+1539: Title, slug, body (rich text), category, author, meta, hero image
+1540: Blog section, SEO
+1541: Weekly
+1542: City Landing Page
+1543: City name, hero, vendor count, testimonials, FAQ
+1544: /{city}-wedding-services
+1545: Monthly
+1546: Category Guide
+1547: Category, city, vendor count, price guide, tips
+1548: Category pages
+1549: Quarterly
+1550: FAQ Item
+1551: Question, answer, category, city-specific flag
+1552: FAQ section, schema markup
+1553: As needed
+1554: Testimonial
+1555: Customer name, city, photo, quote, wedding date
+1556: Homepage, city pages
+1557: As received
+1558: Promotional Banner
+1559: Title, CTA text, CTA URL, image, start/end date, city filter
+1560: App home + web header
+1561: Per campaign
+1562: Vendor Spotlight
+1563: Vendor ID ref, editorial description, featured photos
+1564: Blog, homepage
+1565: Weekly
+1566: 14.3 Blog SEO Template
+1567: Every blog post must follow this structure:
+1568: H1: Contains primary keyword (e.g., 'Wedding Photographers in Hyderabad')
+1569: Introduction (150 words): Problem + promise, primary keyword in first sentence
+1570: Table of Contents: Linked anchors to each H2 section
+1571: H2 sections (5–8): Cover sub-topics, secondary keywords
+1572: Vendor showcase: 3–5 relevant platform vendors with links to profile
+1573: FAQ section: 4–6 Q&As with schema markup
+1574: CTA: 'Find Verified Photographers in Hyderabad → View All' (deep link to search)
+1575: Word count: Minimum 1,500 words for competitive keywords
+1576: 15. ADMIN REAL-TIME OPS DASHBOARD SPECIFICATION
+1577: 15.1 Dashboard Layout
+1578: The admin dashboard is the command centre. Built with React + Recharts + Ant Design. Real-time updates via WebSocket subscription. Three-column layout: metrics / activity feed / alerts.
+1579: 15.2 Top-Level KPI Cards (Auto-refresh 60s)
+1580: KPI Card
+1581: Data Source
+1582: Format
+1583: Alert Threshold
+1584: Today's GMV
+1585: SUM payments WHERE date=today
+1586: ₹X,XX,XXX
+1587: < 50% of daily target → amber
+1588: Active Bookings
+1589: COUNT bookings status=in_progress
+1590: Integer
+1591: —
+1592: New Signups Today
+1593: COUNT users WHERE date=today
+1594: Integer + trend vs yesterday
+1595: —
+1596: Pending Disputes
+1597: COUNT disputes status=open
+1598: Integer + urgent count
+1599: Any dispute >72h old → red
+1600: Failed Payments Today
+1601: COUNT payments status=failed today
+1602: Integer + rate %
+1603: Rate >2% → red alert
+1604: Vendors Awaiting KYC
+1605: COUNT vendor KYC status=submitted
+1606: Integer
+1607: >20 pending → amber
+1608: Stuck Escrows
+1609: COUNT escrows overdue >7 days post-event
+1610: Integer
+1611: Any stuck → red
+1612: API Error Rate
+1613: Avg error rate last 5 min
+1614: Percentage
+1615: >1% → red
+1616: 15.3 Live Activity Feed
+1617: Real-time stream of platform events (WebSocket subscription to admin room)
+1618: Format: [timestamp] [event icon] [description] [action button]
+1619: Events shown: New booking, payment captured, dispute raised, vendor verified, payout processed
+1620: Filter: By event type, by city, by severity
+1621: Max displayed: Last 100 events (paginate for more)
+1622: 15.4 Alert Panel
+1623: Alert Type
+1624: Trigger
+1625: Visual
+1626: Auto-Action
+1627: Payment Failure Spike
+1628: >5 failures in 10 min
+1629: Red badge, sound alert
+1630: Notify payment team
+1631: Dispute Escalation
+1632: Dispute >72h unresolved
+1633: Amber badge
+1634: Assign to senior coordinator
+1635: Vendor Fraud Flag
+1636: ML flags vendor account
+1637: Red badge
+1638: Temporarily restrict payouts
+1639: Escrow Overdue
+1640: Any escrow >7 days post-event
+1641: Red badge
+1642: Manual review required
+1643: High API Latency
+1644: P99 >500ms for 5+ min
+1645: Amber badge
+1646: Check service health
+1647: Storage Near Limit
+1648: S3 cost >₹20K/month
+1649: Amber badge
+1650: Review storage optimisation
+1651: 16. WEBHOOK HANDLER COMPLETE GUIDE
+1652: 16.1 Webhook Ingestion Architecture
+1653: All webhooks go to a single endpoint: POST /webhooks/{source}
+1654: Each webhook immediately stored to webhook_events table (raw body + headers)
+1655: Acknowledgement returned to caller instantly (200 OK)
+1656: Processing happens asynchronously via BullMQ — never block the webhook response
+1657: Idempotency: Each webhook has a unique ID; check if already processed before acting
+1658: 16.2 Webhook Events Table
+1659: CREATE TABLE webhook_events (
+1660: id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+1661: source VARCHAR(50) NOT NULL,     -- 'razorpay','freshdesk','msg91'
+1662: event_type VARCHAR(100),         -- 'payment.captured'
+1663: external_id VARCHAR(255),        -- Razorpay event ID for idempotency
+1664: raw_headers JSONB,
+1665: raw_body JSONB,
+1666: processing_status ENUM('pending','processing','processed','failed'),
+1667: processed_at TIMESTAMPTZ,
+1668: error_message TEXT,
+1669: retry_count INTEGER DEFAULT 0,
+1670: created_at TIMESTAMPTZ DEFAULT NOW()
+1671: );
+1672: 16.3 Webhook Router
+1673: // POST /webhooks/:source
+1674: router.post('/:source', rawBody, async (req, res) => {
+1675: const { source } = req.params;
+1676: // 1. Immediately acknowledge
+1677: res.status(200).json({ received: true });
+1678: // 2. Verify signature synchronously (before enqueue)
+1679: if (!verifySignature(source, req)) {
+1680: logger.warn({ source }, 'Webhook signature verification failed');
+1681: return; // Already sent 200 — discard
+1682: }
+1683: // 3. Store raw event
+1684: const event = await webhookRepo.create({
+1685: source, event_type: req.body.event,
+1686: external_id: req.body.id,
+1687: raw_headers: req.headers, raw_body: req.body
+1688: });
+1689: // 4. Enqueue for async processing
+1690: await webhookQueue.add('process-webhook', { eventId: event.id }, {
+1691: attempts: 3, backoff: { type: 'exponential', delay: 5000 }
+1692: });
+1693: });
+1694: 16.4 Signature Verification per Source
+1695: Source
+1696: Verification Method
+1697: Header
+1698: Secret
+1699: Razorpay
+1700: HMAC-SHA256 of raw body
+1701: x-razorpay-signature
+1702: RAZORPAY_WEBHOOK_SECRET
+1703: MSG91
+1704: Static token match
+1705: x-msg91-token
+1706: MSG91_WEBHOOK_TOKEN
+1707: Freshdesk
+1708: HMAC-SHA256 of payload + timestamp
+1709: x-freshdesk-signature
+1710: FRESHDESK_WEBHOOK_SECRET
+1711: 360dialog (WhatsApp)
+1712: SHA-256 of payload
+1713: x-hub-signature-256
+1714: META_APP_SECRET
+1715: Firebase (FCM delivery)
+1716: Not applicable — outbound only
+1717: —
+1718: —
+1719: 17. PERFORMANCE BUDGET
+1720: Every new feature must stay within these budgets. Performance is a feature. India's mobile network conditions (4G on 10–30 Mbps, 3G on <5 Mbps) must be the test baseline — not office WiFi.
+1721: 17.1 API Response Time Budget
+1722: Endpoint Category
+1723: P50 Target
+1724: P95 Target
+1725: P99 Target
+1726: Breach Action
+1727: Auth (OTP, verify)
+1728: 50ms
+1729: 150ms
+1730: 300ms
+1731: Cache + async SMS
+1732: Vendor search
+1733: 100ms
+1734: 300ms
+1735: 500ms
+1736: ES caching + warm cache
+1737: Vendor profile
+1738: 80ms
+1739: 200ms
+1740: 400ms
+1741: Redis cache 30 min
+1742: Booking create
+1743: 100ms
+1744: 300ms
+1745: 600ms
+1746: Async processing
+1747: Payment create order
+1748: 150ms
+1749: 400ms
+1750: 800ms
+1751: Razorpay SLA
+1752: Payment webhook
+1753: 50ms
+1754: 100ms
+1755: 200ms
+1756: Immediate ack + async
+1757: Event day check-in
+1758: 50ms
+1759: 150ms
+1760: 300ms
+1761: Optimised write path
+1762: Analytics/dashboards
+1763: 200ms
+1764: 600ms
+1765: 1200ms
+1766: Pre-computed aggregates
+1767: 17.2 Mobile App Performance Budget
+1768: Metric
+1769: Target
+1770: Measure With
+1771: Breach Action
+1772: Cold start time (iOS)
+1773: <3 seconds
+1774: Xcode Instruments
+1775: Lazy load providers, defer non-critical
+1776: Cold start time (Android)
+1777: <4 seconds
+1778: Android Profiler
+1779: Reduce main isolate work
+1780: Screen render time
+1781: <16ms frame
+1782: Flutter DevTools
+1783: Move to separate Isolate
+1784: API call from action to display
+1785: <800ms on 4G
+1786: Network tab + traces
+1787: Loading skeleton + optimistic UI
+1788: Image load (card thumbnail)
+1789: <1 second on 4G
+1790: Flutter ImageCache
+1791: WebP + CloudFront CDN
+1792: App bundle size (iOS IPA)
+1793: <80MB download
+1794: Xcode build report
+1795: Tree-shake, defer assets
+1796: App bundle size (Android APB)
+1797: <60MB download
+1798: Play Console
+1799: ABI splits, deferred components
+1800: Memory usage (idle)
+1801: <120MB RAM
+1802: Flutter DevTools
+1803: Dispose controllers
+1804: Battery drain
+1805: <3% per hour active
+1806: iOS Battery report
+1807: Reduce background timers
+1808: 17.3 Web Performance Budget
+1809: Metric
+1810: Target
+1811: Tool
+1812: Notes
+1813: Largest Contentful Paint (LCP)
+1814: <2.5s
+1815: Lighthouse / CrUX
+1816: Hero image must be preloaded
+1817: First Input Delay (FID)
+1818: <100ms
+1819: CrUX
+1820: Hydration must be fast
+1821: Cumulative Layout Shift (CLS)
+1822: <0.1
+1823: Lighthouse
+1824: All images must have size attributes
+1825: Time to First Byte (TTFB)
+1826: <600ms
+1827: Lighthouse
+1828: Server-side render + CDN edge cache
+1829: JavaScript bundle (initial)
+1830: <350KB gzipped
+1831: Next.js Bundle Analyzer
+1832: Code split aggressively
+1833: Total page weight (vendor profile)
+1834: <1.5MB
+1835: Network tab
+1836: Lazy load below-fold images
+1837: Lighthouse Mobile Score
+1838: >90
+1839: Lighthouse
+1840: Run in CI, fail build if drops below
+1841: 18. ARCHITECTURE DECISION RECORDS (ADR)
+1842: ADRs document WHY a decision was made, not just what was decided. Future engineers must understand the context to make good decisions. Every significant choice must have an ADR.
+1843: 18.1 ADR Template
+1844: # ADR-{NUMBER}: {Short Title}
+1845: Date: YYYY-MM-DD
+1846: Status: Proposed | Accepted | Deprecated | Superseded by ADR-X
+1847: ## Context
+1848: What is the issue that we're seeing that motivates this decision?
+1849: ## Decision
+1850: What decision was made? State it as a clear declarative sentence.
+1851: ## Consequences
+1852: What becomes easier? What becomes harder? What risks does this introduce?
+1853: 18.2 Accepted ADRs
+1854: ADR #
+1855: Title
+1856: Decision
+1857: Key Consequence
+1858: 001
+1859: Database Per Service vs Shared DB
+1860: Shared PostgreSQL DB with schema-per-service
+1861: Simpler ops; risk of schema coupling — mitigated by strict ownership rules
+1862: 002
+1863: Monolith First vs Microservices
+1864: Modular monolith → extract services at Month 5
+1865: Faster MVP; controlled extraction when traffic justifies
+1866: 003
+1867: Flutter vs React Native
+1868: Flutter
+1869: Better performance, single codebase, stronger Dart type system
+1870: 004
+1871: JWT RS256 vs HS256
+1872: RS256 (asymmetric)
+1873: Services can verify tokens without shared secret; more secure
+1874: 005
+1875: REST vs GraphQL
+1876: REST primary, GraphQL for complex queries later
+1877: Simpler to build, easier to cache, widely understood
+1878: 006
+1879: BullMQ vs SQS vs RabbitMQ
+1880: BullMQ (Redis-based)
+1881: Zero infra cost, great DX, strong TypeScript support; Redis dependency
+1882: 007
+1883: Elasticsearch vs PostgreSQL FTS
+1884: Elasticsearch
+1885: Superior geo-search and faceted filtering; added complexity
+1886: 008
+1887: Razorpay vs PayU vs Stripe
+1888: Razorpay
+1889: Best India coverage, UPI native, Payouts API available
+1890: 009
+1891: Self-hosted vs Managed Databases
+1892: AWS RDS (managed)
+1893: No DB ops burden; higher cost vs EC2; worth it for reliability
+1894: 010
+1895: pnpm Workspaces vs Lerna vs Nx
+1896: pnpm Workspaces + Turborepo
+1897: Best balance of simplicity and performance for our scale
+1898: 19. INVESTOR METRICS DASHBOARD
+1899: Build this dashboard from Month 3. Investors want to see consistent metrics reporting, not one-off spreadsheets. Automate this report — it builds credibility and internal discipline.
+1900: 19.1 Monthly Investor Update Format
+1901: Section 1: Headline Numbers
+1902: Metric
+1903: This Month
+1904: Last Month
+1905: MoM Growth
+1906: Notes
+1907: Gross GMV
+1908: ₹X
+1909: ₹X
+1910: +X%
+1911: Total value of bookings
+1912: Net Revenue (after refunds)
+1913: ₹X
+1914: ₹X
+1915: +X%
+1916: —
+1917: Platform Revenue
+1918: ₹X
+1919: ₹X
+1920: +X%
+1921: Commission + SaaS + other
+1922: Active Customers (MAU)
+1923: X
+1924: X
+1925: +X%
+1926: Made at least 1 action
+1927: Active Vendors
+1928: X
+1929: X
+1930: +X%
+1931: Logged in or received enquiry
+1932: Weddings Coordinated
+1933: X
+1934: X
+1935: +X%
+1936: Events where we managed day-of
+1937: Booking Conversion Rate
+1938: X%
+1939: X%
+1940: —
+1941: Enquiry → Paid booking
+1942: Net Promoter Score
+1943: X
+1944: X
+1945: —
+1946: Post-event survey
+1947: Section 2: Unit Economics
+1948: Metric
+1949: Value
+1950: Trend
+1951: Benchmark
+1952: Customer CAC (blended)
+1953: ₹X
+1954: ↓ (improving)
+1955: <₹500 target
+1956: Customer LTV (projected)
+1957: ₹X
+1958: ↑
+1959: LTV:CAC >10:1
+1960: Vendor CAC
+1961: ₹X
+1962: ↓
+1963: <₹1,000 target
+1964: Vendor LTV (12-month)
+1965: ₹X
+1966: ↑
+1967: >₹24,000 target
+1968: Gross Margin
+1969: X%
+1970: ↑
+1971: Target >70%
+1972: Monthly Burn
+1973: ₹X
+1974: —
+1975: vs last month
+1976: Runway
+1977: X months
+1978: —
+1979: At current burn rate
+1980: Section 3: Key Milestones
+1981: Achieved this month: [List]
+1982: Missed this month: [List + explanation]
+1983: Planned next month: [List]
+1984: Key decisions made: [List of strategic decisions]
+1985: 19.2 Data Room Checklist (For Fundraising)
+1986: Document
+1987: Owner
+1988: Update Frequency
+1989: Financial Model (12-month P&L)
+1990: Founder / CFO
+1991: Monthly
+1992: Cap Table
+1993: Legal / CA
+1994: On each funding event
+1995: Incorporation Documents
+1996: Legal
+1997: On change
+1998: IP Assignment Agreements
+1999: Legal
+2000: On hiring
+2001: Customer Contracts (sample)
+2002: Legal
+2003: On template change
+2004: Vendor Agreement Template
+2005: Legal
+2006: On template change
+2007: Privacy Policy + Terms
+2008: Legal
+2009: On change
+2010: Technology Architecture Diagram
+2011: Engineering
+2012: Quarterly
+2013: Security & Compliance Report
+2014: Engineering
+2015: Quarterly
+2016: Monthly MIS Report
+2017: Finance
+2018: Monthly
+2019: Reference Customers (3 min)
+2020: Founder
+2021: Ready to connect investors
+2022: 20. TECHNICAL DEBT REGISTER
+2023: Technical debt is fine when taken deliberately. Document every shortcut with the intention to fix it. Never let debt become invisible — invisible debt becomes a crisis.
+2024: 20.1 Known Shortcuts & Planned Improvements
+2025: Debt Item
+2026: Reason Accepted
+2027: Risk if Not Fixed
+2028: Fix By
+2029: Effort
+2030: Monolith architecture
+2031: Faster MVP
+2032: Coupling slows dev at >10 engineers
+2033: Month 5
+2034: High
+2035: Single PostgreSQL instance
+2036: Free tier starts
+2037: SPOF, no read scaling
+2038: Month 6
+2039: Medium
+2040: No circuit breaker on external APIs
+2041: MVP speed
+2042: Cascade failures on SMS/payment outage
+2043: Month 4
+2044: Low
+2045: Synchronous Elasticsearch index
+2046: MVP simplicity
+2047: ES failures block vendor updates
+2048: Month 5
+2049: Low
+2050: No GraphQL — REST only
+2051: Simpler to build
+2052: Over-fetching on complex queries
+2053: Month 10
+2054: Medium
+2055: Manual dispute resolution
+2056: No automation built yet
+2057: Doesn't scale past 50 disputes/month
+2058: Month 8
+2059: High
+2060: No i18n in MVP
+2061: English only first
+2062: Blocks Tier-2 expansion
+2063: Month 8
+2064: Medium
+2065: Vendor KYC manual review
+2066: API integration later
+2067: Slow verification, human bottleneck
+2068: Month 6
+2069: Medium
+2070: No A/B testing framework
+2071: PostHog added later
+2072: Cannot run experiments
+2073: Month 5
+2074: Low
+2075: Basic audit logging
+2076: Full audit later
+2077: Limited debugging in disputes
+2078: Month 6
+2079: Medium
+2080: 20.2 Dependency Update Policy
+2081: Security vulnerabilities (CVSS >7): Fix within 48 hours
+2082: Security vulnerabilities (CVSS 4–7): Fix within 2 weeks
+2083: Dependency updates (non-breaking): Monthly batch update PR
+2084: Major version upgrades: Scheduled per service, one at a time
+2085: Automated: Dependabot creates PRs; humans review and merge
+2086: 21. VENDOR PAYOUT RECONCILIATION PROCESS
+2087: Payout reconciliation ensures every rupee collected from customers is correctly distributed to vendors, platform, and tax authorities. This process runs daily. Any discrepancy triggers an alert.
+2088: 21.1 Daily Reconciliation Flow
+2089: Pull: All Razorpay payments captured yesterday from our DB
+2090: Pull: Razorpay settlement report for same period via API
+2091: Cross-check: Every payment_id in our DB must exist in Razorpay report
+2092: Amount check: Our DB amount (in paise) must match Razorpay captured amount
+2093: Fee check: Razorpay fee deducted must match expected (2% of amount)
+2094: Escrow check: All captured payments must have a corresponding escrow_hold
+2095: Discrepancy: Any mismatch → create reconciliation_discrepancy record → alert ops
+2096: Report: Generate daily reconciliation report → send to finance email
+2097: 21.2 Payout Math Example
+2098: Booking value: ₹1,00,000
+2099: Line Item
+2100: Amount
+2101: Notes
+2102: Customer pays (advance, 30%)
+2103: ₹30,000
+2104: Captured by Razorpay
+2105: Razorpay fee (2%)
+2106: - ₹600
+2107: Deducted by Razorpay at settlement
+2108: Net received by platform
+2109: ₹29,400
+2110: Deposited to nodal account
+2111: Platform commission (10%)
+2112: - ₹3,000
+2113: Platform's share
+2114: GST on commission (18%)
+2115: - ₹540
+2116: GST on ₹3,000 commission
+2117: TDS on commission (1% if applicable)
+2118: - ₹300
+2119: Deducted if >₹30K cumulative
+2120: Vendor payout (advance)
+2121: ₹25,560
+2122: Held in escrow, released post-event
+2123: Remaining in escrow until event
+2124: ₹25,560
+2125: —
+2126: 21.3 Month-End Financial Close
+2127: Step
+2128: Action
+2129: Owner
+2130: Deadline
+2131: 1
+2132: Pull all payments for month
+2133: System (automated)
+2134: 1st of month 6 AM
+2135: 2
+2136: Calculate platform revenue (commission + SaaS)
+2137: Finance team
+2138: 1st noon
+2139: 3
+2140: Calculate GST collected and payable
+2141: Finance/CA
+2142: 3rd of month
+2143: 4
+2144: Calculate TDS deducted from vendors
+2145: Finance/CA
+2146: 3rd of month
+2147: 5
+2148: Reconcile with Razorpay settlement report
+2149: Finance
+2150: 5th of month
+2151: 6
+2152: File GSTR-1 (outward supplies)
+2153: CA
+2154: 11th of month
+2155: 7
+2156: File GSTR-3B (summary + payment)
+2157: CA
+2158: 20th of month
+2159: 8
+2160: Vendor TDS certificates (quarterly)
+2161: CA
+2162: 15th of next quarter
+2163: 22. MASTER PRE-LAUNCH TASK COMPLETION CHECKLIST
+2164: This is the definitive pre-launch checklist. Every single item must be ✅ before going live with real users and real money. No shortcuts. No 'we'll fix it after launch'.
+2165: 22.1 Infrastructure
+2166: Task
+2167: Priority
+2168: Done?
+2169: Notes
+2170: AWS account with billing alerts set at ₹5K, ₹20K, ₹50K
+2171: P0
+2172: ☐
+2173: Prevent surprise bills
+2174: VPC with public/private subnets configured
+2175: P0
+2176: ☐
+2177: Security baseline
+2178: RDS PostgreSQL deployed in private subnet
+2179: P0
+2180: ☐
+2181: No public access
+2182: Redis ElastiCache deployed in private subnet
+2183: P0
+2184: ☐
+2185: —
+2186: S3 bucket with versioning and server-side encryption
+2187: P0
+2188: ☐
+2189: For media
+2190: CloudFront CDN distribution configured for S3
+2191: P0
+2192: ☐
+2193: Fast media delivery
+2194: SSL certificates issued and auto-renewal configured
+2195: P0
+2196: ☐
+2197: ACM + Route53
+2198: Secrets Manager: All production secrets stored
+2199: P0
+2200: ☐
+2201: No .env in production
+2202: AWS WAF rules applied to ALB
+2203: P1
+2204: ☐
+2205: OWASP Top 10 protection
+2206: CloudWatch alarms for all services
+2207: P0
+2208: ☐
+2209: CPU, memory, error rate
+2210: PagerDuty on-call schedule configured
+2211: P0
+2212: ☐
+2213: 24h coverage
+2214: 22.2 Application
+2215: Task
+2216: Priority
+2217: Done?
+2218: Notes
+2219: All Prisma migrations run successfully on production DB
+2220: P0
+2221: ☐
+2222: —
+2223: Health check endpoints working for all services
+2224: P0
+2225: ☐
+2226: ALB uses these
+2227: JWT RS256 key pair generated and stored in Secrets Manager
+2228: P0
+2229: ☐
+2230: Not in code
+2231: Razorpay production keys activated and webhook URL registered
+2232: P0
+2233: ☐
+2234: Test with ₹1 transaction
+2235: MSG91 sender ID approved and OTP template registered
+2236: P0
+2237: ☐
+2238: Can take 24-48h
+2239: Firebase FCM project configured and service account downloaded
+2240: P0
+2241: ☐
+2242: —
+2243: WhatsApp templates approved by Meta (can take 1-2 weeks)
+2244: P0
+2245: ☐
+2246: Apply early!
+2247: All E2E critical path tests pass in staging
+2248: P0
+2249: ☐
+2250: See Vol I Section 16
+2251: Load test passed: 2,000 users, all P99 <400ms
+2252: P0
+2253: ☐
+2254: See Section 10 this volume
+2255: OWASP ZAP security scan: No high-severity findings
+2256: P0
+2257: ☐
+2258: Run against staging
+2259: Snyk dependency scan: No critical vulnerabilities
+2260: P0
+2261: ☐
+2262: CI gate
+2263: Rate limiting verified: OTP endpoint throttled correctly
+2264: P0
+2265: ☐
+2266: Test manually
+2267: Payment signature verification tested with real webhook
+2268: P0
+2269: ☐
+2270: Critical security test
+2271: Escrow auto-release job tested end-to-end
+2272: P0
+2273: ☐
+2274: Use test data
+2275: 22.3 Legal & Compliance
+2276: Task
+2277: Priority
+2278: Done?
+2279: Notes
+2280: Privacy Policy published at live URL
+2281: P0
+2282: ☐
+2283: Required for app stores
+2284: Terms of Service published at live URL
+2285: P0
+2286: ☐
+2287: —
+2288: Vendor Agreement signed with all onboarded vendors
+2289: P0
+2290: ☐
+2291: DocuSign or physical
+2292: Cookie consent banner live and functioning
+2293: P0
+2294: ☐
+2295: —
+2296: DPDP Act compliance checklist reviewed with CA/lawyer
+2297: P0
+2298: ☐
+2299: —
+2300: GST registration obtained (if applicable)
+2301: P1
+2302: ☐
+2303: Needed if >₹20L revenue expected
+2304: Company incorporated (Pvt Ltd recommended)
+2305: P0
+2306: ☐
+2307: Required for Razorpay live
+2308: Bank account in company name
+2309: P0
+2310: ☐
+2311: Required for Razorpay
+2312: Razorpay KYC complete (business documents submitted)
+2313: P0
+2314: ☐
+2315: 3-5 business days
+2316: 22.4 Product & Content
+2317: Task
+2318: Priority
+2319: Done?
+2320: Notes
+2321: Minimum 50 verified vendors across all categories
+2322: P0
+2323: ☐
+2324: Or launch is hollow
+2325: All vendor profiles have minimum 5 portfolio photos
+2326: P0
+2327: ☐
+2328: No empty profiles
+2329: City landing page published with SEO content
+2330: P1
+2331: ☐
+2332: —
+2333: App Store listing approved (iOS + Android)
+2334: P0
+2335: ☐
+2336: Can take 1-7 days for review
+2337: Google My Business profile created
+2338: P1
+2339: ☐
+2340: Local SEO
+2341: Instagram profile active with 20+ posts pre-launch
+2342: P1
+2343: ☐
+2344: Social proof
+2345: FAQ page published
+2346: P1
+2347: ☐
+2348: Reduces support volume
+2349: Help Center with top 20 articles live
+2350: P1
+2351: ☐
+2352: —
+2353: Test account for app reviewers (Apple + Google)
+2354: P0
+2355: ☐
+2356: Or app gets rejected
+2357: Email support address active and monitored
+2358: P0
+2359: ☐
+2360: support@weddingos.in
+2361: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2362: THIS COMPLETES THE WEDDING OS MASTER BLUEPRINT
+2363: Volume I + Volume II + Volume III = Zero Gaps. Build Everything. Miss Nothing.
+2364: "Build the infrastructure layer of India's wedding industry."
+2365: ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

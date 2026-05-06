@@ -1,0 +1,320 @@
+version: '3.9'
+
+services:
+  # ─── Databases ──────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: weddingos-postgres
+    environment:
+      POSTGRES_USER: weddingos
+      POSTGRES_PASSWORD: weddingos_dev
+      POSTGRES_DB: weddingos
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/seed/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U weddingos']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: weddingos-redis
+    command: redis-server --appendonly yes --requirepass redis_dev_password
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'redis_dev_password', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: weddingos-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
+    ports:
+      - '9200:9200'
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -s http://localhost:9200/_cluster/health | grep -vq "\"status\":\"red\""']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  mongodb:
+    image: mongo:7-jammy
+    container_name: weddingos-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: weddingos
+      MONGO_INITDB_ROOT_PASSWORD: mongo_dev_password
+      MONGO_INITDB_DATABASE: weddingos_chat
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+  # ─── Services ───────────────────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4001
+      DATABASE_URL: postgresql://weddingos:weddingos_dev@postgres:5432/weddingos?schema=auth
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      JWT_PRIVATE_KEY_PATH: /run/secrets/jwt_private.pem
+      JWT_PUBLIC_KEY_PATH: /run/secrets/jwt_public.pem
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 30d
+      MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-test_key}
+      MSG91_OTP_TEMPLATE_ID: ${MSG91_OTP_TEMPLATE_ID:-test_template}
+      OTP_TTL_MINUTES: 10
+      OTP_RATE_LIMIT_MAX: 3
+      OTP_RATE_LIMIT_WINDOW_MINUTES: 10
+      OTP_LOCKOUT_MAX_ATTEMPTS: 5
+      OTP_LOCKOUT_DURATION_MINUTES: 30
+    ports:
+      - '4001:4001'
+    volumes:
+      - ./services/auth-service/src:/app/src
+      - ./packages:/app/packages
+      - ./secrets:/run/secrets:ro
+    command: pnpm dev
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-user
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4002
+      DATABASE_URL: postgresql://weddingos:weddingos_dev@postgres:5432/weddingos?schema=users
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      AUTH_SERVICE_URL: http://auth-service:4001
+      AWS_REGION: ap-south-1
+      AWS_S3_BUCKET: weddingos-dev-media
+    ports:
+      - '4002:4002'
+    volumes:
+      - ./services/user-service/src:/app/src
+
+  vendor-service:
+    build:
+      context: ./services/vendor-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-vendor
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4003
+      DATABASE_URL: postgresql://weddingos:weddingos_dev@postgres:5432/weddingos?schema=vendors
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      AUTH_SERVICE_URL: http://auth-service:4001
+      AWS_REGION: ap-south-1
+      AWS_S3_BUCKET: weddingos-dev-media
+    ports:
+      - '4003:4003'
+    volumes:
+      - ./services/vendor-service/src:/app/src
+
+  booking-service:
+    build:
+      context: ./services/booking-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-booking
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4004
+      DATABASE_URL: postgresql://weddingos:weddingos_dev@postgres:5432/weddingos?schema=bookings
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      AUTH_SERVICE_URL: http://auth-service:4001
+      VENDOR_SERVICE_URL: http://vendor-service:4003
+      NOTIFICATION_SERVICE_URL: http://notification-service:4008
+    ports:
+      - '4004:4004'
+    volumes:
+      - ./services/booking-service/src:/app/src
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-payment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4005
+      DATABASE_URL: postgresql://weddingos:weddingos_dev@postgres:5432/weddingos?schema=payments
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_placeholder}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-test_secret}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-webhook_secret}
+      PLATFORM_COMMISSION_RATE: 0.10
+      ESCROW_AUTO_RELEASE_DAYS: 7
+      BOOKING_SERVICE_URL: http://booking-service:4004
+      NOTIFICATION_SERVICE_URL: http://notification-service:4008
+    ports:
+      - '4005:4005'
+    volumes:
+      - ./services/payment-service/src:/app/src
+
+  execution-service:
+    build:
+      context: ./services/execution-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-execution
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4006
+      DATABASE_URL: postgresql://weddingos:weddingos_dev@postgres:5432/weddingos?schema=execution
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      SOCKET_REDIS_URL: redis://:redis_dev_password@redis:6379/1
+    ports:
+      - '4006:4006'
+      - '4006:4006/udp'
+    volumes:
+      - ./services/execution-service/src:/app/src
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-notification
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4008
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-test_key}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-weddingos-dev}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-test_key}
+      WHATSAPP_API_TOKEN: ${WHATSAPP_API_TOKEN:-test_token}
+    ports:
+      - '4008:4008'
+    volumes:
+      - ./services/notification-service/src:/app/src
+
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: weddingos-ai
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PYTHON_ENV: development
+      PORT: 5000
+      DATABASE_URL: postgresql://weddingos:weddingos_dev@postgres:5432/weddingos
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-placeholder}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-sk-ant-placeholder}
+    ports:
+      - '5000:5000'
+    volumes:
+      - ./services/ai-service/app:/app/app
+
+  # ─── API Gateway ─────────────────────────────────────────────────────────────
+  kong:
+    image: kong:3.6-ubuntu
+    container_name: weddingos-kong
+    environment:
+      KONG_DATABASE: 'off'
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: '0.0.0.0:8001'
+      KONG_PROXY_LISTEN: '0.0.0.0:8000'
+    ports:
+      - '8000:8000'   # API Gateway proxy
+      - '8001:8001'   # Admin API
+    volumes:
+      - ./infrastructure/kong/kong.yml:/kong/kong.yml:ro
+    depends_on:
+      - auth-service
+      - vendor-service
+      - booking-service
+      - payment-service
+
+  # ─── Dev Tools ───────────────────────────────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: weddingos-redis-ui
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: redis_dev_password
+    ports:
+      - '8081:8081'
+    depends_on:
+      - redis
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: weddingos-kibana
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - '5601:5601'
+    depends_on:
+      - elasticsearch
+
+volumes:
+  postgres_data:
+  redis_data:
+  es_data:
+  mongo_data:
+
+networks:
+  default:
+    name: weddingos-network

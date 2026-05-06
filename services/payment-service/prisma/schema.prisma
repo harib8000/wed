@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum EscrowStatus {
+  HELD
+  RELEASED_TO_VENDOR
+  REFUNDED_TO_CUSTOMER
+  DISPUTED
+}
+
+enum RefundReason {
+  CANCELLATION
+  DISPUTE_RESOLVED_CUSTOMER
+  OTHER
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  bookingId         String        @map("booking_id")
+  customerId        String        @map("customer_id")
+  vendorId          String        @map("vendor_id")
+
+  // Razorpay identifiers
+  razorpayOrderId   String        @unique @map("razorpay_order_id") @db.VarChar(100)
+  razorpayPaymentId String?       @unique @map("razorpay_payment_id") @db.VarChar(100)
+  razorpaySignature String?       @map("razorpay_signature") @db.VarChar(300)
+
+  amountPaise       Int           @map("amount_paise")
+  currency          String        @default("INR") @db.VarChar(5)
+  status            PaymentStatus @default(CREATED)
+  description       String?       @db.VarChar(300)
+
+  // Idempotency
+  idempotencyKey    String        @unique @map("idempotency_key") @db.VarChar(100)
+
+  // Webhook tracking
+  webhookVerified   Boolean       @default(false) @map("webhook_verified")
+  webhookReceivedAt DateTime?     @map("webhook_received_at")
+
+  escrowHold        EscrowHold?
+
+  createdAt         DateTime      @default(now()) @map("created_at")
+  updatedAt         DateTime      @updatedAt @map("updated_at")
+
+  @@index([bookingId])
+  @@index([customerId])
+  @@index([status])
+  @@map("payments")
+}
+
+model EscrowHold {
+  id              String       @id @default(uuid())
+  paymentId       String       @unique @map("payment_id")
+  payment         Payment      @relation(fields: [paymentId], references: [id])
+  bookingId       String       @map("booking_id")
+  vendorId        String       @map("vendor_id")
+
+  heldAmountPaise Int          @map("held_amount_paise")
+  platformFeePaise Int         @map("platform_fee_paise")
+  gstOnFeePaise   Int          @map("gst_on_fee_paise")
+  vendorPayoutPaise Int        @map("vendor_payout_paise")
+
+  status          EscrowStatus @default(HELD)
+  releaseScheduledAt DateTime? @map("release_scheduled_at")
+  releasedAt      DateTime?    @map("released_at")
+  razorpayPayoutId String?     @map("razorpay_payout_id")
+  adminNote       String?      @map("admin_note") @db.VarChar(500)
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@index([vendorId, status])
+  @@index([releaseScheduledAt])
+  @@map("escrow_holds")
+}
+
+model Refund {
+  id              String       @id @default(uuid())
+  paymentId       String       @map("payment_id")
+  bookingId       String       @map("booking_id")
+  razorpayRefundId String?     @unique @map("razorpay_refund_id") @db.VarChar(100)
+  amountPaise     Int          @map("amount_paise")
+  reason          RefundReason @default(OTHER)
+  note            String?      @db.VarChar(500)
+  status          String       @default("PENDING") @db.VarChar(30)
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@index([paymentId])
+  @@map("refunds")
+}
