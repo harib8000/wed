@@ -1,0 +1,106 @@
+import { esClient } from '../config/elasticsearch';
+
+export const searchService = {
+  async searchVendors(params: {
+    query?: string;
+    category?: string;
+    city?: string;
+    minPrice?: number;
+    maxPrice?: number;
+    minRating?: number;
+    sortBy?: 'rating' | 'price_asc' | 'price_desc' | 'reviews';
+    page?: number;
+    limit?: number;
+    featured?: boolean;
+  }) {
+    const { query, category, city, minPrice, maxPrice, minRating, sortBy = 'rating', page = 1, limit = 20, featured } = params;
+
+    const must: any[] = [{ term: { verificationStatus: 'verified' } }];
+    const filter: any[] = [];
+
+    if (query) {
+      must.push({
+        multi_match: {
+          query,
+          fields: ['businessName^3', 'description', 'subCategories^2'],
+          type: 'best_fields',
+          fuzziness: 'AUTO',
+        },
+      });
+    }
+
+    if (category) filter.push({ term: { category } });
+    if (city) filter.push({ term: { citiesServed: city.toLowerCase() } });
+    if (featured !== undefined) filter.push({ term: { isFeatured: featured } });
+    if (minRating) filter.push({ range: { rating: { gte: minRating } } });
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      filter.push({ range: { basePrice: { ...(minPrice !== undefined && { gte: minPrice }), ...(maxPrice !== undefined && { lte: maxPrice }) } } });
+    }
+
+    const sort: any[] = [];
+    if (sortBy === 'rating') sort.push({ rating: 'desc' }, { totalReviews: 'desc' });
+    else if (sortBy === 'price_asc') sort.push({ basePrice: 'asc' });
+    else if (sortBy === 'price_desc') sort.push({ basePrice: 'desc' });
+    else if (sortBy === 'reviews') sort.push({ totalReviews: 'desc' });
+
+    sort.push({ isFeatured: 'desc' });
+
+    try {
+      const result = await esClient.search({
+        index: 'vendors',
+        from: (page - 1) * limit,
+        size: limit,
+        query: { bool: { must, filter } },
+        sort,
+        aggs: {
+          categories: { terms: { field: 'category', size: 20 } },
+          cities: { terms: { field: 'citiesServed', size: 20 } },
+          price_stats: { stats: { field: 'basePrice' } },
+        },
+      });
+
+      const hits = result.hits.hits.map((h: any) => ({ ...h._source, _score: h._score }));
+      const total = typeof result.hits.total === 'number' ? result.hits.total : (result.hits.total as any)?.value || 0;
+
+      return {
+        vendors: hits,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        aggregations: {
+          categories: (result.aggregations?.categories as any)?.buckets || [],
+          cities: (result.aggregations?.cities as any)?.buckets || [],
+          priceStats: result.aggregations?.price_stats || {},
+        },
+      };
+    } catch (err) {
+      // Elasticsearch not available - return empty
+      return { vendors: [], total: 0, page, limit, totalPages: 0, aggregations: { categories: [], cities: [], priceStats: {} } };
+    }
+  },
+
+  async indexVendor(vendor: any): Promise<void> {
+    try {
+      await esClient.index({ index: 'vendors', id: vendor.id, document: { ...vendor, updatedAt: new Date().toISOString() } });
+    } catch (err) { /* non-fatal */ }
+  },
+
+  async deleteVendor(vendorId: string): Promise<void> {
+    try {
+      await esClient.delete({ index: 'vendors', id: vendorId });
+    } catch (err) { /* non-fatal */ }
+  },
+
+  async autocomplete(query: string): Promise<string[]> {
+    try {
+      const result = await esClient.search({
+        index: 'vendors',
+        size: 10,
+        query: { match_phrase_prefix: { businessName: { query } } },
+        _source: ['businessName'],
+      });
+      return result.hits.hits.map((h: any) => h._source.businessName);
+    } catch { return []; }
+  },
+};

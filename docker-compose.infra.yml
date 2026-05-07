@@ -1,0 +1,72 @@
+version: '3.9'
+
+# Infra-only compose — starts Postgres, Redis, Elasticsearch, MongoDB
+# Run: docker compose -f docker-compose.infra.yml up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: weddingos-postgres
+    environment:
+      POSTGRES_USER: weddingos
+      POSTGRES_PASSWORD: weddingos_dev
+      POSTGRES_DB: weddingos
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/seed/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U weddingos']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: weddingos-redis
+    command: redis-server --appendonly yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: weddingos-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - 'ES_JAVA_OPTS=-Xms512m -Xmx512m'
+    ports:
+      - '9200:9200'
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:9200/_cluster/health | grep -vq "\"status\":\"red\""']
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  mongodb:
+    image: mongo:7-jammy
+    container_name: weddingos-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: weddingos
+      MONGO_INITDB_ROOT_PASSWORD: mongo_dev_password
+      MONGO_INITDB_DATABASE: weddingos_chat
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  postgres_data:
+  redis_data:
+  es_data:
+  mongo_data:

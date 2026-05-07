@@ -68,4 +68,17 @@ export const reviewService = {
   async markHelpful(reviewId: string) {
     return prisma.review.update({ where: { id: reviewId }, data: { helpfulCount: { increment: 1 } } });
   },
+
+  async getMyReviews(customerId: string, page = 1, limit = 20) {
+    const [reviews, total] = await Promise.all([
+      prisma.review.findMany({
+        where: { customerId },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.review.count({ where: { customerId } }),
+    ]);
+    return { reviews, total, page, limit, totalPages: Math.ceil(total / limit) };
+  },
 };

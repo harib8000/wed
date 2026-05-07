@@ -1,11 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { jwtService } from '../services/jwt.service';
 import { userService } from '../services/user.service';
-import { UnauthorizedError, ForbiddenError, TokenExpiredError, TokenInvalidError } from '../types/errors';
 import { logger } from '../utils/logger';
-
-// Re-export common error classes for this service
-export { UnauthorizedError, ForbiddenError };
 
 class UnauthorizedErrorLocal extends Error {
   statusCode = 401;
@@ -62,9 +58,9 @@ export const authenticate = async (
     next();
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'TokenExpiredError') {
-      next(new TokenExpiredError());
+      next(new AuthTokenExpiredError());
     } else if (err instanceof Error && err.name === 'JsonWebTokenError') {
-      next(new TokenInvalidError());
+      next(new AuthTokenInvalidError());
     } else {
       next(err);
     }
@@ -82,6 +78,6 @@ export const requireRole = (...roles: string[]) =>
     next();
   };
 
-// Placeholder imports (these error classes exist in shared-errors package)
-class TokenExpiredError extends Error { statusCode = 401; code = 'AUTH_1005'; }
-class TokenInvalidError extends Error { statusCode = 401; code = 'AUTH_1006'; }
+// Inline error classes
+class AuthTokenExpiredError extends Error { statusCode = 401; code = 'AUTH_1005'; constructor() { super('Token expired'); } }
+class AuthTokenInvalidError extends Error { statusCode = 401; code = 'AUTH_1006'; constructor() { super('Invalid token'); } }
