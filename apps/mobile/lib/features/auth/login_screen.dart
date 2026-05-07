@@ -181,6 +181,41 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 40),
 
+              // ─── Demo Login Buttons ────
+              Row(
+                children: [
+                  Expanded(child: Divider(color: AppColors.border)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('Quick Demo Access', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ),
+                  Expanded(child: Divider(color: AppColors.border)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _DemoButton(
+                icon: Icons.favorite,
+                label: 'Demo Customer Login',
+                subtitle: 'Browse vendors, book & pay',
+                color: AppColors.brand,
+                onTap: () {
+                  ref.read(authProvider.notifier).demoCustomerLogin();
+                  context.go('/');
+                },
+              ),
+              const SizedBox(height: 12),
+              _DemoButton(
+                icon: Icons.storefront,
+                label: 'Demo Vendor / Seller Login',
+                subtitle: 'Manage bookings & services',
+                color: const Color(0xFF059669),
+                onTap: () {
+                  ref.read(authProvider.notifier).demoVendorLogin();
+                  context.go('/');
+                },
+              ),
+              const SizedBox(height: 32),
+
               // ─── Divider ───────────────
               Row(
                 children: [
@@ -302,6 +337,54 @@ class _TrustBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DemoButton extends StatelessWidget {
+  final IconData icon;
+  final String label, subtitle;
+  final Color color;
+  final VoidCallback onTap;
+  const _DemoButton({required this.icon, required this.label, required this.subtitle, required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withOpacity(0.06),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44, height: 44,
+                decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: color)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                  ],
+                ),
+              ),
+              Icon(Icons.arrow_forward_ios, size: 14, color: color),
+            ],
+          ),
+        ),
       ),
     );
   }

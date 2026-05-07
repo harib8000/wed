@@ -52,6 +52,12 @@ class _VendorDetailView extends StatefulWidget {
 class _VendorDetailViewState extends State<_VendorDetailView> {
   int _selectedPackageIndex = 0;
 
+  void _openGallery(BuildContext context, List<PortfolioItem> items, int initialIndex) {
+    Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => _FullScreenGallery(items: items, initialIndex: initialIndex),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final vendor = widget.vendor;
@@ -145,27 +151,110 @@ class _VendorDetailViewState extends State<_VendorDetailView> {
               ),
             ),
 
+          // ─── Tagline & USPs ──────────────
+          if (vendor.tagline != null)
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.brandLight,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: AppColors.brand.withOpacity(0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.format_quote, color: AppColors.brand, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        vendor.tagline!,
+                        style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 14, color: AppColors.brand, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          // ─── Trust Badges / Social Proof ──
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  if (vendor.verified) _TrustBadge(icon: Icons.verified_user, label: 'KYC Verified', color: Colors.green),
+                  _TrustBadge(icon: Icons.shield_outlined, label: 'Escrow Safe', color: Colors.blue),
+                  _TrustBadge(icon: Icons.schedule, label: 'On-Time', color: Colors.orange),
+                  _TrustBadge(icon: Icons.thumb_up_outlined, label: '${vendor.avgRating >= 4.5 ? "Top Rated" : "Reliable"}', color: AppColors.gold),
+                ],
+              ),
+            ),
+          ),
+
           // ─── Portfolio ───────────────────
           if (vendor.portfolio.isNotEmpty) ...[
-            const SliverToBoxAdapter(
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 24, 16, 12),
-                child: Text('Portfolio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Portfolio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text('${vendor.portfolio.length} items',
+                        style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                  ],
+                ),
               ),
             ),
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 130,
+                height: 180,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: vendor.portfolio.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (_, i) => ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(
-                      imageUrl: vendor.portfolio[i].mediaUrl,
-                      width: 150, height: 130, fit: BoxFit.cover,
+                  itemBuilder: (ctx, i) => GestureDetector(
+                    onTap: () => _openGallery(ctx, vendor.portfolio, i),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Stack(
+                        children: [
+                          CachedNetworkImage(
+                            imageUrl: vendor.portfolio[i].mediaUrl,
+                            width: 160, height: 180, fit: BoxFit.cover,
+                          ),
+                          Positioned(
+                            bottom: 0, left: 0, right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [Colors.black.withOpacity(0.6), Colors.transparent],
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text('${i + 1}/${vendor.portfolio.length}',
+                                      style: const TextStyle(color: Colors.white, fontSize: 11)),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -415,6 +504,83 @@ class _ReviewCard extends StatelessWidget {
         Text(review.body,
             style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4)),
       ]),
+    );
+  }
+}
+
+// ─── Trust Badge ─────────────────────────────────────────────
+class _TrustBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _TrustBadge({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(height: 4),
+        Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: color)),
+      ],
+    );
+  }
+}
+
+// ─── Full Screen Gallery ─────────────────────────────────────
+class _FullScreenGallery extends StatefulWidget {
+  final List<PortfolioItem> items;
+  final int initialIndex;
+  const _FullScreenGallery({required this.items, required this.initialIndex});
+
+  @override
+  State<_FullScreenGallery> createState() => _FullScreenGalleryState();
+}
+
+class _FullScreenGalleryState extends State<_FullScreenGallery> {
+  late PageController _controller;
+  late int _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.initialIndex;
+    _controller = PageController(initialPage: _current);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: Text('${_current + 1} / ${widget.items.length}',
+            style: const TextStyle(fontSize: 14)),
+        centerTitle: true,
+      ),
+      body: PageView.builder(
+        controller: _controller,
+        itemCount: widget.items.length,
+        onPageChanged: (i) => setState(() => _current = i),
+        itemBuilder: (_, i) => InteractiveViewer(
+          child: Center(
+            child: CachedNetworkImage(
+              imageUrl: widget.items[i].mediaUrl,
+              fit: BoxFit.contain,
+              placeholder: (_, __) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+              errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white54, size: 48),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

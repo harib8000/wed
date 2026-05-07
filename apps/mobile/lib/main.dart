@@ -60,16 +60,43 @@ class _WeddingOSAppState extends ConsumerState<WeddingOSApp> {
   @override
   Widget build(BuildContext context) {
     // Watch auth state so the router's refresh notifier can trigger redirects
-    ref.listen<AuthState>(authProvider, (_, next) {
-      // GoRouter's redirect fires on every navigation push/go anyway,
-      // but after login/logout we manually navigate from within screens.
-    });
+    ref.listen<AuthState>(authProvider, (_, next) {});
 
-    return MaterialApp.router(
+    final app = MaterialApp.router(
       title: 'WeddingOS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       routerConfig: _router,
     );
+
+    // On web, wrap in a phone-sized container so it looks like a mobile app
+    if (kIsWeb) {
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          backgroundColor: const Color(0xFF1F2937),
+          body: Center(
+            child: Container(
+              width: 390,
+              height: 844,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(40),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 30, spreadRadius: 5),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(40),
+                child: app,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return app;
   }
 }

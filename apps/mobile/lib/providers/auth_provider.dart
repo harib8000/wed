@@ -68,6 +68,43 @@ class AuthNotifier extends Notifier<AuthState> {
     await _storage.deleteAll();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
+
+  /// Bypass login with a demo customer account
+  void demoCustomerLogin() {
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      user: const User(
+        id: 'demo-customer-1',
+        phone: '9876543210',
+        name: 'Priya & Rahul',
+        role: 'CUSTOMER',
+        status: 'ACTIVE',
+        phoneVerified: true,
+        email: 'priya@example.com',
+        city: 'Hyderabad',
+        weddingDate: '15 Mar 2025',
+        partnerName: 'Rahul',
+        budgetPaise: 2500000000, // ₹25 Lakhs
+      ),
+    );
+  }
+
+  /// Bypass login with a demo vendor/seller account
+  void demoVendorLogin() {
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      user: const User(
+        id: 'demo-vendor-1',
+        phone: '9988776655',
+        name: 'Royal Grand Palace',
+        role: 'VENDOR',
+        status: 'ACTIVE',
+        phoneVerified: true,
+        email: 'info@royalgrandpalace.com',
+        city: 'Hyderabad',
+      ),
+    );
+  }
 }
 
 final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);

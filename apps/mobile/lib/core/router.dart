@@ -13,25 +13,50 @@ import '../features/notifications/notifications_screen.dart';
 import '../features/reviews/write_review_screen.dart';
 import '../features/checklist/checklist_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/vendor_dashboard/vendor_dashboard_screen_v2.dart';
+import '../features/vendor_dashboard/vendor_analytics_screen.dart';
+import '../features/vendor_dashboard/vendor_bookings_screen_v2.dart';
+import '../features/vendor_dashboard/vendor_earnings_screen_v2.dart';
+import '../features/vendor_dashboard/vendor_profile_screen_v2.dart';
+import '../features/vendor_dashboard/vendor_leads_screen.dart';
+import '../features/vendor_dashboard/vendor_calendar_screen.dart';
+import '../features/vendor_dashboard/vendor_reviews_screen.dart';
+import '../features/vendor_dashboard/vendor_settings_screen.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../shared/widgets/app_shell.dart';
+import '../shared/widgets/vendor_app_shell.dart';
 
 // Public routes that don't require authentication
 const _publicRoutes = {'/login'};
 
-// Auth guard — redirects to /login if unauthenticated
+// Auth guard — redirects to /login if unauthenticated, and routes by role
 String? _authRedirect(WidgetRef ref, GoRouterState state) {
-  final authStatus = ref.read(authProvider).status;
+  final authState = ref.read(authProvider);
+  final authStatus = authState.status;
   final location = state.matchedLocation;
 
   if (_publicRoutes.contains(location)) {
-    // already authenticated → go home
-    if (authStatus == AuthStatus.authenticated) return '/';
+    if (authStatus == AuthStatus.authenticated) {
+      // Redirect based on role
+      final role = authState.user?.role ?? 'CUSTOMER';
+      return role == 'VENDOR' ? '/vendor/dashboard' : '/';
+    }
     return null;
   }
-  // While loading or unauthenticated → show login
   if (authStatus != AuthStatus.authenticated) return '/login';
+
+  // Role-based access control
+  final role = authState.user?.role ?? 'CUSTOMER';
+  final isVendorRoute = location.startsWith('/vendor');
+
+  if (role == 'VENDOR' && !isVendorRoute && location != '/notifications') {
+    return '/vendor/dashboard';
+  }
+  if (role == 'CUSTOMER' && isVendorRoute) {
+    return '/';
+  }
+
   return null;
 }
 
@@ -39,6 +64,7 @@ GoRouter buildRouter(WidgetRef ref) => GoRouter(
   initialLocation: '/',
   redirect: (context, state) => _authRedirect(ref, state),
   routes: [
+    // ─── Customer App (ShellRoute with customer bottom nav) ───
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
@@ -129,6 +155,51 @@ GoRouter buildRouter(WidgetRef ref) => GoRouter(
         vendorId: state.uri.queryParameters['vendorId'] ?? '',
         bookingId: state.uri.queryParameters['bookingId'],
       ),
+    ),
+
+    // ─── Vendor/Seller App (ShellRoute with vendor bottom nav) ───
+    ShellRoute(
+      builder: (context, state, child) => VendorAppShell(child: child),
+      routes: [
+        GoRoute(
+          path: '/vendor/dashboard',
+          builder: (context, state) => const VendorDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/vendor/analytics',
+          builder: (context, state) => const VendorAnalyticsScreen(),
+        ),
+        GoRoute(
+          path: '/vendor/bookings',
+          builder: (context, state) => const VendorBookingsScreen(),
+        ),
+        GoRoute(
+          path: '/vendor/earnings',
+          builder: (context, state) => const VendorEarningsScreen(),
+        ),
+        GoRoute(
+          path: '/vendor/profile',
+          builder: (context, state) => const VendorProfileScreen(),
+        ),
+      ],
+    ),
+
+    // Vendor sub-screens (full-screen, no bottom nav)
+    GoRoute(
+      path: '/vendor/leads',
+      builder: (context, state) => const VendorLeadsScreen(),
+    ),
+    GoRoute(
+      path: '/vendor/calendar',
+      builder: (context, state) => const VendorCalendarScreen(),
+    ),
+    GoRoute(
+      path: '/vendor/reviews',
+      builder: (context, state) => const VendorReviewsScreen(),
+    ),
+    GoRoute(
+      path: '/vendor/settings',
+      builder: (context, state) => const VendorSettingsScreen(),
     ),
   ],
 );
