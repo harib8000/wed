@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -17,6 +17,27 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
+  const startResendTimer = () => {
+    setResendTimer(60);
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setResendTimer((t) => {
+        if (t <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000);
+  };
 
   const formatPhone = (val: string) => {
     const digits = val.replace(/\D/g, '');
@@ -37,8 +58,7 @@ export default function LoginPage() {
       await authApi.sendOtp(formattedPhone);
       toast.success('OTP sent to your mobile number!');
       setStep('otp');
-      setResendTimer(60);
-      const timer = setInterval(() => setResendTimer((t) => { if (t <= 1) { clearInterval(timer); return 0; } return t - 1; }), 1000);
+      startResendTimer();
     } catch (err: any) {
       toast.error(err.response?.data?.error?.message || 'Failed to send OTP');
     } finally {
@@ -161,7 +181,9 @@ export default function LoginPage() {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => { setStep('phone'); handleSendOtp({ preventDefault: () => {} } as any); }}
+                      onClick={() => {
+                        handleSendOtp({ preventDefault: () => {} } as any);
+                      }}
                       className="text-sm text-brand-600 hover:underline"
                     >
                       Resend OTP

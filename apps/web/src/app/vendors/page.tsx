@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Search, Filter, MapPin, Star, Heart, SlidersHorizontal, ChevronDown, X } from 'lucide-react';
+import { Search, MapPin, Star, Heart, X } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 
@@ -15,14 +15,16 @@ const SORT_OPTIONS = [
   { value: 'price_desc', label: 'Price: High to Low' },
 ];
 
-// Mock vendors for display
+// Mock vendors for display — deterministic values to prevent hydration mismatch
+const MOCK_RATINGS = ['4.9', '4.8', '4.7', '4.9', '4.6', '4.8', '4.7', '4.9', '4.8', '4.5', '4.7', '4.6'];
+const MOCK_REVIEWS = [247, 189, 312, 95, 156, 78, 201, 167, 283, 134, 112, 63];
 const MOCK_VENDORS = Array.from({ length: 12 }, (_, i) => ({
   id: `vendor-${i + 1}`,
   businessName: ['Royal Grand Palace', 'Srikanth Photography', 'Flavours Catering', 'Blooms & Dreams', 'Shika Makeup', 'Beats & Celebrations', 'Heritage Banquets', 'Frame Perfect Studios', 'Royal Feast', 'Garden of Eden Decor', 'Glamour Touch', 'Melody Masters'][i],
   category: ['venue', 'photography', 'catering', 'decor', 'makeup', 'music', 'venue', 'photography', 'catering', 'decor', 'makeup', 'music'][i],
   citiesServed: ['Hyderabad'],
-  rating: (4.5 + Math.random() * 0.5).toFixed(1),
-  totalReviews: Math.floor(50 + Math.random() * 300),
+  rating: MOCK_RATINGS[i],
+  totalReviews: MOCK_REVIEWS[i],
   basePrice: [500000, 80000, 800, 150000, 25000, 60000, 300000, 100000, 1200, 200000, 35000, 80000][i],
   coverImage: `https://images.unsplash.com/photo-${['1519741497674-611481863552', '1537907690979-13c0f6a4c7f4', '1555244162-803834f70033', '1478146059778-26028b07395a', '1487412912498-0447578fcca8', '1470225620780-dba8ba36b745', '1519225421980-715cb0215aed', '1493863641943-9b68992a8d07', '1414235077428-338989a2e8c0', '1519167758481-83f550bb49b3', '1512290923902-8a9f81dc236c', '1483133440078-16c4d1e7ddc0'][i]}?w=400&q=80`,
   featured: i < 3,
@@ -74,11 +76,26 @@ function VendorCard({ vendor }: { vendor: typeof MOCK_VENDORS[0] }) {
 }
 
 export default function VendorsPage() {
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get('category');
+  const queryParam = searchParams.get('q');
+
+  const [search, setSearch] = useState(queryParam || '');
+  const [selectedCategory, setSelectedCategory] = useState(
+    categoryParam ? CATEGORIES.find(c => c.toLowerCase() === categoryParam.toLowerCase()) || 'All' : 'All'
+  );
   const [selectedCity, setSelectedCity] = useState('Hyderabad');
   const [sortBy, setSortBy] = useState('rating');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Sync URL params when they change
+  useEffect(() => {
+    if (categoryParam) {
+      const matched = CATEGORIES.find(c => c.toLowerCase() === categoryParam.toLowerCase());
+      if (matched) setSelectedCategory(matched);
+    }
+    if (queryParam) setSearch(queryParam);
+  }, [categoryParam, queryParam]);
 
   const filtered = MOCK_VENDORS.filter((v) => {
     const matchCategory = selectedCategory === 'All' || v.category === selectedCategory.toLowerCase();

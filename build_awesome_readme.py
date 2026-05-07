@@ -1,4 +1,6 @@
-<div align="center">
+import os
+
+readme_content = """<div align="center">
 
 <img src="https://img.shields.io/badge/Wedding%20OS-India's%20First%20Wedding%20Operating%20System-FF6B6B?style=for-the-badge&logo=heart&logoColor=white" alt="Wedding OS" />
 <br/>
@@ -150,270 +152,27 @@ WeddingOS is an **EXECUTION ENGINE**. We own the financial transaction (Escrow) 
 
 ## 🗺 3. USER & VENDOR FLOW ORCHESTRATION
 
-### 📊 3.1 High-Level Platform Interaction Flow
-
-```mermaid
-flowchart TD
-    A[🌐 User Opens WeddingOS] --> B{New or Returning?}
-    B -- New User --> C[📱 Sign Up via OTP]
-    B -- Returning --> D[🔑 Login via OTP]
-    C --> E[🎯 Onboarding Quiz]
-    D --> F[📋 Dashboard]
-    E --> F
-    F --> G[🔍 Browse / Search Vendors]
-    F --> H[📊 AI Budget Planner]
-    F --> I[📅 Event Timeline]
-    G --> J[📄 View Vendor Profile]
-    J --> K[💬 Request Quotation]
-    K --> L[📩 Vendor Receives Lead in CRM]
-    L --> M[💰 Vendor Sends Quote]
-    M --> N{User Accepts?}
-    N -- Yes --> O[💳 Pay 30% Advance → Escrow]
-    N -- No --> G
-    O --> P[✅ Booking Confirmed]
-    P --> Q[📅 Auto-Generated Timeline Tasks]
-    Q --> R[🎉 Event Day — GPS Check-ins]
-    R --> S[👍 User Approves Completion]
-    S --> T[💸 Escrow Released → Vendor Bank]
-    T --> U[⭐ Review & Rating Prompt]
-```
-
----
-
-### 🧑‍💻 3.2 Customer Journey (Detailed)
-
-```mermaid
-flowchart LR
-    subgraph Discovery
-        A1[Open App / Website] --> A2[AI Quiz: Budget + City + Guest Count]
-        A2 --> A3[Auto-Generated Budget Matrix]
-    end
-    subgraph Search & Book
-        A3 --> B1[Browse Venues / Photographers / Caterers]
-        B1 --> B2[Filter by Category, City, Price, Rating]
-        B2 --> B3[View Vendor Profile + Portfolio]
-        B3 --> B4[Send Quotation Request]
-        B4 --> B5[Receive Quote from Vendor]
-        B5 --> B6[Accept & Pay 30% Escrow Advance]
-    end
-    subgraph Execution
-        B6 --> C1[Booking Confirmed ✅]
-        C1 --> C2[View Timeline & Checklist]
-        C2 --> C3[Coordinate with Vendor via Chat]
-        C3 --> C4[Event Day: Live Check-ins & Status]
-    end
-    subgraph Completion
-        C4 --> D1[Approve Event Delivery]
-        D1 --> D2[Escrow Auto-Released to Vendor]
-        D2 --> D3[Leave Verified Review ⭐]
-    end
-```
-
----
-
-### 🏢 3.3 Vendor Onboarding & Profile Creation Flow
-
-> **How do Photographers, Venues, Caterers, Decorators, etc. join WeddingOS?**
-
-```mermaid
-flowchart TD
-    V1[🏢 Vendor Visits vendor.weddingos.com] --> V2[📝 Click 'Register as Vendor']
-    V2 --> V3[Step 1: Basic Info — Name, Email, Phone, OTP]
-    V3 --> V4[Step 2: Business Details — Business Name, Category]
-    V4 --> V5{Category Selection}
-    V5 --> V5A[🏛 Venue / Function Hall]
-    V5 --> V5B[📸 Photography Studio]
-    V5 --> V5C[🍽 Catering Service]
-    V5 --> V5D[🎨 Decorator / Florist]
-    V5 --> V5E[💄 Makeup Artist]
-    V5 --> V5F[🎵 Music / DJ / Band]
-    V5 --> V5G[🎥 Videography]
-    V5A & V5B & V5C & V5D & V5E & V5F & V5G --> V6[Step 3: KYC Upload — GST Certificate, PAN, Aadhaar]
-    V6 --> V7[Step 4: Upload Portfolio — Photos, Videos, Past Work]
-    V7 --> V8[Step 5: Define Packages & Pricing]
-    V8 --> V9[Step 6: Set Service Area — Cities Served]
-    V9 --> V10[📤 Submit for Admin Approval]
-    V10 --> V11{Admin Review}
-    V11 -- Auto-Approved --> V12[✅ Profile Goes Live on Marketplace]
-    V11 -- Manual Review --> V13[🔍 Admin Verifies GST + Identity]
-    V13 -- Approved --> V12
-    V13 -- Rejected --> V14[❌ Vendor Notified with Rejection Reason]
-    V14 --> V6
-    V12 --> V15[🎉 Vendor Dashboard Unlocked — Start Receiving Leads!]
-```
-
----
-
-### 💼 3.4 Vendor CRM & Lead Pipeline Flow
-
-> **How vendors manage incoming enquiries and close deals:**
-
-```mermaid
-flowchart LR
-    subgraph Incoming_Leads
-        L1[📩 Customer sends Enquiry] --> L2[Lead appears in Vendor CRM]
-    end
-    subgraph Pipeline_Management
-        L2 --> L3[📋 Kanban Board]
-        L3 --> L3A[Column: New Leads]
-        L3A --> L3B[Column: Quoted]
-        L3B --> L3C[Column: Negotiating]
-        L3C --> L3D[Column: Won ✅]
-        L3C --> L3E[Column: Lost ❌]
-    end
-    subgraph Booking_Execution
-        L3D --> L4[💳 Escrow Payment Received]
-        L4 --> L5[📅 Calendar Auto-Blocks Date]
-        L5 --> L6[📝 Tasks Generated for Event]
-        L6 --> L7[🎉 Event Day]
-        L7 --> L8[💸 Payout Released T+1]
-    end
-```
-
----
-
-### 🏛 3.5 Venue / Function Hall — How Users Discover & Book
-
-```mermaid
-flowchart TD
-    U1[👤 User Searches 'Wedding Venues in Hyderabad'] --> U2[🔍 Search Results — Cards with Photos, Ratings, Price]
-    U2 --> U3[Clicks 'Royal Grand Palace']
-    U3 --> U4[📄 Venue Profile Page]
-    U4 --> U4A[📸 Portfolio Gallery — 50+ Photos]
-    U4 --> U4B[📦 Package Options — Silver / Gold / Platinum]
-    U4 --> U4C[⭐ Verified Reviews from Past Couples]
-    U4 --> U4D[📍 Location Map + Capacity Info]
-    U4 --> U4E[📅 Availability Calendar]
-    U4B --> U5[User Selects 'Gold Package — ₹5,00,000']
-    U5 --> U6[💬 Sends Quotation Request with Event Date]
-    U6 --> U7[📩 Venue Owner Receives in Dashboard CRM]
-    U7 --> U8[Venue Sends Custom Quote — ₹4,80,000]
-    U8 --> U9{User Decision}
-    U9 -- Accept --> U10[💳 Pay ₹1,44,000 Advance to Escrow — 30%]
-    U9 -- Negotiate --> U6
-    U10 --> U11[✅ Booking Confirmed — Date Locked on Calendar]
-```
-
----
-
-### 📸 3.6 Photographer Profile — Creation & Customer View
-
-```mermaid
-flowchart TD
-    P1[📸 Photographer Registers] --> P2[Selects Category: Photography]
-    P2 --> P3[Uploads Portfolio — Best Wedding Shots]
-    P3 --> P4[Creates Packages]
-    P4 --> P4A[Basic: ₹40,000 — 1 Photographer, 200 Photos]
-    P4 --> P4B[Premium: ₹80,000 — 2 Photographers, 500 Photos + Album]
-    P4 --> P4C[Cinematic: ₹1,50,000 — Full Team, Drone + Film]
-    P4A & P4B & P4C --> P5[Profile Goes Live]
-    P5 --> P6[👤 Customer Sees Profile in Search]
-    P6 --> P7[Views Portfolio Grid — Hover for Full Preview]
-    P7 --> P8[Reads Verified Reviews]
-    P8 --> P9[Sends Quotation Request]
-    P9 --> P10[Photographer Replies from CRM Dashboard]
-```
-
----
-
-### 🔄 3.7 End-to-End Escrow Payment Sequence
+### 📊 System Orchestration Diagram
 
 ```mermaid
 sequenceDiagram
-    participant U as 👤 Customer
-    participant W as 🌐 WeddingOS Platform
-    participant R as 💳 Razorpay Gateway
-    participant E as 🏦 Escrow (Virtual Account)
-    participant V as 🏢 Vendor
+    participant U as User
+    participant P as Platform (WeddingOS)
+    participant E as Escrow (Razorpay)
+    participant V as Vendor
 
-    U->>W: 1. Accepts Quote & Clicks 'Pay Now'
-    W->>R: 2. Creates Razorpay Order (amount, vendor_id)
-    R->>U: 3. Opens Checkout Modal (UPI/Card/Netbanking)
-    U->>R: 4. Completes Payment ₹1,44,000
-    R->>E: 5. Funds held in Virtual Escrow Account
-    R-->>W: 6. Webhook: payment.captured ✅
-    W->>W: 7. Updates Booking Status → CONFIRMED
-    W->>V: 8. Push Notification: 'Booking Confirmed! Funds Secured.'
-    Note over E: Funds held safely until event completion
-    U->>W: 9. Event occurs → User clicks 'Approve Delivery'
-    W->>R: 10. Instruct: Release Escrow to Vendor
-    R->>E: 11. Transfer from Virtual Account
-    E->>V: 12. ₹1,37,280 to Vendor Bank (after 4.67% platform fee)
-    W->>U: 13. Receipt + Review Prompt sent
-```
-
----
-
-### 🛡 3.8 Admin Dispute Resolution Flow
-
-```mermaid
-flowchart TD
-    D1[🚨 Customer Raises Dispute] --> D2[Dispute Ticket Created in System]
-    D2 --> D3[Admin Reviews Chat History + Contract]
-    D3 --> D4{Resolution}
-    D4 -- Vendor at Fault --> D5[Partial/Full Refund from Escrow]
-    D4 -- Customer at Fault --> D6[Escrow Released to Vendor]
-    D4 -- Ambiguous --> D7[Admin Mediates — Both Parties Contacted]
-    D7 --> D4
-    D5 --> D8[Vendor Rating Impacted]
-    D6 --> D9[Case Closed — No Vendor Penalty]
-```
-
----
-
-### 🔁 3.9 Complete System Architecture Flow
-
-```mermaid
-flowchart TB
-    subgraph Client_Apps
-        WEB[🌐 Next.js Web App]
-        VWEB[🏢 Vendor Dashboard]
-        ADMIN[🛡 Admin Panel]
-        MOBILE[📱 Flutter App]
-    end
-
-    subgraph API_Gateway
-        KONG[🦍 Kong Gateway — JWT Validation + Rate Limiting]
-    end
-
-    subgraph Microservices
-        AUTH[🔐 auth-service]
-        USER[👤 user-service]
-        VENDOR[🏪 vendor-service]
-        BOOKING[📋 booking-service]
-        PAYMENT[💳 payment-service]
-        EXEC[⚙️ execution-service]
-        SEARCH[🔍 search-service]
-        CHAT[💬 chat-service]
-        MEDIA[📷 media-service]
-        NOTIF[🔔 notification-service]
-        REVIEW[⭐ review-service]
-        AI[🤖 ai-service]
-    end
-
-    subgraph Data_Layer
-        PG[(🐘 PostgreSQL)]
-        REDIS[(⚡ Redis)]
-        ES[(🔎 Elasticsearch)]
-        S3[(☁️ AWS S3)]
-    end
-
-    subgraph External
-        RZPAY[💳 Razorpay]
-        MSG91[📱 MSG91 SMS]
-        FCM[🔔 Firebase FCM]
-        DIGI[📋 DigiLocker KYC]
-    end
-
-    WEB & VWEB & ADMIN & MOBILE --> KONG
-    KONG --> AUTH & USER & VENDOR & BOOKING & PAYMENT & EXEC & SEARCH & CHAT & MEDIA & NOTIF & REVIEW & AI
-    AUTH & USER & VENDOR & BOOKING & PAYMENT & EXEC & REVIEW --> PG
-    AUTH & SEARCH --> REDIS
-    SEARCH --> ES
-    MEDIA --> S3
-    PAYMENT --> RZPAY
-    NOTIF --> MSG91 & FCM
-    AUTH --> DIGI
+    U->>P: 1. Inputs Budget & Preferences
+    P->>U: 2. AI Generates Blueprint
+    U->>V: 3. Sends Quotation Request
+    V->>P: 4. Updates CRM & Sends Quote
+    P->>U: 5. Notifies User via Push
+    U->>E: 6. Pays 30% Advance (Escrow)
+    E-->>P: 7. Webhook triggers Booking Lock
+    P->>V: 8. Calendar Blocked & Tasks Made
+    U->>V: 9. Event Occurs (Check-ins logged)
+    U->>P: 10. User Approves Delivery
+    P->>E: 11. Instruct Release to Vendor
+    E->>V: 12. Funds hit Vendor Bank
 ```
 
 ---
@@ -735,3 +494,8 @@ The platform's existence relies on the **7-Sprint Strategy** defined in `sprints
 <br/>
 <i>"Architected for absolute resilience."</i>
 </div>
+"""
+
+with open('README.md', 'w') as f_out:
+    f_out.write(readme_content)
+

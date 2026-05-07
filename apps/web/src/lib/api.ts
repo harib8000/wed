@@ -31,7 +31,9 @@ api.interceptors.response.use(
           original.headers.Authorization = `Bearer ${accessToken}`;
           return api(original);
         }
-      } catch {}
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+      }
       // Refresh failed — clear auth
       Cookies.remove('access_token');
       Cookies.remove('refresh_token');

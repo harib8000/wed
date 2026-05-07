@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Menu, X, Search, Bell, User, ChevronDown } from 'lucide-react';
+import { Menu, X, Search, Bell } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/lib/api';
 import { clsx } from 'clsx';
@@ -47,12 +47,23 @@ export function Navbar() {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-8">
-            {[
-              { label: 'Find Vendors', href: '/vendors' },
-              { label: 'How it Works', href: '/#how-it-works' },
-              { label: 'Pricing', href: '/pricing' },
-            ].map((item) => (
+          <div className="hidden md:flex items-center gap-6">
+            {isAuthenticated && user ? (
+              // Logged-in nav — category-focused
+              [
+                { label: 'Venues', href: '/vendors?category=venue' },
+                { label: 'Photography', href: '/vendors?category=photography' },
+                { label: 'Catering', href: '/vendors?category=catering' },
+                { label: 'All Vendors', href: '/vendors' },
+              ]
+            ) : (
+              // Guest nav
+              [
+                { label: 'Find Vendors', href: '/vendors' },
+                { label: 'How it Works', href: '/#how-it-works' },
+                { label: 'Pricing', href: '/pricing' },
+              ]
+            ).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

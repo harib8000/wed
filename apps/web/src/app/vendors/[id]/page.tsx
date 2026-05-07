@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Star, MapPin, CheckCircle, Camera, Shield, MessageCircle, Calendar, ArrowLeft, Heart, Share2, Phone } from 'lucide-react';
+import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, Share2 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 
@@ -28,8 +28,14 @@ const MOCK_REVIEWS = [
   { id: 3, customerName: 'Meera A.', rating: 4, date: 'January 2026', body: 'Great experience overall. Parking could be better but everything else was perfect. The bridal suite was gorgeous!', tags: ['Bridal Suite', 'Professional'] },
 ];
 
+const VENDOR_MAP: Record<string, typeof MOCK_VENDOR> = {
+  'vendor-1': { ...MOCK_VENDOR },
+  'vendor-2': { ...MOCK_VENDOR, id: '2', businessName: 'Srikanth Photography', category: 'Photography', rating: 4.8, totalReviews: 189, totalBookings: 156, basePrice: 80000, description: 'Award-winning wedding photography studio specializing in candid, traditional, and cinematic styles. Capturing your most precious moments with a team of 8 professional photographers across Hyderabad.', yearsExperience: 8, teamSize: 8, packages: [{ id: 'p1', name: 'Essential', price: 40000, priceType: 'fixed', description: '1 photographer, 200 edited photos', inclusions: ['1 Photographer', '200 Edited Photos', '8-hour coverage', 'Online Gallery'], minGuests: 0, maxGuests: 500 }, { id: 'p2', name: 'Premium', price: 80000, priceType: 'fixed', description: '2 photographers + pre-wedding shoot', inclusions: ['2 Photographers', '500 Edited Photos', 'Pre-wedding Shoot', 'Photo Album', '12-hour coverage'], minGuests: 0, maxGuests: 1000 }, { id: 'p3', name: 'Cinematic', price: 150000, priceType: 'fixed', description: 'Full team with drone + film', inclusions: ['3 Photographers', 'Drone Coverage', 'Cinematic Film', '1000+ Photos', 'Premium Album', 'Multi-day coverage'], minGuests: 0, maxGuests: 2000 }], tags: ['Candid', 'Traditional', 'Cinematic', 'Drone', 'Pre-wedding'] },
+  'vendor-3': { ...MOCK_VENDOR, id: '3', businessName: 'Flavours Catering Co.', category: 'Catering', rating: 4.7, totalReviews: 312, totalBookings: 420, basePrice: 800, description: 'Hyderabad\'s finest multi-cuisine catering service with live counters, traditional Hyderabadi Biryani, and 200+ menu options. Serving weddings from 100 to 5000 guests.', yearsExperience: 15, teamSize: 120, packages: [{ id: 'p1', name: 'Classic', price: 800, priceType: 'per_plate', description: 'Standard buffet menu', inclusions: ['15 Items Buffet', 'Welcome Drinks', 'Basic Setup', 'Service Staff'], minGuests: 100, maxGuests: 500 }, { id: 'p2', name: 'Royal', price: 1200, priceType: 'per_plate', description: 'Premium multi-cuisine', inclusions: ['25 Items Buffet', 'Live Counters', 'Premium Beverages', 'Themed Setup', 'Dedicated Manager'], minGuests: 200, maxGuests: 2000 }, { id: 'p3', name: 'Grand Feast', price: 2000, priceType: 'per_plate', description: 'Ultimate luxury dining', inclusions: ['40+ Items', 'Live Counters', 'Biryani Counter', 'Dessert Bar', 'Ice Cream Station', 'Luxury Crockery'], minGuests: 300, maxGuests: 5000 }], tags: ['Multi-cuisine', 'Live Counters', 'Biryani', 'Vegetarian', 'Non-veg'] },
+};
+
 export default function VendorDetailPage({ params }: { params: { id: string } }) {
-  const v = MOCK_VENDOR;
+  const v = VENDOR_MAP[params.id] || MOCK_VENDOR;
 
   return (
     <div className="min-h-screen bg-gray-50">
