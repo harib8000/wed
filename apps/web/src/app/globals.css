@@ -12,6 +12,11 @@
   html { scroll-behavior: smooth; }
   body { @apply bg-white text-gray-900; }
 
+  /* Safe area for mobile bottom nav / notch */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading;
   }
@@ -49,4 +54,9 @@
   .gradient-brand {
     @apply bg-gradient-to-r from-brand-600 to-purple-600;
   }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 }

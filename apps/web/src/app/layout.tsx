@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import './globals.css';
 import { Providers } from './providers';
+import { BottomNav } from '@/components/layout/BottomNav';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-heading' });
@@ -21,9 +22,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
-      <body className="font-sans bg-white text-gray-900 antialiased">
+      <body className="font-sans bg-white text-gray-900 antialiased pb-16 md:pb-0">
         <Providers>
           {children}
+          <BottomNav />
           <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         </Providers>
       </body>

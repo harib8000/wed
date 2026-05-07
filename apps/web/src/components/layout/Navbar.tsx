@@ -48,22 +48,16 @@ export function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6">
-            {isAuthenticated && user ? (
-              // Logged-in nav — category-focused
-              [
-                { label: 'Venues', href: '/vendors?category=venue' },
-                { label: 'Photography', href: '/vendors?category=photography' },
-                { label: 'Catering', href: '/vendors?category=catering' },
-                { label: 'All Vendors', href: '/vendors' },
-              ]
-            ) : (
-              // Guest nav
-              [
-                { label: 'Find Vendors', href: '/vendors' },
-                { label: 'How it Works', href: '/#how-it-works' },
-                { label: 'Pricing', href: '/pricing' },
-              ]
-            ).map((item) => (
+            {(isAuthenticated && user ? [
+              { label: 'Venues', href: '/vendors?category=venue' },
+              { label: 'Photography', href: '/vendors?category=photography' },
+              { label: 'Catering', href: '/vendors?category=catering' },
+              { label: 'All Vendors', href: '/vendors' },
+            ] : [
+              { label: 'Find Vendors', href: '/vendors' },
+              { label: 'How it Works', href: '/#how-it-works' },
+              { label: 'Pricing', href: '/pricing' },
+            ]).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
@@ -84,17 +78,17 @@ export function Navbar() {
                 <Link href="/vendors" className={clsx('p-2 rounded-lg transition-colors', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Search size={20} />
                 </Link>
-                <Link href="/dashboard/notifications" className={clsx('p-2 rounded-lg transition-colors relative', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
+                <Link href="/bookings" className={clsx('p-2 rounded-lg transition-colors relative', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Bell size={20} />
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                 </Link>
                 <div className="flex items-center gap-2">
-                  <Link href="/dashboard" className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors">
+                  <Link href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors">
                     <div className="w-8 h-8 rounded-full gradient-brand flex items-center justify-center">
                       <span className="text-white text-xs font-bold">{user.phone.slice(-2)}</span>
                     </div>
                     <span className={clsx('text-sm font-medium', scrolled ? 'text-gray-700' : 'text-white')}>
-                      Dashboard
+                      Profile
                     </span>
                   </Link>
                 </div>
@@ -125,8 +119,18 @@ export function Navbar() {
       {mobileOpen && (
         <div className="md:hidden bg-white border-b border-gray-200 px-4 py-4 space-y-3">
           <Link href="/vendors" className="block py-2 text-gray-700 font-medium">Find Vendors</Link>
-          <Link href="/#how-it-works" className="block py-2 text-gray-700 font-medium">How it Works</Link>
-          <Link href="/pricing" className="block py-2 text-gray-700 font-medium">Pricing</Link>
+          {isAuthenticated ? (
+            <>
+              <Link href="/bookings" className="block py-2 text-gray-700 font-medium">My Bookings</Link>
+              <Link href="/wishlist" className="block py-2 text-gray-700 font-medium">Wishlist</Link>
+              <Link href="/profile" className="block py-2 text-gray-700 font-medium">Profile</Link>
+            </>
+          ) : (
+            <>
+              <Link href="/#how-it-works" className="block py-2 text-gray-700 font-medium">How it Works</Link>
+              <Link href="/pricing" className="block py-2 text-gray-700 font-medium">Pricing</Link>
+            </>
+          )}
           <div className="pt-2 border-t border-gray-100">
             {isAuthenticated ? (
               <Link href="/dashboard" className="btn-primary block text-center">Dashboard</Link>
