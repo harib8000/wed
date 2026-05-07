@@ -10,6 +10,20 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
 import { connectDatabase, disconnectDatabase } from './config/database';
+import { runDailyReminderJob } from './jobs/reminder.job';
+
+// Simple cron scheduler (no external deps) — runs at 08:00 IST daily
+function scheduleDaily(fn: () => void): NodeJS.Timeout {
+  const msUntilNextRun = () => {
+    const now = new Date();
+    const next = new Date(now);
+    next.setUTCHours(2, 30, 0, 0); // 08:00 IST = 02:30 UTC
+    if (next <= now) next.setDate(next.getDate() + 1);
+    return next.getTime() - now.getTime();
+  };
+  const scheduleNext = () => setTimeout(() => { fn(); scheduleNext(); }, msUntilNextRun());
+  return scheduleNext();
+}
 
 async function bootstrap() {
   await connectDatabase();
@@ -47,6 +61,10 @@ async function bootstrap() {
   });
 
   server.listen(config.PORT, () => logger.info({ port: config.PORT }, 'Execution service listening'));
+
+  // Schedule daily reminder job (08:00 IST)
+  scheduleDaily(() => runDailyReminderJob().catch(err => logger.error(err, 'Reminder job failed')));
+  logger.info('Daily reminder scheduler started');
 
   const shutdown = async () => {
     io.close();

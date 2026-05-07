@@ -106,6 +106,77 @@ export const notificationService = {
         body: `A booking has been cancelled. ${p.reason ?? ''}`,
         data: { bookingId: p.bookingId },
       }],
+
+      // ── Payment events ────────────────────────────────────────────────────
+      'payment.captured': (p) => [
+        { userId: p.customerId, channels: ['PUSH', 'IN_APP'] as const, event, title: 'Payment Successful ✅', body: `₹${(p.amount / 100).toLocaleString('en-IN')} paid securely via escrow.`, data: { bookingId: p.bookingId } },
+        { userId: p.vendorId, channels: ['PUSH', 'IN_APP'] as const, event, title: 'Payment Received', body: `Advance payment received for booking. Funds held in escrow.`, data: { bookingId: p.bookingId } },
+      ],
+      'payment.failed': (p) => [{
+        userId: p.customerId,
+        channels: ['PUSH', 'IN_APP', 'SMS'] as const,
+        event,
+        title: 'Payment Failed ⚠️',
+        body: 'Your payment could not be processed. Please try again.',
+        data: { bookingId: p.bookingId },
+      }],
+      'payment.refunded': (p) => [{
+        userId: p.customerId,
+        channels: ['PUSH', 'IN_APP', 'SMS'] as const,
+        event,
+        title: 'Refund Initiated 💸',
+        body: `₹${(p.amount / 100).toLocaleString('en-IN')} refund will be credited in 5-7 business days.`,
+        data: { bookingId: p.bookingId },
+      }],
+      'escrow.released': (p) => [
+        { userId: p.vendorId, channels: ['PUSH', 'IN_APP', 'SMS'] as const, event, title: 'Payment Released! 🎉', body: `₹${(p.vendorPayout / 100).toLocaleString('en-IN')} has been transferred to your account.`, data: { bookingId: p.bookingId } },
+        { userId: p.customerId, channels: ['PUSH', 'IN_APP'] as const, event, title: 'Escrow Released', body: 'Payment has been released to your vendor. Thank you!', data: { bookingId: p.bookingId } },
+      ],
+
+      // ── Review events ─────────────────────────────────────────────────────
+      'review.created': (p) => [{
+        userId: p.vendorId,
+        channels: ['PUSH', 'IN_APP'] as const,
+        event,
+        title: 'New Review Posted ⭐',
+        body: `${p.customerName ?? 'A customer'} left you a ${p.rating}-star review.`,
+        data: { vendorId: p.vendorId, reviewId: p.reviewId },
+      }],
+
+      // ── Execution / timeline events ───────────────────────────────────────
+      'event.task_due_reminder': (p) => [{
+        userId: p.customerId,
+        channels: ['PUSH', 'IN_APP'] as const,
+        event,
+        title: `📋 Task Due: ${p.taskTitle}`,
+        body: `${p.daysLeft === 0 ? 'Due today!' : `${p.daysLeft}d left`} — ${p.taskTitle}`,
+        data: { timelineId: p.timelineId, taskId: p.taskId },
+      }],
+      'event.vendor_check_in': (p) => [
+        { userId: p.customerId, channels: ['PUSH', 'IN_APP'] as const, event, title: `${p.vendorName} Checked In ✅`, body: `${p.vendorCategory} vendor is on the premises.`, data: { bookingId: p.bookingId } },
+      ],
+      'event.completed': (p) => [
+        { userId: p.customerId, channels: ['PUSH', 'IN_APP', 'SMS'] as const, event, title: 'Wedding Complete! 🎊', body: 'Your wedding event is complete. Please review your vendors.', data: { bookingId: p.bookingId } },
+        { userId: p.vendorId, channels: ['PUSH', 'IN_APP'] as const, event, title: 'Event Completed', body: 'The wedding event is marked complete. Escrow will be released shortly.', data: { bookingId: p.bookingId } },
+      ],
+
+      // ── Vendor KYC ────────────────────────────────────────────────────────
+      'vendor.kyc_approved': (p) => [{
+        userId: p.vendorId,
+        channels: ['PUSH', 'IN_APP', 'SMS'] as const,
+        event,
+        title: 'KYC Approved ✅',
+        body: 'Your vendor profile is now verified. You can start accepting bookings.',
+        data: { vendorId: p.vendorId },
+      }],
+      'vendor.kyc_rejected': (p) => [{
+        userId: p.vendorId,
+        channels: ['PUSH', 'IN_APP'] as const,
+        event,
+        title: 'KYC Rejected',
+        body: `KYC verification failed: ${p.reason ?? 'Please resubmit your documents.'}`,
+        data: { vendorId: p.vendorId },
+      }],
     };
 
     const notifications = mapping[event]?.(eventPayload) ?? [];

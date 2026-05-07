@@ -1,64 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/theme.dart';
+import '../../models/vendor.dart';
+import '../../models/review.dart';
+import '../../providers/vendor_provider.dart';
 
-// ─── Mock vendor detail data ───────────────────────────────
-class _VendorDetail {
-  final String id, name, category, city, description, price, image;
-  final double rating;
-  final int reviews, bookings;
-  final bool verified;
-  final List<String> portfolio;
-  final List<_Package> packages;
-  final List<_Review> reviewList;
-
-  const _VendorDetail({
-    required this.id, required this.name, required this.category, required this.city,
-    required this.description, required this.rating, required this.reviews,
-    required this.bookings, required this.price, required this.image,
-    this.verified = false, this.portfolio = const [], this.packages = const [],
-    this.reviewList = const [],
-  });
-}
-
-class _Package {
-  final String name, description, price;
-  final List<String> includes;
-  const _Package({required this.name, required this.description, required this.price, required this.includes});
-}
-
-class _Review {
-  final String author, text, date;
-  final double rating;
-  const _Review({required this.author, required this.text, required this.date, required this.rating});
-}
-
-final _vendorMap = <String, _VendorDetail>{
-  'v1': const _VendorDetail(
-    id: 'v1', name: 'Royal Grand Palace', category: 'Venue', city: 'Hyderabad',
-    description: 'An exquisite wedding venue with palatial architecture, lush gardens, and state-of-the-art banquet halls that can host 200 to 2,000 guests.',
-    rating: 4.9, reviews: 247, bookings: 1200, price: '₹5,00,000', image: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=800&q=80', verified: true,
-    portfolio: ['https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=400&q=80', 'https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=400&q=80', 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80', 'https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?w=400&q=80'],
-    packages: [_Package(name: 'Silver', description: 'Basic hall + catering', price: '₹5,00,000', includes: ['Main banquet hall', 'Veg catering (500 pax)', 'Basic decor', 'Parking']),
-      _Package(name: 'Gold', description: 'Premium full-service', price: '₹10,00,000', includes: ['Main + Outdoor lawn', 'Multi-cuisine (800 pax)', 'Premium decor + LED', 'DJ setup', 'Bridal suite']),
-      _Package(name: 'Platinum', description: 'Ultra luxury destination', price: '₹18,00,000', includes: ['Exclusive venue booking (2 days)', 'Royal catering (1200 pax)', 'Grand decor + fireworks', 'Bridal + Groom suites', 'Valet parking', 'Complimentary rooms'])],
-    reviewList: [_Review(author: 'Priya M.', text: 'Absolutely stunning venue! The staff was incredibly helpful and managed everything seamlessly.', date: '2 weeks ago', rating: 5.0),
-      _Review(author: 'Rahul K.', text: 'Beautiful decor, spacious halls. Food was excellent. Would definitely recommend.', date: '1 month ago', rating: 4.8)],
-  ),
-};
-
-class VendorDetailScreen extends StatelessWidget {
+// ─── Vendor Detail Screen ───────────────────────────────────
+class VendorDetailScreen extends ConsumerWidget {
   final String vendorId;
   const VendorDetailScreen({super.key, required this.vendorId});
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vendorAsync = ref.watch(vendorDetailProvider(vendorId));
+
+    return vendorAsync.when(
+      loading: () => Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => Scaffold(
+        appBar: AppBar(),
+        body: Center(
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Icon(Icons.error_outline, size: 48, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            const Text('Could not load vendor'),
+            TextButton(
+              onPressed: () => ref.refresh(vendorDetailProvider(vendorId)),
+              child: const Text('Retry'),
+            ),
+          ]),
+        ),
+      ),
+      data: (vendor) => _VendorDetailView(vendor: vendor, ref: ref),
+    );
+  }
+}
+
+class _VendorDetailView extends StatefulWidget {
+  final Vendor vendor;
+  final WidgetRef ref;
+  const _VendorDetailView({required this.vendor, required this.ref});
+
+  @override
+  State<_VendorDetailView> createState() => _VendorDetailViewState();
+}
+
+class _VendorDetailViewState extends State<_VendorDetailView> {
+  int _selectedPackageIndex = 0;
+
+  @override
   Widget build(BuildContext context) {
-    final vendor = _vendorMap[vendorId] ?? _vendorMap['v1']!;
+    final vendor = widget.vendor;
+    final reviewsAsync = widget.ref.watch(vendorReviewsProvider(vendor.id));
+    final wishlist = widget.ref.watch(wishlistProvider);
+    final isWishlisted = wishlist.any((w) => w.vendorId == vendor.id);
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // ─── Hero Image App Bar ────────
+          // ─── Hero App Bar ───────────────
           SliverAppBar(
             expandedHeight: 280,
             pinned: true,
@@ -66,7 +70,7 @@ class VendorDetailScreen extends StatelessWidget {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CachedNetworkImage(imageUrl: vendor.image, fit: BoxFit.cover),
+                  CachedNetworkImage(imageUrl: vendor.displayImage, fit: BoxFit.cover),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -77,75 +81,81 @@ class VendorDetailScreen extends StatelessWidget {
                   ),
                   Positioned(
                     bottom: 20, left: 16, right: 16,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (vendor.verified)
-                          Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(color: AppColors.brand, borderRadius: BorderRadius.circular(8)),
-                            child: const Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.verified, color: Colors.white, size: 12), SizedBox(width: 4), Text('Verified Vendor', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600))]),
-                          ),
-                        Text(vendor.name, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 4),
-                        Row(children: [
-                          Icon(Icons.location_on, color: Colors.white.withOpacity(0.8), size: 14),
-                          const SizedBox(width: 4),
-                          Text('${vendor.city} · ${vendor.category}', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
-                        ]),
-                      ],
-                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      if (vendor.verified)
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(color: AppColors.brand, borderRadius: BorderRadius.circular(8)),
+                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.verified, color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text('Verified Vendor', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+                          ]),
+                        ),
+                      Text(vendor.businessName,
+                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        Icon(Icons.location_on, color: Colors.white.withOpacity(0.8), size: 14),
+                        const SizedBox(width: 4),
+                        Text('${vendor.city} · ${vendor.category}',
+                            style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
+                      ]),
+                    ]),
                   ),
                 ],
               ),
             ),
             actions: [
-              IconButton(icon: const Icon(Icons.favorite_border, color: Colors.white), onPressed: () {}),
+              IconButton(
+                icon: Icon(isWishlisted ? Icons.favorite : Icons.favorite_border, color: Colors.white),
+                onPressed: () => widget.ref.read(wishlistProvider.notifier).toggle(vendor),
+              ),
               IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () {}),
             ],
           ),
 
-          // ─── Stats Row ─────────────────
+          // ─── Stats Row ──────────────────
           SliverToBoxAdapter(
             child: Container(
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _StatItem(icon: Icons.star, value: '${vendor.rating}', label: 'Rating', color: AppColors.gold),
-                  Container(width: 1, height: 40, color: AppColors.border),
-                  _StatItem(icon: Icons.rate_review, value: '${vendor.reviews}', label: 'Reviews', color: AppColors.brand),
-                  Container(width: 1, height: 40, color: AppColors.border),
-                  _StatItem(icon: Icons.event_available, value: '${vendor.bookings}+', label: 'Bookings', color: Colors.green),
-                ],
-              ),
+              child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                _StatItem(icon: Icons.star, value: vendor.avgRating.toStringAsFixed(1), label: 'Rating', color: AppColors.gold),
+                Container(width: 1, height: 40, color: AppColors.border),
+                _StatItem(icon: Icons.rate_review, value: '${vendor.reviewCount}', label: 'Reviews', color: AppColors.brand),
+                Container(width: 1, height: 40, color: AppColors.border),
+                _StatItem(icon: Icons.event_available, value: '${vendor.bookingCount}+', label: 'Bookings', color: Colors.green),
+              ]),
             ),
           ),
 
-          // ─── Description ───────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          // ─── Description ─────────────────
+          if (vendor.description != null)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   const Text('About', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   const SizedBox(height: 8),
-                  Text(vendor.description, style: TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.5)),
-                ],
+                  Text(vendor.description!, style: const TextStyle(color: AppColors.textSecondary, fontSize: 14, height: 1.5)),
+                ]),
               ),
             ),
-          ),
 
-          // ─── Portfolio ─────────────────
+          // ─── Portfolio ───────────────────
           if (vendor.portfolio.isNotEmpty) ...[
-            const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(16, 24, 16, 12), child: Text('Portfolio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)))),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 24, 16, 12),
+                child: Text('Portfolio', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
+            ),
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 120,
+                height: 130,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -153,44 +163,79 @@ class VendorDetailScreen extends StatelessWidget {
                   separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (_, i) => ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: CachedNetworkImage(imageUrl: vendor.portfolio[i], width: 140, height: 120, fit: BoxFit.cover),
+                    child: CachedNetworkImage(
+                      imageUrl: vendor.portfolio[i].mediaUrl,
+                      width: 150, height: 130, fit: BoxFit.cover,
+                    ),
                   ),
                 ),
               ),
             ),
           ],
 
-          // ─── Packages ─────────────────
+          // ─── Packages ────────────────────
           if (vendor.packages.isNotEmpty) ...[
-            const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(16, 24, 16, 12), child: Text('Packages', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)))),
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(16, 24, 16, 12),
+                child: Text('Packages', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              ),
+            ),
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
-                  (context, i) => _PackageCard(package: vendor.packages[i], index: i),
+                  (context, i) => _PackageCard(
+                    package: vendor.packages[i],
+                    index: i,
+                    selected: _selectedPackageIndex == i,
+                    onSelect: () => setState(() => _selectedPackageIndex = i),
+                  ),
                   childCount: vendor.packages.length,
                 ),
               ),
             ),
           ],
 
-          // ─── Reviews ──────────────────
-          if (vendor.reviewList.isNotEmpty) ...[
-            const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.fromLTRB(16, 24, 16, 12), child: Text('Reviews', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)))),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) => _ReviewCard(review: vendor.reviewList[i]),
-                  childCount: vendor.reviewList.length,
+          // ─── Reviews ─────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
+              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                const Text('Reviews', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                reviewsAsync.maybeWhen(
+                  data: (reviews) => Text('${reviews.length} total',
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                  orElse: () => const SizedBox.shrink(),
                 ),
-              ),
+              ]),
             ),
-          ],
+          ),
+          reviewsAsync.when(
+            loading: () => const SliverToBoxAdapter(
+                child: Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator()))),
+            error: (_, __) => const SliverToBoxAdapter(
+                child: Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Could not load reviews'))),
+            data: (reviews) => reviews.isEmpty
+                ? const SliverToBoxAdapter(
+                    child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Text('No reviews yet', style: TextStyle(color: AppColors.textMuted)),
+                  ))
+                : SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _ReviewCard(review: reviews[i]),
+                        childCount: reviews.length,
+                      ),
+                    ),
+                  ),
+          ),
         ],
       ),
 
-      // ─── Bottom CTA ───────────────────
+      // ─── Bottom CTA ──────────────────
       bottomNavigationBar: SafeArea(
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -198,39 +243,37 @@ class VendorDetailScreen extends StatelessWidget {
             color: Colors.white,
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 12, offset: const Offset(0, -4))],
           ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Starting from', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                    Text(vendor.price, style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.bold, fontSize: 20)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.brand, foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Row(children: [
+            Expanded(
+              child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Starting from', style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                if (vendor.startingPricePaise != null)
+                  Text(
+                    '₹${(vendor.startingPricePaise! / 100).toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+\d$)'), (m) => '${m[1]},')}',
+                    style: const TextStyle(color: AppColors.brand, fontWeight: FontWeight.bold, fontSize: 20),
                   ),
-                  child: const Text('Send Enquiry', style: TextStyle(fontWeight: FontWeight.bold)),
+              ]),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: ElevatedButton(
+                onPressed: () => context.push('/checkout/${vendor.id}'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.brand, foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+                child: const Text('Send Enquiry', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-            ],
-          ),
+            ),
+          ]),
         ),
       ),
     );
   }
 }
 
-// ─── Widgets ───────────────────────────────────────────────
+// ─── Stat Item ──────────────────────────────────────────────
 class _StatItem extends StatelessWidget {
   final IconData icon;
   final String value, label;
@@ -238,71 +281,92 @@ class _StatItem extends StatelessWidget {
   const _StatItem({required this.icon, required this.value, required this.label, required this.color});
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, color: color, size: 20),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-        Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Column(children: [
+    Icon(icon, color: color, size: 20),
+    const SizedBox(height: 4),
+    Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+    Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+  ]);
 }
 
+// ─── Package Card ────────────────────────────────────────────
 class _PackageCard extends StatelessWidget {
-  final _Package package;
+  final VendorPackage package;
   final int index;
-  const _PackageCard({required this.package, required this.index});
+  final bool selected;
+  final VoidCallback onSelect;
+  const _PackageCard({required this.package, required this.index, required this.selected, required this.onSelect});
 
   static const _colors = [Color(0xFFEDE9FE), Color(0xFFFEF3C7), Color(0xFFFCE7F3)];
   static const _borderColors = [Color(0xFFC084FC), Color(0xFFFBBF24), Color(0xFFF472B6)];
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = _colors[index % _colors.length];
-    final borderColor = _borderColors[index % _borderColors.length];
+    final bgColor = selected ? AppColors.brandLight : _colors[index % _colors.length];
+    final borderColor = selected ? AppColors.brand : _borderColors[index % _borderColors.length];
+    final price = package.priceFromPaise ~/ 100;
+    final priceStr = '₹${price.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+\d$)'), (m) => '${m[1]},')}';
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: borderColor, width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
+    return GestureDetector(
+      onTap: onSelect,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor, width: selected ? 2 : 1.5),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Row(children: [
+              Container(
+                width: 20, height: 20,
+                decoration: BoxDecoration(
+                  color: selected ? AppColors.brand : Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: selected ? AppColors.brand : borderColor, width: 2),
+                ),
+                child: selected ? const Icon(Icons.check, color: Colors.white, size: 12) : null,
+              ),
+              const SizedBox(width: 8),
               Text(package.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              Text(package.price, style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.bold, fontSize: 16)),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(package.description, style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8, runSpacing: 6,
-            children: package.includes.map((item) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 14),
-                const SizedBox(width: 4),
-                Text(item, style: const TextStyle(fontSize: 12)),
-              ],
-            )).toList(),
-          ),
-        ],
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.7), borderRadius: BorderRadius.circular(6)),
+                child: Text(package.packageType, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w600, color: borderColor)),
+              ),
+            ]),
+            Text(priceStr, style: TextStyle(color: selected ? AppColors.brand : Colors.grey.shade700, fontWeight: FontWeight.bold, fontSize: 16)),
+          ]),
+          if (package.description != null) ...[
+            const SizedBox(height: 4),
+            Text(package.description!, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+          ],
+          if (package.inclusions.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8, runSpacing: 6,
+              children: package.inclusions.map((item) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green, size: 14),
+                  const SizedBox(width: 4),
+                  Text(item, style: const TextStyle(fontSize: 12)),
+                ],
+              )).toList(),
+            ),
+          ],
+        ]),
       ),
     );
   }
 }
 
+// ─── Review Card ─────────────────────────────────────────────
 class _ReviewCard extends StatelessWidget {
-  final _Review review;
+  final Review review;
   const _ReviewCard({required this.review});
 
   @override
@@ -315,33 +379,42 @@ class _ReviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(children: [
-                CircleAvatar(radius: 16, backgroundColor: AppColors.brandLight, child: Text(review.author[0], style: TextStyle(color: AppColors.brand, fontWeight: FontWeight.bold))),
-                const SizedBox(width: 10),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(review.author, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text(review.date, style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                ]),
-              ]),
-              Row(
-                children: [
-                  const Icon(Icons.star, color: AppColors.gold, size: 14),
-                  const SizedBox(width: 2),
-                  Text('${review.rating}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                ],
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(children: [
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppColors.brandLight,
+              child: Text(
+                (review.customerName ?? 'U')[0].toUpperCase(),
+                style: const TextStyle(color: AppColors.brand, fontWeight: FontWeight.bold),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(review.text, style: TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4)),
+            ),
+            const SizedBox(width: 10),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(review.customerName ?? 'Anonymous',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              Text(
+                '${review.createdAt.day}/${review.createdAt.month}/${review.createdAt.year}',
+                style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+              ),
+            ]),
+          ]),
+          Row(children: [
+            const Icon(Icons.star, color: AppColors.gold, size: 14),
+            const SizedBox(width: 2),
+            Text(review.rating.toStringAsFixed(1),
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+          ]),
+        ]),
+        const SizedBox(height: 10),
+        if (review.title != null) ...[
+          Text(review.title!, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 4),
         ],
-      ),
+        Text(review.body,
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13, height: 1.4)),
+      ]),
     );
   }
 }

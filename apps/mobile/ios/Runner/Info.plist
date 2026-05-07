@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App info -->
+	<key>CFBundleDevelopmentRegion</key>
+	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>WeddingOS</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
+	<key>CFBundleIdentifier</key>
+	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>weddingos</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$(FLUTTER_BUILD_NAME)</string>
+	<key>CFBundleSignature</key>
+	<string>????</string>
+	<key>CFBundleVersion</key>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+
+	<!-- Supported device orientations -->
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+
+	<!-- Status bar appearance -->
+	<key>UIViewControllerBasedStatusBarAppearance</key>
+	<false/>
+
+	<!-- Privacy usage descriptions (required by App Store) -->
+	<key>NSCameraUsageDescription</key>
+	<string>WeddingOS needs camera access to let you upload photos for your profile, vendor reviews, and wedding planning.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>WeddingOS needs photo library access to let you select and upload photos for your profile and reviews.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>WeddingOS needs permission to save photos to your photo library.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>WeddingOS needs microphone access for video capture during vendor meetings.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>WeddingOS uses your contacts to help you invite guests to your wedding events.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>WeddingOS uses your location to find wedding vendors near you.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>WeddingOS uses Face ID to securely authenticate you.</string>
+
+	<!-- Background modes -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
+
+	<!-- Deep links — custom URL scheme -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.weddingos.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>weddingos</string>
+			</array>
+		</dict>
+		<!-- Google Sign-In reversed client ID (if used) -->
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Associated domains for universal links -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:weddingos.in</string>
+		<string>applinks:www.weddingos.in</string>
+	</array>
+
+	<!-- App Transport Security -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+			</dict>
+		</dict>
+	</dict>
+
+	<!-- Fonts -->
+	<key>UIAppFonts</key>
+	<array>
+		<string>MaterialIcons-Regular.otf</string>
+	</array>
+
+	<!-- Launch screen storyboard -->
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
+
+	<!-- Main storyboard -->
+	<key>UIMainStoryboardFile</key>
+	<string>Main</string>
+</dict>
+</plist>

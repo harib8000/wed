@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
+import '../../providers/auth_provider.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+    final initials = user?.name?.isNotEmpty == true
+        ? user!.name!.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        : '?';
+
     return Scaffold(
       appBar: AppBar(title: const Text('Profile'), actions: [
         IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {}),
@@ -27,18 +34,19 @@ class ProfileScreen extends StatelessWidget {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: Colors.white.withOpacity(0.2),
-                    child: const Text('RS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                    child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Rahul Sharma', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                        Text(user?.name ?? 'Welcome!', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                         const SizedBox(height: 4),
-                        Text('+91 98765 43210', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
-                        const SizedBox(height: 2),
-                        Text('Wedding: Mar 15, 2025', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+                        if (user != null)
+                          Text(user.phone, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
+                        if (user?.weddingDate != null)
+                          Text('Wedding: ${user!.weddingDate}', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
                       ],
                     ),
                   ),
@@ -54,12 +62,12 @@ class ProfileScreen extends StatelessWidget {
 
             // ─── Stats Row ────────────
             Row(
-              children: [
+              children: const [
                 _StatCard(value: '4', label: 'Bookings', icon: Icons.event, color: Colors.blue),
-                const SizedBox(width: 12),
-                _StatCard(value: '₹9.1L', label: 'Total Spent', icon: Icons.account_balance_wallet, color: Colors.green),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 _StatCard(value: '12', label: 'Wishlisted', icon: Icons.favorite, color: Colors.red),
+                SizedBox(width: 12),
+                _StatCard(value: '22', label: 'Tasks Done', icon: Icons.checklist, color: Colors.green),
               ],
             ),
             const SizedBox(height: 24),
@@ -67,19 +75,23 @@ class ProfileScreen extends StatelessWidget {
             // ─── Menu Items ──────────
             _MenuItem(icon: Icons.person_outline, title: 'Personal Details', subtitle: 'Name, email, wedding date', onTap: () {}),
             _MenuItem(icon: Icons.event_note, title: 'My Bookings', subtitle: 'View all your vendor bookings', onTap: () => context.go('/bookings')),
-            _MenuItem(icon: Icons.favorite_border, title: 'Wishlist', subtitle: '12 vendors saved', onTap: () {}),
-            _MenuItem(icon: Icons.account_balance_wallet_outlined, title: 'Payments & Escrow', subtitle: 'Transaction history & receipts', onTap: () {}),
-            _MenuItem(icon: Icons.checklist, title: 'Wedding Checklist', subtitle: '23 of 45 tasks completed', onTap: () {}),
-            _MenuItem(icon: Icons.chat_outlined, title: 'Messages', subtitle: '3 unread conversations', onTap: () {}),
+            _MenuItem(icon: Icons.favorite_border, title: 'Wishlist', subtitle: 'Saved vendors', onTap: () => context.go('/wishlist')),
+            _MenuItem(icon: Icons.notifications_outlined, title: 'Notifications', subtitle: 'Booking updates & reminders', onTap: () => context.push('/notifications')),
+            _MenuItem(icon: Icons.checklist, title: 'Wedding Checklist', subtitle: 'Track your wedding prep', onTap: () => context.push('/checklist')),
+            _MenuItem(icon: Icons.chat_outlined, title: 'Messages', subtitle: 'Chat with vendors', onTap: () {}),
+            _MenuItem(icon: Icons.account_balance_wallet_outlined, title: 'Payments & Escrow', subtitle: 'Transaction history', onTap: () {}),
             _MenuItem(icon: Icons.help_outline, title: 'Help & Support', subtitle: 'FAQs, contact us', onTap: () {}),
-            _MenuItem(icon: Icons.info_outline, title: 'About Wedding OS', subtitle: 'Version 1.0.0', onTap: () {}),
+            _MenuItem(icon: Icons.info_outline, title: 'About WeddingOS', subtitle: 'Version 1.0.0', onTap: () {}),
             const SizedBox(height: 16),
 
             // ─── Logout ──────────────
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () => context.go('/login'),
+                onPressed: () async {
+                  await ref.read(authProvider.notifier).logout();
+                  if (context.mounted) context.go('/login');
+                },
                 icon: const Icon(Icons.logout, color: Colors.red),
                 label: const Text('Logout', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600)),
                 style: OutlinedButton.styleFrom(

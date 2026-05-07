@@ -1,10 +1,12 @@
-import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../core/api_client.dart';
 import '../models/user.dart';
 
-const _storage = FlutterSecureStorage();
+const _storage = FlutterSecureStorage(
+  webOptions: WebOptions.defaultOptions,
+);
 
 // ─── Auth Notifier ────────────────────────────────────────────────────────────
 
@@ -25,7 +27,8 @@ class AuthNotifier extends Notifier<AuthState> {
       final res = await ApiClient.getMe();
       final user = User.fromJson(res.data['data'] as Map<String, dynamic>);
       state = AuthState(status: AuthStatus.authenticated, user: user);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Auth init failed: $e');
       state = const AuthState(status: AuthStatus.unauthenticated);
     }
   }
@@ -49,14 +52,19 @@ class AuthNotifier extends Notifier<AuthState> {
 
   Future<void> updateProfile(Map<String, dynamic> data) async {
     final res = await ApiClient.dio.put('/users/me', data: data);
-    final user = User.fromJson(res.data['data']['user'] as Map<String, dynamic>);
-    state = state.copyWith(user: user);
+    final userData = (res.data['data'] as Map<String, dynamic>?)?['user'] as Map<String, dynamic>?;
+    if (userData != null) {
+      final user = User.fromJson(userData);
+      state = state.copyWith(user: user);
+    }
   }
 
   Future<void> logout() async {
     try {
       await ApiClient.dio.post('/auth/logout');
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Logout API call failed (OK): $e');
+    }
     await _storage.deleteAll();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }

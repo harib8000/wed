@@ -1,16 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
+import '../../providers/auth_provider.dart';
 
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phoneController = TextEditingController();
   final _otpControllers = List.generate(6, (_) => TextEditingController());
   final _otpFocusNodes = List.generate(6, (_) => FocusNode());
@@ -18,47 +21,64 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isOtpStep = false;
   bool _isLoading = false;
   int _resendTimer = 0;
+  Timer? _timer;
+  String? _errorMsg;
 
   String get _phone => _phoneController.text.trim();
   String get _otp => _otpControllers.map((c) => c.text).join();
 
   @override
   void dispose() {
+    _timer?.cancel();
     _phoneController.dispose();
     for (final c in _otpControllers) c.dispose();
     for (final f in _otpFocusNodes) f.dispose();
     super.dispose();
   }
 
-  void _sendOtp() {
+  void _sendOtp() async {
     if (_phone.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid 10-digit phone number')));
       return;
     }
-    setState(() {
-      _isOtpStep = true;
-      _resendTimer = 30;
-    });
-    _startResendTimer();
-    _otpFocusNodes[0].requestFocus();
+    setState(() { _isLoading = true; _errorMsg = null; });
+    try {
+      await ref.read(authProvider.notifier).sendOtp(_phone);
+      if (!mounted) return;
+      setState(() {
+        _isOtpStep = true;
+        _isLoading = false;
+        _resendTimer = 30;
+      });
+      _startResendTimer();
+      _otpFocusNodes[0].requestFocus();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _isLoading = false; _errorMsg = 'Could not send OTP. Please try again.'; });
+    }
   }
 
   void _startResendTimer() {
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(seconds: 1));
-      if (!mounted) return false;
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) { t.cancel(); return; }
       setState(() => _resendTimer--);
-      return _resendTimer > 0;
+      if (_resendTimer <= 0) t.cancel();
     });
   }
 
   void _verifyOtp() async {
     if (_otp.length < 6) return;
-    setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1)); // Simulate API call
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    context.go('/');
+    setState(() { _isLoading = true; _errorMsg = null; });
+    try {
+      await ref.read(authProvider.notifier).verifyOtp(_phone, _otp);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      context.go('/');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() { _isLoading = false; _errorMsg = 'Invalid OTP. Please try again.'; });
+    }
   }
 
   @override
@@ -103,9 +123,11 @@ class _LoginScreenState extends State<LoginScreen> {
               // ─── Phone Step ────────────
               if (!_isOtpStep) ...[
                 _buildPhoneInput(),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
+                if (_errorMsg != null) Text(_errorMsg!, style: const TextStyle(color: AppColors.error, fontSize: 13), textAlign: TextAlign.center),
+                const SizedBox(height: 8),
                 ElevatedButton(
-                  onPressed: _sendOtp,
+                  onPressed: _isLoading ? null : _sendOtp,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.brand, foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -119,6 +141,10 @@ class _LoginScreenState extends State<LoginScreen> {
               // ─── OTP Step ──────────────
               if (_isOtpStep) ...[
                 _buildOtpInput(),
+                if (_errorMsg != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_errorMsg!, style: const TextStyle(color: AppColors.error, fontSize: 13), textAlign: TextAlign.center),
+                ],
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: _isLoading ? null : _verifyOtp,
