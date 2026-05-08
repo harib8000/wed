@@ -391,7 +391,7 @@ sequenceDiagram
     C->>API: POST /bookings/:id/complete
     API->>BS: Transition → COMPLETED
     BS->>PS: Trigger escrow release
-    PS->>V: Payout (amount − 10% commission)
+    PS->>V: Payout (amount - 10% commission)
     BS->>NS: Event: escrow.released
     NS->>V: "Payment released! 🎉"
     NS->>C: "Please leave a review"
@@ -1550,7 +1550,7 @@ flowchart TD
 | Vendor Response Rate | responded_in_24h / total_enquiries | > 85% |
 | Escrow Release Rate | released / total_escrowed | > 92% |
 | Dispute Rate | disputes / total_bookings | < 3% |
-| NPS | Promoters − Detractors | > 60 |
+| NPS | Promoters - Detractors | > 60 |
 
 ### 19.3 Analytics Funnel
 
