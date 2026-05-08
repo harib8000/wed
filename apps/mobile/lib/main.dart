@@ -34,7 +34,7 @@ Future<void> _initNativeServices() async {
 Future<bool> _tryFirebaseInit() async {
   try {
     // ignore: depend_on_referenced_packages
-    final binding = WidgetsBinding.instance;
+    WidgetsBinding.instance;
     // Firebase.initializeApp will be called in notification_service on native
     return true;
   } catch (_) {

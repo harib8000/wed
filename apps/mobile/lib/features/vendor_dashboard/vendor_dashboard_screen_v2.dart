@@ -252,7 +252,6 @@ class _ActionItems extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final pending = bookings.totalEnquiries - bookings.quotedCount - bookings.confirmedCount - bookings.completedCount - bookings.cancelledCount;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(
@@ -281,7 +280,7 @@ class _ActionItems extends StatelessWidget {
                 count: 2,
                 label: 'Pending\nQuotes',
                 color: const Color(0xFF3B82F6),
-                onTap: () {},
+                onTap: () => context.go('/vendor/bookings'),
               )),
               const SizedBox(width: 10),
               Expanded(child: _ActionChip(
@@ -289,7 +288,7 @@ class _ActionItems extends StatelessWidget {
                 count: 1,
                 label: 'Unreplied\nReviews',
                 color: const Color(0xFF8B5CF6),
-                onTap: () {},
+                onTap: () => context.push('/vendor/reviews'),
               )),
               const SizedBox(width: 10),
               Expanded(child: _ActionChip(
@@ -297,7 +296,7 @@ class _ActionItems extends StatelessWidget {
                 count: bookings.activeCount,
                 label: 'Upcoming\nEvents',
                 color: const Color(0xFF10B981),
-                onTap: () {},
+                onTap: () => context.push('/vendor/calendar'),
               )),
             ],
           ),
@@ -488,7 +487,6 @@ class _RevenueChart extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: data.asMap().entries.map((entry) {
-                final i = entry.key;
                 final d = entry.value;
                 final h = maxRev > 0 ? (d.revenuePaise / maxRev * 100) : 0.0;
                 final isHighest = d.revenuePaise == maxRev;

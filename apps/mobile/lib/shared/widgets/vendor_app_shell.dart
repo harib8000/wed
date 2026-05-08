@@ -10,6 +10,7 @@ class VendorAppShell extends ConsumerWidget {
 
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
+    if (location.startsWith('/vendor/dashboard')) return 0;
     if (location.startsWith('/vendor/analytics')) return 1;
     if (location.startsWith('/vendor/bookings')) return 2;
     if (location.startsWith('/vendor/earnings')) return 3;
