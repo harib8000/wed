@@ -33,7 +33,7 @@
 ![pnpm](https://img.shields.io/badge/pnpm-9-F69220?style=flat-square&logo=pnpm&logoColor=white)
 ![Razorpay](https://img.shields.io/badge/Razorpay-Escrow-072654?style=flat-square)
 ![Prisma](https://img.shields.io/badge/Prisma-ORM-2D3748?style=flat-square&logo=prisma&logoColor=white)
-![Flutter](https://img.shields.io/badge/Riverpod-State-blue?style=flat-square)
+![Riverpod](https://img.shields.io/badge/Riverpod-State-blue?style=flat-square)
 ![SendGrid](https://img.shields.io/badge/SendGrid-Email-blue?style=flat-square)
 ![Firebase](https://img.shields.io/badge/FCM-Push-FFCA28?style=flat-square&logo=firebase)
 
@@ -49,26 +49,30 @@
 <summary><strong>📋 Table of Contents</strong></summary>
 
 | # | Section | # | Section |
-|---|---------|---|---------|
-| 1 | [Project Overview](#-1-project-overview) | 16 | [Payment & Escrow System](#-16-payment--escrow-system) |
-| 2 | [Complete Feature Matrix](#-2-complete-feature-matrix) | 17 | [Notifications & Communication](#-17-notifications--communication) |
-| 3 | [User Flows](#-3-complete-user-flows) | 18 | [Admin Panel](#-18-admin--operations-panel) |
-| 4 | [App Platforms](#-4-app-platforms) | 19 | [Analytics & Tracking](#-19-analytics--tracking) |
-| 5 | [Tech Stack](#-5-complete-tech-stack) | 20 | [DevOps & CI/CD](#-20-devops--cicd) |
-| 6 | [Project Structure](#-6-project-structure) | 21 | [Legal & Compliance](#-21-legal--compliance) |
-| 7 | [Database Architecture](#-7-database-architecture) | 22 | [AI & Automation](#-22-ai--automation) |
-| 8 | [API Structure](#-8-api-structure) | 23 | [Competitor Analysis](#-23-competitor-analysis) |
-| 9 | [Authentication & Security](#-9-authentication--security) | 24 | [Future Roadmap](#-24-future-roadmap) |
-| 10 | [UI/UX Analysis](#-10-uiux-analysis) | 25 | [Screenshots](#-25-screenshots--recordings) |
-| 11 | [Mobile App (Flutter)](#-11-mobile-app-flutter) | 26 | [Access & Demo](#-26-access--demo) |
-| 12 | [Performance Analysis](#-12-performance-analysis) | 27 | [Expectations & Scope](#-27-expectations--scope) |
-| 13 | [Scalability](#-13-scalability--growth) | 28 | [Special Notes](#-28-special-notes) |
-| 14 | [Known Issues](#-14-known-bugs--blockers) | 29 | [Final Analysis & Roadmap](#-29-final-analysis--roadmap) |
-| 15 | [Business Logic](#-15-business-logic) | | [Quick Start](#-quick-start) |
+|:---:|---------|:---:|---------|
+| 1 | [🌍 Project Overview](#-1-project-overview) | 16 | [💳 Payment & Escrow System](#-16-payment--escrow-system) |
+| 2 | [🧩 Complete Feature Matrix](#-2-complete-feature-matrix) | 17 | [📢 Notifications & Communication](#-17-notifications--communication) |
+| 3 | [🔄 Complete User Flows](#-3-complete-user-flows) | 18 | [🏢 Admin & Operations Panel](#-18-admin--operations-panel) |
+| 4 | [📱 App Platforms](#-4-app-platforms) | 19 | [📊 Analytics & Tracking](#-19-analytics--tracking) |
+| 5 | [🛠️ Complete Tech Stack](#-5-complete-tech-stack) | 20 | [🚀 DevOps & CI/CD](#-20-devops--cicd) |
+| 6 | [🏗️ Project Structure](#-6-project-structure) | 21 | [⚖️ Legal & Compliance](#-21-legal--compliance) |
+| 7 | [🗄️ Database Architecture](#-7-database-architecture) | 22 | [🤖 AI & Automation](#-22-ai--automation) |
+| 8 | [🔌 API Structure](#-8-api-structure) | 23 | [🏆 Competitor Analysis](#-23-competitor-analysis) |
+| 9 | [🔐 Authentication & Security](#-9-authentication--security) | 24 | [🔮 Future Roadmap](#-24-future-roadmap) |
+| 10 | [🎨 UI/UX Analysis](#-10-uiux-analysis) | 25 | [📸 Screenshots & Recordings](#-25-screenshots--recordings) |
+| 11 | [📱 Mobile App (Flutter)](#-11-mobile-app-flutter) | 26 | [🔑 Access & Demo](#-26-access--demo) |
+| 12 | [⚡ Performance Analysis](#-12-performance-analysis) | 27 | [📐 Expectations & Scope](#-27-expectations--scope) |
+| 13 | [🚀 Scalability & Growth](#-13-scalability--growth) | 28 | [📝 Special Notes](#-28-special-notes) |
+| 14 | [🐛 Known Bugs & Blockers](#-14-known-bugs--blockers) | 29 | [🎯 Final Analysis & Roadmap](#-29-final-analysis--roadmap) |
+| 15 | [💼 Business Logic](#-15-business-logic) | 🚀 | [Quick Start](#-quick-start) |
 
 </details>
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                    SECTION 1 — PROJECT OVERVIEW                 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🌍 1. Project Overview
 
@@ -91,9 +95,7 @@ The Indian wedding industry (₹2,00,000 Crore TAM) suffers from:
 - **Coordination nightmare** — 12+ vendors per wedding, managed via WhatsApp
 - **No accountability** — No SLA enforcement, no quality guarantees
 
-### 1.3 Solution
-
-WeddingOS is an integrated platform that:
+### 1.3 Solution — Platform Capabilities
 
 ```mermaid
 mindmap
@@ -124,10 +126,48 @@ mindmap
       Settlement Reports
 ```
 
-### 1.4 Current Status
+### 1.4 High-Level Platform Flow
+
+```mermaid
+flowchart LR
+    subgraph DISCOVER["🔍 DISCOVER"]
+        A1[Browse Categories] --> A2[Search Vendors]
+        A2 --> A3[View Profiles & Reviews]
+    end
+
+    subgraph BOOK["📋 BOOK"]
+        B1[Send Enquiry] --> B2[Receive Quote]
+        B2 --> B3[Accept & Select Package]
+    end
+
+    subgraph PAY["💳 PAY"]
+        C1[Razorpay Checkout] --> C2[Funds Escrowed]
+        C2 --> C3[Booking Confirmed]
+    end
+
+    subgraph EXECUTE["⚡ EXECUTE"]
+        D1[D-Day Timeline] --> D2[Vendor Check-ins]
+        D2 --> D3[Live Status Updates]
+    end
+
+    subgraph SETTLE["✅ SETTLE"]
+        E1[Customer Approves] --> E2[Escrow Released]
+        E2 --> E3[Review & Rate]
+    end
+
+    DISCOVER --> BOOK --> PAY --> EXECUTE --> SETTLE
+
+    style DISCOVER fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style BOOK fill:#e3f2fd,stroke:#1565c0,color:#000
+    style PAY fill:#fff3e0,stroke:#ef6c00,color:#000
+    style EXECUTE fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style SETTLE fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
+### 1.5 Current Status
 
 | Surface | Readiness | Notes |
-|---------|-----------|-------|
+|---------|:---------:|-------|
 | Web App (Next.js) | ✅ **85%** | 10 pages, React Query + Zustand, Axios API client fully wired |
 | Mobile App (Flutter) | 🟡 **55%** | 10+ screens, Riverpod providers, GoRouter, Dio — partial API wiring |
 | Backend Services | ✅ **85%** | All 12 services production-grade: Zod, Pino, Prisma, rate-limiting |
@@ -141,12 +181,16 @@ mindmap
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                 SECTION 2 — COMPLETE FEATURE MATRIX             -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 🧩 2. Complete Feature Matrix
 
 ### 2.1 Customer Features
 
 | Feature | Status | Description |
-|---------|--------|-------------|
+|---------|:------:|-------------|
 | OTP Login | ✅ Working | Phone-based auth with MSG91/Twilio, rate-limited |
 | Browse Vendors | ✅ Working | 10 categories, city filter, ES-backed search |
 | Vendor Detail | ✅ Working | Packages, reviews, portfolio, contact |
@@ -164,7 +208,7 @@ mindmap
 ### 2.2 Vendor Features
 
 | Feature | Status | Description |
-|---------|--------|-------------|
+|---------|:------:|-------------|
 | OTP Login (vendor) | ✅ Working | Role-validated login flow |
 | Business Dashboard | ✅ Working | Stats, revenue chart, pending enquiries |
 | Manage Bookings | ✅ Working | Send quotes, accept/reject, status tracking |
@@ -177,7 +221,7 @@ mindmap
 ### 2.3 Admin Features
 
 | Feature | Status | Description |
-|---------|--------|-------------|
+|---------|:------:|-------------|
 | Operations Dashboard | ✅ Working | Real-time stats, revenue charts, alerts |
 | Vendor Management | ✅ Working | KYC approve/reject/suspend, search & filter |
 | Booking Management | ✅ Working | All bookings, status filters, dispute resolution |
@@ -188,7 +232,7 @@ mindmap
 ### 2.4 Platform / Infrastructure
 
 | Feature | Status | Description |
-|---------|--------|-------------|
+|---------|:------:|-------------|
 | API Gateway (Kong) | 🟡 Partial | Route config, rate limiting declared |
 | Event Bus (Redis pub/sub) | ✅ Working | Typed events, publish/subscribe/pattern matching |
 | Email Notifications | ✅ Working | SendGrid + HTML templates (booking, payment) |
@@ -203,109 +247,247 @@ mindmap
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                   SECTION 3 — COMPLETE USER FLOWS               -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 🔄 3. Complete User Flows
 
-### 3.1 Booking Lifecycle (E2E Flow)
+### 3.1 Customer Journey Map
+
+```mermaid
+flowchart TD
+    START((🧑 Customer<br/>Visits Platform)) --> BROWSE
+
+    subgraph BROWSE["🔍 Discovery Phase"]
+        B1[Homepage — Hero + Categories] --> B2{Search or Browse?}
+        B2 -->|Search| B3[Elasticsearch Query]
+        B2 -->|Browse| B4[Category Filter + City]
+        B3 --> B5[Vendor Listing Page]
+        B4 --> B5
+        B5 --> B6[View Vendor Detail]
+        B6 --> B7{Interested?}
+        B7 -->|No| B5
+        B7 -->|Save| B8[Add to Wishlist ♥]
+        B7 -->|Yes| ENQUIRY
+    end
+
+    subgraph ENQUIRY["📋 Booking Phase"]
+        E1[Select Package] --> E2[Fill Event Details]
+        E2 --> E3[Submit Enquiry]
+        E3 --> E4[⏳ Wait for Vendor Quote]
+        E4 --> E5{Accept Quote?}
+        E5 -->|Negotiate| E4
+        E5 -->|Decline| B5
+        E5 -->|Accept| PAYMENT
+    end
+
+    subgraph PAYMENT["💳 Payment Phase"]
+        P1[Review Order Summary] --> P2[Razorpay Checkout]
+        P2 --> P3{Payment Success?}
+        P3 -->|Failed| P2
+        P3 -->|Success| P4[✅ Funds Escrowed]
+        P4 --> P5[Booking Confirmed 🎉]
+    end
+
+    subgraph WEDDING["⚡ Execution Phase"]
+        W1[D-Day Timeline Activated] --> W2[Vendor Check-ins via GPS]
+        W2 --> W3[Live Status Updates]
+        W3 --> W4{Issues?}
+        W4 -->|Yes| W5[Escalation to Admin]
+        W4 -->|No| W6[Event Completes Successfully]
+    end
+
+    subgraph SETTLE["✅ Post-Event"]
+        S1[Customer Confirms Completion] --> S2[Escrow Released to Vendor]
+        S2 --> S3[Leave Review & Rating ⭐]
+        S3 --> S4[Settlement Report Generated]
+    end
+
+    PAYMENT --> WEDDING --> SETTLE
+
+    style BROWSE fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style ENQUIRY fill:#e3f2fd,stroke:#1565c0,color:#000
+    style PAYMENT fill:#fff3e0,stroke:#ef6c00,color:#000
+    style WEDDING fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style SETTLE fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
+### 3.2 Vendor Onboarding & Engagement Flow
+
+```mermaid
+flowchart TD
+    V_START((🏢 Vendor)) --> V1[Register via OTP]
+    V1 --> V2[Complete Business Profile]
+    V2 --> V3[Submit KYC Documents]
+    V3 --> V4{Admin Review}
+    V4 -->|Rejected| V5[Resubmit Documents]
+    V5 --> V3
+    V4 -->|Approved| V6[✅ Vendor Verified]
+
+    V6 --> V7[Create Packages & Portfolio]
+    V7 --> V8[Set Availability Calendar]
+    V8 --> V9[Go Live on Platform 🟢]
+
+    V9 --> V10{New Enquiry Received}
+    V10 --> V11[Review Enquiry Details]
+    V11 --> V12{Accept Enquiry?}
+    V12 -->|Decline| V13[Enquiry Closed]
+    V12 -->|Accept| V14[Send Quote]
+    V14 --> V15{Customer Accepts?}
+    V15 -->|No| V13
+    V15 -->|Yes| V16[Booking Confirmed + Escrow Held]
+
+    V16 --> V17[Execute Service on D-Day]
+    V17 --> V18[Customer Approves]
+    V18 --> V19[💰 Escrow Released — Payout]
+    V19 --> V20[View Analytics & Reports]
+
+    style V_START fill:#fff,stroke:#333,color:#000
+    style V6 fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style V9 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style V16 fill:#fff3e0,stroke:#ef6c00,color:#000
+    style V19 fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
+### 3.3 Booking Lifecycle — Sequence Diagram
 
 ```mermaid
 sequenceDiagram
-  participant C as Couple
-  participant W as Web/Mobile
-  participant API as API Gateway
-  participant BS as Booking Service
-  participant PS as Payment Service
-  participant NS as Notification Service
-  participant V as Vendor
+    participant C as 🧑 Couple
+    participant W as 🌐 Web/Mobile
+    participant API as 🔀 API Gateway
+    participant BS as 📋 Booking Service
+    participant PS as 💳 Payment Service
+    participant NS as 🔔 Notification Service
+    participant V as 🏢 Vendor
 
-  C->>W: Browse vendors, select package
-  W->>API: POST /bookings (create enquiry)
-  API->>BS: Create booking (status: ENQUIRY)
-  BS->>NS: Event: booking.enquiry_created
-  NS->>V: Push + SMS: "New enquiry!"
+    C->>W: Browse vendors, select package
+    W->>API: POST /bookings (create enquiry)
+    API->>BS: Create booking (status: ENQUIRY)
+    BS->>NS: Event: booking.enquiry_created
+    NS->>V: Push + SMS: "New enquiry!"
 
-  V->>API: POST /bookings/:id/quote
-  API->>BS: Transition → QUOTE_SENT
-  BS->>NS: Event: booking.quote_sent
-  NS->>C: Push: "Quote received"
+    V->>API: POST /bookings/:id/quote
+    API->>BS: Transition → QUOTE_SENT
+    BS->>NS: Event: booking.quote_sent
+    NS->>C: Push: "Quote received"
 
-  C->>W: Accept quote, proceed to pay
-  W->>API: POST /payments/order
-  API->>PS: Create Razorpay order
-  PS-->>W: Return order_id + key
+    C->>W: Accept quote, proceed to pay
+    W->>API: POST /payments/order
+    API->>PS: Create Razorpay order
+    PS-->>W: Return order_id + key
 
-  W->>W: Razorpay checkout modal
-  W->>API: POST /payments/verify (signature)
-  API->>PS: Verify + capture + create escrow
-  PS->>BS: Internal: confirm booking
-  BS->>NS: Event: booking.confirmed
-  NS->>C: Email + Push: "Booking confirmed! 🎉"
-  NS->>V: Push: "Booking confirmed, advance received"
+    W->>W: Razorpay checkout modal
+    W->>API: POST /payments/verify (signature)
+    API->>PS: Verify + capture + create escrow
+    PS->>BS: Internal: confirm booking
+    BS->>NS: Event: booking.confirmed
+    NS->>C: Email + Push: "Booking confirmed! 🎉"
+    NS->>V: Push: "Booking confirmed, advance received"
 
-  Note over C: Wedding day...
+    Note over C,V: 💒 Wedding day...
 
-  C->>API: POST /bookings/:id/complete
-  API->>BS: Transition → COMPLETED
-  BS->>PS: Trigger escrow release
-  PS->>V: Payout (amount - 10% commission)
-  BS->>NS: Event: escrow.released
-  NS->>V: "Payment released! 🎉"
-  NS->>C: "Please leave a review"
+    C->>API: POST /bookings/:id/complete
+    API->>BS: Transition → COMPLETED
+    BS->>PS: Trigger escrow release
+    PS->>V: Payout (amount − 10% commission)
+    BS->>NS: Event: escrow.released
+    NS->>V: "Payment released! 🎉"
+    NS->>C: "Please leave a review"
 ```
 
-### 3.2 Authentication Flow
+### 3.4 Authentication Flow
 
 ```mermaid
 sequenceDiagram
-  participant U as User
-  participant FE as Frontend
-  participant AS as Auth Service
-  participant R as Redis
-  participant SMS as MSG91/Twilio
+    participant U as 🧑 User
+    participant FE as 🌐 Frontend
+    participant AS as 🔐 Auth Service
+    participant R as ⚡ Redis
+    participant SMS as 📱 MSG91/Twilio
 
-  U->>FE: Enter phone number
-  FE->>AS: POST /auth/send-otp
-  AS->>R: Check rate limit (3/10min)
-  AS->>R: Check lockout status
-  AS->>AS: Generate 6-digit OTP
-  AS->>R: Store hash(OTP) with 10min TTL
-  AS->>SMS: Send OTP via MSG91
-  AS-->>FE: 200 "OTP sent"
+    U->>FE: Enter phone number
+    FE->>AS: POST /auth/send-otp
+    AS->>R: Check rate limit (3/10min)
+    AS->>R: Check lockout status
+    AS->>AS: Generate 6-digit OTP
+    AS->>R: Store hash(OTP) with 10min TTL
+    AS->>SMS: Send OTP via MSG91
+    AS-->>FE: 200 "OTP sent"
 
-  U->>FE: Enter OTP
-  FE->>AS: POST /auth/verify-otp
-  AS->>R: Retrieve hash, compare
-  alt Valid OTP
-    AS->>AS: Generate JWT (15min) + Refresh (30d)
-    AS-->>FE: 200 { accessToken, refreshToken, user }
-  else Invalid OTP
-    AS->>R: Increment fail counter
-    AS-->>FE: 400 "Invalid OTP"
-  end
-  Note over AS: 5 failures → 30min lockout
+    U->>FE: Enter OTP
+    FE->>AS: POST /auth/verify-otp
+    AS->>R: Retrieve hash, compare
+    alt ✅ Valid OTP
+        AS->>AS: Generate JWT (15min) + Refresh (30d)
+        AS-->>FE: 200 { accessToken, refreshToken, user }
+    else ❌ Invalid OTP
+        AS->>R: Increment fail counter
+        AS-->>FE: 400 "Invalid OTP"
+    end
+    Note over AS,R: 5 failures → 30min lockout
 ```
 
-### 3.3 Escrow Payment Flow
+### 3.5 Escrow Payment State Machine
 
 ```mermaid
 stateDiagram-v2
-  [*] --> ORDER_CREATED: Customer initiates payment
-  ORDER_CREATED --> PAYMENT_CAPTURED: Razorpay confirms (webhook)
-  PAYMENT_CAPTURED --> ESCROWED: Funds held in escrow
-  ESCROWED --> RELEASED: Event + customer confirmation
-  ESCROWED --> REFUNDED: Cancellation / dispute
-  ESCROWED --> DISPUTED: Quality issue raised
-  RELEASED --> [*]: Vendor receives payout
-  REFUNDED --> [*]: Customer refunded (5-7 days)
-  DISPUTED --> RELEASED: Dispute resolved (favor vendor)
-  DISPUTED --> REFUNDED: Dispute resolved (favor customer)
+    [*] --> ORDER_CREATED: Customer initiates payment
+    ORDER_CREATED --> PAYMENT_CAPTURED: Razorpay confirms (webhook)
+    PAYMENT_CAPTURED --> ESCROWED: Funds held in escrow
+    ESCROWED --> RELEASED: Event + customer confirmation
+    ESCROWED --> REFUNDED: Cancellation / dispute
+    ESCROWED --> DISPUTED: Quality issue raised
+    RELEASED --> [*]: Vendor receives payout
+    REFUNDED --> [*]: Customer refunded (5-7 days)
+    DISPUTED --> RELEASED: Dispute resolved (favor vendor)
+    DISPUTED --> REFUNDED: Dispute resolved (favor customer)
+```
+
+### 3.6 Money Flow — End-to-End
+
+```mermaid
+flowchart LR
+    subgraph CUSTOMER["🧑 Customer"]
+        C1["Pays ₹1,11,800<br/>(quote + fee + GST)"]
+    end
+
+    subgraph RAZORPAY["🏦 Razorpay"]
+        R1["Payment Captured"] --> R2["Funds in Escrow<br/>Nodal Account"]
+    end
+
+    subgraph PLATFORM["🔷 WeddingOS"]
+        P1{"Event Completed<br/>& Approved?"}
+        P1 -->|Yes| P2["Release Escrow"]
+        P1 -->|No / Dispute| P3["Hold / Refund"]
+    end
+
+    subgraph SPLIT["💰 Settlement"]
+        S1["Vendor: ₹1,00,000<br/>(quoted amount)"]
+        S2["Platform: ₹10,000<br/>(10% commission)"]
+        S3["GST: ₹1,800<br/>(18% on fee)"]
+    end
+
+    CUSTOMER --> RAZORPAY --> PLATFORM
+    P2 --> SPLIT
+
+    style CUSTOMER fill:#e3f2fd,stroke:#1565c0,color:#000
+    style RAZORPAY fill:#fff3e0,stroke:#ef6c00,color:#000
+    style PLATFORM fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style SPLIT fill:#e8f5e9,stroke:#2e7d32,color:#000
 ```
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                     SECTION 4 — APP PLATFORMS                   -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 📱 4. App Platforms
 
 | Platform | Technology | Port/URL | Status |
-|----------|-----------|----------|--------|
+|----------|-----------|----------|:------:|
 | **Customer Web** | Next.js 14 (App Router) + Tailwind | `:3000` / weddingos.in | 🟡 Active |
 | **Admin Dashboard** | React 18 + Vite + Ant Design | `:3002` / admin.weddingos.in | 🟡 Active |
 | **Vendor Portal** | React 18 + Vite + Tailwind | `:3001` / vendor.weddingos.in | 🟡 Active |
@@ -315,12 +497,16 @@ stateDiagram-v2
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                   SECTION 5 — COMPLETE TECH STACK               -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 🛠️ 5. Complete Tech Stack
 
 ### 5.1 Full Stack Matrix
 
 | Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
+|-------|-----------|:-------:|---------|
 | **Frontend (Customer)** | Next.js 14 (App Router) | 14.x | SSR/SSG web app |
 | **Frontend (Admin)** | React + Vite + Ant Design 5 | 18.3 | Operations dashboard |
 | **Frontend (Vendor)** | React + Vite + Tailwind | 18.3 | Vendor self-serve portal |
@@ -358,7 +544,13 @@ stateDiagram-v2
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                   SECTION 6 — PROJECT STRUCTURE                 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 🏗️ 6. Project Structure
+
+### 6.1 Monorepo Layout
 
 ```
 wedding-os/
@@ -403,64 +595,105 @@ wedding-os/
 └── pnpm-workspace.yaml         # Monorepo workspace definition
 ```
 
-### Architecture Diagram
+### 6.2 System Architecture Diagram
 
 ```mermaid
 graph TB
-  subgraph Clients
-    WEB[Next.js Web App]
-    MOB[Flutter Mobile]
-    ADM[Admin Portal]
-    VEN[Vendor Portal]
-  end
+    subgraph CLIENTS["🖥️ Client Layer"]
+        WEB["<b>Next.js Web App</b><br/>Port 3000"]
+        MOB["<b>Flutter Mobile</b><br/>iOS + Android"]
+        ADM["<b>Admin Portal</b><br/>Port 3002"]
+        VEN["<b>Vendor Portal</b><br/>Port 3001"]
+    end
 
-  subgraph Gateway
-    KONG[Kong API Gateway<br/>Rate Limit · Auth · CORS]
-  end
+    subgraph GATEWAY["🔀 API Gateway"]
+        KONG["<b>Kong Gateway</b><br/>Rate Limit · Auth · CORS<br/>Port 8000"]
+    end
 
-  subgraph Services
-    AUTH[Auth Service]
-    USER[User Service]
-    VENDOR[Vendor Service]
-    BOOK[Booking Service]
-    PAY[Payment Service]
-    NOTIF[Notification Service]
-    REVIEW[Review Service]
-    SEARCH[Search Service]
-    CHAT[Chat Service]
-    EXEC[Execution Service]
-    MEDIA[Media Service]
-    AI[AI Service - FastAPI]
-  end
+    subgraph SERVICES["⚙️ Microservices Layer"]
+        direction LR
+        AUTH["🔐 Auth"]
+        USER["👤 User"]
+        VENDOR["🏢 Vendor"]
+        BOOK["📋 Booking"]
+        PAY["💳 Payment"]
+        NOTIF["🔔 Notification"]
+        REVIEW["⭐ Review"]
+        SEARCH["🔍 Search"]
+        CHAT["💬 Chat"]
+        EXEC["⚡ Execution"]
+        MEDIA["📸 Media"]
+        AI["🤖 AI (FastAPI)"]
+    end
 
-  subgraph Data
-    PG[(PostgreSQL 16)]
-    REDIS[(Redis 7)]
-    ES[(Elasticsearch 8)]
-    MONGO[(MongoDB - Chat)]
-    S3[(S3/R2 - Media)]
-  end
+    subgraph DATA["🗄️ Data Layer"]
+        PG[("PostgreSQL 16")]
+        REDIS[("Redis 7")]
+        ES[("Elasticsearch 8")]
+        MONGO[("MongoDB")]
+        S3[("S3/R2 Storage")]
+    end
 
-  subgraph External
-    RZP[Razorpay]
-    MSG91[MSG91 SMS/WA]
-    FCM[Firebase FCM]
-    SG[SendGrid Email]
-  end
+    subgraph EXTERNAL["🌐 External Services"]
+        RZP["Razorpay"]
+        MSG91["MSG91"]
+        FCM["Firebase FCM"]
+        SG["SendGrid"]
+    end
 
-  WEB & MOB & ADM & VEN --> KONG
-  KONG --> AUTH & USER & VENDOR & BOOK & PAY & NOTIF & REVIEW & SEARCH & CHAT & EXEC & MEDIA & AI
+    WEB & MOB & ADM & VEN --> KONG
+    KONG --> AUTH & USER & VENDOR & BOOK & PAY & NOTIF & REVIEW & SEARCH & CHAT & EXEC & MEDIA & AI
 
-  AUTH & USER & VENDOR & BOOK & PAY & REVIEW & EXEC --> PG
-  AUTH & BOOK & PAY & NOTIF --> REDIS
-  VENDOR & SEARCH --> ES
-  CHAT --> MONGO
-  MEDIA --> S3
-  PAY --> RZP
-  NOTIF --> MSG91 & FCM & SG
+    AUTH & USER & VENDOR & BOOK & PAY & REVIEW & EXEC --> PG
+    AUTH & BOOK & PAY & NOTIF --> REDIS
+    VENDOR & SEARCH --> ES
+    CHAT --> MONGO
+    MEDIA --> S3
+    PAY --> RZP
+    NOTIF --> MSG91 & FCM & SG
+
+    style CLIENTS fill:#e3f2fd,stroke:#1565c0,color:#000
+    style GATEWAY fill:#fff3e0,stroke:#ef6c00,color:#000
+    style SERVICES fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style DATA fill:#e8eaf6,stroke:#283593,color:#000
+    style EXTERNAL fill:#fce4ec,stroke:#c62828,color:#000
+```
+
+### 6.3 Service Communication Pattern
+
+```mermaid
+flowchart LR
+    subgraph SYNC["🔗 Synchronous (REST)"]
+        direction TB
+        S1["Client → Kong → Service"]
+        S2["Service → Service<br/>(internal HTTP)"]
+    end
+
+    subgraph ASYNC["⚡ Asynchronous (Events)"]
+        direction TB
+        A1["Service publishes<br/>Domain Event"]
+        A2["Redis PubSub<br/>broadcasts"]
+        A3["Subscribers react<br/>independently"]
+        A1 --> A2 --> A3
+    end
+
+    subgraph QUEUE["📦 Job Queue (BullMQ)"]
+        direction TB
+        Q1["Service enqueues<br/>async job"]
+        Q2["Worker processes<br/>in background"]
+        Q1 --> Q2
+    end
+
+    style SYNC fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style ASYNC fill:#fff3e0,stroke:#ef6c00,color:#000
+    style QUEUE fill:#f3e5f5,stroke:#7b1fa2,color:#000
 ```
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                 SECTION 7 — DATABASE ARCHITECTURE               -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🗄️ 7. Database Architecture
 
@@ -469,7 +702,7 @@ graph TB
 Each service owns its database schema (Database per Service pattern):
 
 | Service | Database | Key Tables | Rows (est.) |
-|---------|----------|-----------|-------------|
+|---------|----------|-----------|:-----------:|
 | auth-service | `auth_db` | users, otps, refresh_tokens, devices | 100K |
 | user-service | `user_db` | profiles, notification_prefs, push_tokens | 100K |
 | vendor-service | `vendor_db` | vendors, packages, portfolio_items, tags | 10K |
@@ -483,91 +716,132 @@ Each service owns its database schema (Database per Service pattern):
 
 ```mermaid
 erDiagram
-  USER ||--o{ BOOKING : "creates"
-  VENDOR ||--o{ BOOKING : "receives"
-  VENDOR ||--o{ PACKAGE : "offers"
-  BOOKING ||--o| ESCROW : "triggers"
-  BOOKING ||--o| REVIEW : "generates"
-  ESCROW ||--o{ TRANSACTION : "records"
-  BOOKING }o--|| PACKAGE : "selects"
+    USER ||--o{ BOOKING : "creates"
+    VENDOR ||--o{ BOOKING : "receives"
+    VENDOR ||--o{ PACKAGE : "offers"
+    BOOKING ||--o| ESCROW : "triggers"
+    BOOKING ||--o| REVIEW : "generates"
+    ESCROW ||--o{ TRANSACTION : "records"
+    BOOKING }o--|| PACKAGE : "selects"
 
-  USER {
-    uuid id PK
-    string phone UK
-    string email
-    enum role
-    timestamp created_at
-  }
-  VENDOR {
-    uuid id PK
-    uuid user_id FK
-    string business_name
-    string slug UK
-    enum category
-    string city
-    float avg_rating
-    int booking_count
-    enum status
-  }
-  BOOKING {
-    uuid id PK
-    string booking_number UK
-    uuid customer_id FK
-    uuid vendor_id FK
-    uuid package_id FK
-    date event_date
-    enum status
-    int quoted_amount_paise
-    int platform_fee_paise
-  }
-  ESCROW {
-    uuid id PK
-    uuid booking_id FK
-    int amount_paise
-    enum status
-    string razorpay_order_id
-    date release_date
-  }
-  PACKAGE {
-    uuid id PK
-    uuid vendor_id FK
-    string name
-    enum type
-    int price_from_paise
-    json inclusions
-  }
+    USER {
+        uuid id PK
+        string phone UK
+        string email
+        enum role
+        timestamp created_at
+    }
+    VENDOR {
+        uuid id PK
+        uuid user_id FK
+        string business_name
+        string slug UK
+        enum category
+        string city
+        float avg_rating
+        int booking_count
+        enum status
+    }
+    BOOKING {
+        uuid id PK
+        string booking_number UK
+        uuid customer_id FK
+        uuid vendor_id FK
+        uuid package_id FK
+        date event_date
+        enum status
+        int quoted_amount_paise
+        int platform_fee_paise
+    }
+    ESCROW {
+        uuid id PK
+        uuid booking_id FK
+        int amount_paise
+        enum status
+        string razorpay_order_id
+        date release_date
+    }
+    PACKAGE {
+        uuid id PK
+        uuid vendor_id FK
+        string name
+        enum type
+        int price_from_paise
+        json inclusions
+    }
 ```
 
 ### 7.3 Booking State Machine
 
 ```mermaid
 stateDiagram-v2
-  [*] --> ENQUIRY: Customer creates
-  ENQUIRY --> QUOTE_SENT: Vendor sends quote
-  QUOTE_SENT --> CONFIRMED: Customer accepts + pays
-  CONFIRMED --> ESCROWED: Payment captured
-  ESCROWED --> COMPLETED: Event done + confirmed
-  COMPLETED --> [*]: Escrow released
+    [*] --> ENQUIRY: Customer creates
+    ENQUIRY --> QUOTE_SENT: Vendor sends quote
+    QUOTE_SENT --> CONFIRMED: Customer accepts + pays
+    CONFIRMED --> ESCROWED: Payment captured
+    ESCROWED --> COMPLETED: Event done + confirmed
+    COMPLETED --> [*]: Escrow released
 
-  ENQUIRY --> CANCELLED: Either party cancels
-  QUOTE_SENT --> CANCELLED: Customer declines
-  CONFIRMED --> CANCELLED: Vendor no-show (auto)
-  ESCROWED --> DISPUTED: Quality issue
+    ENQUIRY --> CANCELLED: Either party cancels
+    QUOTE_SENT --> CANCELLED: Customer declines
+    CONFIRMED --> CANCELLED: Vendor no-show (auto)
+    ESCROWED --> DISPUTED: Quality issue
 
-  CANCELLED --> [*]
-  DISPUTED --> COMPLETED: Resolved (vendor)
-  DISPUTED --> REFUNDED: Resolved (customer)
-  REFUNDED --> [*]
+    CANCELLED --> [*]
+    DISPUTED --> COMPLETED: Resolved (vendor)
+    DISPUTED --> REFUNDED: Resolved (customer)
+    REFUNDED --> [*]
+```
+
+### 7.4 Data Flow Architecture
+
+```mermaid
+flowchart TD
+    subgraph WRITE["✏️ Write Path"]
+        W1[Client Request] --> W2[Kong Gateway]
+        W2 --> W3[Service Controller]
+        W3 --> W4[Zod Validation]
+        W4 --> W5[Business Logic]
+        W5 --> W6[Prisma ORM]
+        W6 --> W7[(PostgreSQL)]
+        W5 --> W8[Publish Domain Event]
+        W8 --> W9[(Redis PubSub)]
+    end
+
+    subgraph READ["📖 Read Path"]
+        R1[Client Request] --> R2[Kong Gateway]
+        R2 --> R3[Service Controller]
+        R3 --> R4{Cache Hit?}
+        R4 -->|Yes| R5[(Redis Cache)]
+        R4 -->|No| R6[Prisma Query]
+        R6 --> R7[(PostgreSQL)]
+        R6 --> R8[Cache Result]
+        R8 --> R5
+    end
+
+    subgraph SEARCH_PATH["🔍 Search Path"]
+        SP1[Search Query] --> SP2[Search Service]
+        SP2 --> SP3[(Elasticsearch)]
+        SP3 --> SP4[Aggregated Results]
+    end
+
+    style WRITE fill:#e3f2fd,stroke:#1565c0,color:#000
+    style READ fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style SEARCH_PATH fill:#fff3e0,stroke:#ef6c00,color:#000
 ```
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                    SECTION 8 — API STRUCTURE                    -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🔌 8. API Structure
 
 ### 8.1 Service Endpoints (Inventory)
 
 | Service | Base Path | Key Endpoints | Auth |
-|---------|-----------|---------------|------|
+|---------|-----------|---------------|:----:|
 | **auth** | `/auth` | `POST /send-otp`, `POST /verify-otp`, `POST /refresh` | Public |
 | **user** | `/users` | `GET /me`, `PUT /me`, `PUT /me/notifications`, `POST /me/push-token` | JWT |
 | **vendor** | `/vendors` | `GET /search`, `GET /:slug`, `POST /`, `PUT /me`, `POST /me/packages` | JWT + Role |
@@ -618,7 +892,34 @@ Error responses:
 | `VEN_6xxx` | Vendors | 6001 Not verified, 6002 Subscription required |
 | `SYS_9xxx` | System | 9001 Internal error, 9002 Service unavailable |
 
+### 8.4 API Request Flow
+
+```mermaid
+flowchart LR
+    A["🧑 Client"] --> B["🔀 Kong Gateway"]
+    B --> C{Auth Required?}
+    C -->|Yes| D["🔐 Validate JWT"]
+    C -->|No| E["Route to Service"]
+    D -->|Valid| F["Inject X-User-Id Header"]
+    D -->|Invalid| G["401 Unauthorized"]
+    F --> E
+    E --> H["⚙️ Express Controller"]
+    H --> I["📋 Zod Validation"]
+    I -->|Invalid| J["400 Bad Request"]
+    I -->|Valid| K["🧠 Business Logic"]
+    K --> L["📦 Response Envelope"]
+
+    style A fill:#e3f2fd,stroke:#1565c0,color:#000
+    style B fill:#fff3e0,stroke:#ef6c00,color:#000
+    style H fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style L fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--               SECTION 9 — AUTHENTICATION & SECURITY             -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🔐 9. Authentication & Security
 
@@ -636,7 +937,7 @@ Error responses:
 ### 9.2 Security Measures
 
 | Layer | Control | Status |
-|-------|---------|--------|
+|-------|---------|:------:|
 | Transport | HTTPS everywhere (TLS 1.3) | ✅ |
 | Headers | Helmet.js (CSP, HSTS, X-Frame) | ✅ |
 | CORS | Origin whitelist per environment | ✅ |
@@ -656,7 +957,7 @@ Error responses:
 ### 9.3 OWASP Top 10 Coverage
 
 | # | Vulnerability | Mitigation |
-|---|---------------|------------|
+|:-:|---------------|------------|
 | A01 | Broken Access Control | Role-based middleware (`requireRole`), resource ownership checks |
 | A02 | Cryptographic Failures | bcrypt-like hashing for OTPs, HMAC for webhooks |
 | A03 | Injection | Prisma ORM, Zod validation, no raw SQL |
@@ -668,7 +969,58 @@ Error responses:
 | A09 | Logging Failures | Pino structured logging, request IDs |
 | A10 | SSRF | No user-controlled URLs in backend HTTP calls |
 
+### 9.4 Security Architecture Diagram
+
+```mermaid
+flowchart TD
+    subgraph PUBLIC["🌐 Public Internet"]
+        USER["🧑 User"]
+    end
+
+    subgraph EDGE["🛡️ Edge Security"]
+        CF["CloudFront CDN + WAF"]
+        CORS["CORS Policy"]
+        RATE["Rate Limiter"]
+    end
+
+    subgraph AUTH["🔐 Auth Layer"]
+        KONG_AUTH["Kong JWT Plugin"]
+        AUTH_SVC["Auth Service"]
+        REDIS_AUTH["Redis<br/>(OTP + Sessions)"]
+    end
+
+    subgraph APP["⚙️ Application Security"]
+        ZOD["Zod Input Validation"]
+        HELMET["Helmet.js Headers"]
+        PRISMA["Prisma ORM<br/>(SQL Injection Prevention)"]
+        RBAC["Role-Based Access Control"]
+    end
+
+    subgraph DATA_SEC["🗄️ Data Security"]
+        ENCRYPT["Encryption at Rest"]
+        PG_SEC["PostgreSQL<br/>(Row-Level Security)"]
+        HMAC["HMAC-SHA256<br/>(Webhook Verification)"]
+    end
+
+    USER --> CF --> CORS --> RATE --> KONG_AUTH
+    KONG_AUTH --> AUTH_SVC
+    AUTH_SVC --> REDIS_AUTH
+    KONG_AUTH --> ZOD --> HELMET --> PRISMA --> RBAC
+    RBAC --> ENCRYPT --> PG_SEC
+    RBAC --> HMAC
+
+    style PUBLIC fill:#fce4ec,stroke:#c62828,color:#000
+    style EDGE fill:#fff3e0,stroke:#ef6c00,color:#000
+    style AUTH fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APP fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style DATA_SEC fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                   SECTION 10 — UI/UX ANALYSIS                   -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🎨 10. UI/UX Analysis
 
@@ -703,6 +1055,10 @@ Error responses:
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                 SECTION 11 — MOBILE APP (FLUTTER)               -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 📱 11. Mobile App (Flutter)
 
 ### 11.1 Architecture
@@ -719,7 +1075,7 @@ Error responses:
 ### 11.2 Screens
 
 | Feature Module | Screen | Status |
-|---------------|--------|--------|
+|---------------|--------|:------:|
 | Home | `home_screen.dart` | ✅ Category cards + trending |
 | Vendors | `vendors_screen.dart` | ✅ Listing + filters + search |
 | Vendors | `vendor_detail_screen.dart` | ✅ Hero + packages + reviews |
@@ -727,7 +1083,54 @@ Error responses:
 | Bookings | `bookings_screen.dart` | ✅ Tab view + status cards |
 | Profile | `profile_screen.dart` | ✅ Stats + menu + logout |
 
-### 11.3 Build Commands
+### 11.3 Mobile App Architecture
+
+```mermaid
+flowchart TD
+    subgraph UI["📱 Presentation Layer"]
+        SCREENS["Screens<br/>(home, vendors, bookings, profile)"]
+        WIDGETS["Reusable Widgets<br/>(cards, buttons, forms)"]
+    end
+
+    subgraph STATE["🔄 State Management"]
+        RIVERPOD["Riverpod Providers"]
+        NOTIFIERS["State Notifiers"]
+    end
+
+    subgraph NETWORK["🌐 Network Layer"]
+        DIO["Dio HTTP Client"]
+        INTERCEPTOR["Auth Interceptor<br/>(JWT auto-refresh)"]
+        API["API Client"]
+    end
+
+    subgraph LOCAL["💾 Local Storage"]
+        HIVE["Hive<br/>(Offline Cache)"]
+        PREFS["SharedPreferences<br/>(Tokens, Settings)"]
+    end
+
+    subgraph SERVICES_LAYER["⚙️ Services"]
+        FCM_S["FCM Push"]
+        ROUTER["GoRouter<br/>(Navigation)"]
+    end
+
+    SCREENS --> RIVERPOD
+    WIDGETS --> SCREENS
+    RIVERPOD --> NOTIFIERS
+    NOTIFIERS --> DIO
+    DIO --> INTERCEPTOR --> API
+    NOTIFIERS --> HIVE
+    NOTIFIERS --> PREFS
+    SCREENS --> ROUTER
+    FCM_S --> NOTIFIERS
+
+    style UI fill:#e3f2fd,stroke:#1565c0,color:#000
+    style STATE fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style NETWORK fill:#fff3e0,stroke:#ef6c00,color:#000
+    style LOCAL fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style SERVICES_LAYER fill:#fce4ec,stroke:#c62828,color:#000
+```
+
+### 11.4 Build Commands
 
 ```bash
 cd apps/mobile
@@ -741,12 +1144,16 @@ flutter test --coverage      # Run tests
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                SECTION 12 — PERFORMANCE ANALYSIS                -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## ⚡ 12. Performance Analysis
 
 ### 12.1 Targets
 
 | Metric | Target | Strategy |
-|--------|--------|----------|
+|--------|:------:|----------|
 | **TTFB** | < 200ms | SSR + edge caching (Vercel) |
 | **LCP** | < 2.5s | Optimized images, font preload |
 | **FID** | < 100ms | Code splitting, minimal JS |
@@ -756,21 +1163,47 @@ flutter test --coverage      # Run tests
 
 ### 12.2 Caching Strategy
 
-| Layer | Cache | TTL | Invalidation |
-|-------|-------|-----|--------------|
-| CDN | CloudFront / Vercel Edge | 1yr (assets) | Deploy invalidation |
-| Redis | Vendor profiles, search results | 5-15min | Event-driven |
-| Browser | Service Worker (mobile) | Session | Version bump |
-| DB | PostgreSQL query plan | Auto | ANALYZE |
+```mermaid
+flowchart LR
+    subgraph L1["Layer 1 — Edge"]
+        CDN["CloudFront / Vercel Edge<br/>TTL: 1yr (assets)"]
+    end
+
+    subgraph L2["Layer 2 — Application"]
+        REDIS_C["Redis Cache<br/>TTL: 5-15min"]
+    end
+
+    subgraph L3["Layer 3 — Browser"]
+        SW["Service Worker<br/>TTL: Session"]
+    end
+
+    subgraph L4["Layer 4 — Database"]
+        PG_C["PostgreSQL Query Cache<br/>Auto-ANALYZE"]
+    end
+
+    REQ["🧑 Request"] --> L1
+    L1 -->|Miss| L2
+    L2 -->|Miss| L3
+    L3 -->|Miss| L4
+
+    style L1 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style L2 fill:#fff3e0,stroke:#ef6c00,color:#000
+    style L3 fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style L4 fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--               SECTION 13 — SCALABILITY & GROWTH                 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🚀 13. Scalability & Growth
 
 ### 13.1 Load Projections
 
 | Phase | Users | Vendors | Bookings/mo | Infra |
-|-------|-------|---------|-------------|-------|
+|-------|------:|--------:|:-----------:|-------|
 | **MVP** | 1K | 200 | 50 | Single AZ, t3.medium |
 | **Beta (1 city)** | 10K | 1K | 500 | Multi-AZ, auto-scaling |
 | **Launch (5 cities)** | 100K | 5K | 5,000 | ECS Fargate, ElastiCache cluster |
@@ -779,19 +1212,29 @@ flutter test --coverage      # Run tests
 ### 13.2 Scaling Strategy
 
 ```mermaid
-graph LR
-  A[Single Instance] -->|10K users| B[Horizontal Scale]
-  B -->|100K users| C[Read Replicas + Cache]
-  C -->|1M users| D[Multi-Region + CDN]
-  D -->|10M users| E[Event Sourcing + CQRS]
+flowchart LR
+    A["🟢 Single Instance<br/>MVP"] -->|10K users| B["🔵 Horizontal Scale<br/>Multi-AZ"]
+    B -->|100K users| C["🟣 Read Replicas<br/>+ Redis Cluster"]
+    C -->|1M users| D["🟠 Multi-Region<br/>+ CDN Global"]
+    D -->|10M users| E["🔴 Event Sourcing<br/>+ CQRS"]
+
+    style A fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style B fill:#e3f2fd,stroke:#1565c0,color:#000
+    style C fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style D fill:#fff3e0,stroke:#ef6c00,color:#000
+    style E fill:#fce4ec,stroke:#c62828,color:#000
 ```
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                SECTION 14 — KNOWN BUGS & BLOCKERS               -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 🐛 14. Known Bugs & Blockers
 
 | # | Severity | Description | Blocker? |
-|---|----------|-------------|----------|
+|:-:|:--------:|-------------|:--------:|
 | 1 | 🔴 Critical | Razorpay keys not configured in production | Yes |
 | 2 | 🔴 Critical | No database backups configured | Yes |
 | 3 | 🟠 High | Admin panel needs production CORS config | No |
@@ -801,6 +1244,10 @@ graph LR
 | 7 | 🟢 Low | Vendor portal dark mode not implemented | No |
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                    SECTION 15 — BUSINESS LOGIC                  -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 💼 15. Business Logic
 
@@ -831,21 +1278,53 @@ function calculateFees(quotedPaise: number) {
 ### 15.3 Refund Policy
 
 | Cancellation Window | Refund |
-|--------------------|--------|
+|--------------------|:------:|
 | > 30 days before event | 100% refund |
 | 15-30 days | 75% refund |
 | 7-15 days | 50% refund |
 | < 7 days | No refund (dispute route) |
 | Vendor no-show | 100% refund + ₹5000 credit |
 
+### 15.4 Refund Decision Flow
+
+```mermaid
+flowchart TD
+    START["❌ Cancellation Requested"] --> CHECK{Who Cancelled?}
+
+    CHECK -->|Customer| WINDOW{Days Before Event?}
+    CHECK -->|Vendor| VENDOR_FAULT["Vendor No-Show"]
+
+    WINDOW -->|"> 30 days"| R100["💯 100% Refund"]
+    WINDOW -->|"15-30 days"| R75["💰 75% Refund"]
+    WINDOW -->|"7-15 days"| R50["💵 50% Refund"]
+    WINDOW -->|"< 7 days"| DISPUTE["⚠️ Dispute Route<br/>(Admin Review)"]
+
+    VENDOR_FAULT --> FULL_REFUND["💯 100% Refund<br/>+ ₹5,000 Credit"]
+
+    DISPUTE --> ADMIN{Admin Decision}
+    ADMIN -->|Favor Customer| R_PARTIAL["Partial/Full Refund"]
+    ADMIN -->|Favor Vendor| R_NONE["No Refund"]
+
+    style START fill:#fce4ec,stroke:#c62828,color:#000
+    style R100 fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style R75 fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style R50 fill:#fff3e0,stroke:#ef6c00,color:#000
+    style FULL_REFUND fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style DISPUTE fill:#fff3e0,stroke:#ef6c00,color:#000
+```
+
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--              SECTION 16 — PAYMENT & ESCROW SYSTEM               -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 💳 16. Payment & Escrow System
 
 ### 16.1 Razorpay Integration
 
 | Feature | Endpoint | Status |
-|---------|----------|--------|
+|---------|----------|:------:|
 | Create Order | `POST /payments/order` | ✅ Implemented |
 | Verify Payment | `POST /payments/verify` | ✅ HMAC-SHA256 |
 | Webhook Handler | `POST /payments/webhook` | ✅ Signature verification |
@@ -861,14 +1340,64 @@ function calculateFees(quotedPaise: number) {
 - **Escrow Isolation**: Funds tracked in separate `escrows` table, released only after event completion
 - **Auto-release Schedule**: Escrow releases N days after event date (configurable per vendor tier)
 
+### 16.3 Payment Processing Flow
+
+```mermaid
+flowchart TD
+    subgraph CHECKOUT["🛒 Checkout"]
+        C1["Customer selects package"] --> C2["Review order summary"]
+        C2 --> C3["POST /payments/order"]
+        C3 --> C4["Razorpay Order Created"]
+    end
+
+    subgraph CAPTURE["💳 Payment Capture"]
+        P1["Razorpay Checkout Modal"] --> P2{Payment Success?}
+        P2 -->|Failed| P3["Retry / Alternative Method"]
+        P3 --> P1
+        P2 -->|Success| P4["POST /payments/verify"]
+        P4 --> P5["HMAC-SHA256 Signature Check"]
+        P5 -->|Invalid| P6["❌ 400 Verification Failed"]
+        P5 -->|Valid| P7["✅ Payment Captured"]
+    end
+
+    subgraph ESCROW["🔒 Escrow Management"]
+        E1["Create Escrow Record"] --> E2["Status: ESCROWED"]
+        E2 --> E3{Event Complete?}
+        E3 -->|Customer Approves| E4["Release Escrow"]
+        E3 -->|Dispute| E5["Admin Review"]
+        E3 -->|Auto T+2| E4
+        E5 -->|Favor Vendor| E4
+        E5 -->|Favor Customer| E6["Process Refund"]
+    end
+
+    subgraph SETTLEMENT["💰 Settlement"]
+        S1["Deduct 10% Commission"] --> S2["Deduct 18% GST on Fee"]
+        S2 --> S3["Payout to Vendor Bank"]
+        S3 --> S4["Settlement Report"]
+    end
+
+    CHECKOUT --> CAPTURE
+    P7 --> ESCROW
+    E4 --> SETTLEMENT
+
+    style CHECKOUT fill:#e3f2fd,stroke:#1565c0,color:#000
+    style CAPTURE fill:#fff3e0,stroke:#ef6c00,color:#000
+    style ESCROW fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style SETTLEMENT fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--            SECTION 17 — NOTIFICATIONS & COMMUNICATION           -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 📢 17. Notifications & Communication
 
 ### 17.1 Channel Matrix
 
 | Channel | Provider | Use Cases | Status |
-|---------|----------|-----------|--------|
+|---------|----------|-----------|:------:|
 | **Push** | Firebase FCM | Booking updates, reminders, promotions | ✅ Working |
 | **SMS** | MSG91 | OTP, booking confirmation, payment alerts | ✅ Working |
 | **WhatsApp** | MSG91 WA API | Template messages (booking, payment) | 🟡 Partial |
@@ -892,23 +1421,59 @@ function calculateFees(quotedPaise: number) {
 | `stale-booking-nag` | Every 6h | Vendors with 48h+ unresponded enquiries |
 | `timeline-task-reminders` | Daily | Upcoming wedding timeline tasks |
 
-### 17.4 Event Bus Architecture
+### 17.4 Event Bus & Notification Architecture
 
 ```mermaid
-graph LR
-  BS[Booking Service] -->|booking.confirmed| EB((Redis PubSub))
-  PS[Payment Service] -->|payment.captured| EB
-  RS[Review Service] -->|review.created| EB
-  EB -->|subscribe| NS[Notification Service]
-  EB -->|subscribe| VS[Vendor Service]
-  EB -->|subscribe| SS[Search Service]
-  NS -->|FCM| PUSH[Push]
-  NS -->|MSG91| SMS[SMS]
-  NS -->|MSG91| WA[WhatsApp]
-  NS -->|SendGrid| EMAIL[Email]
+flowchart TD
+    subgraph PRODUCERS["📤 Event Producers"]
+        BS["📋 Booking Service"]
+        PS["💳 Payment Service"]
+        RS["⭐ Review Service"]
+        ES_P["⚡ Execution Service"]
+    end
+
+    subgraph BUS["🔀 Redis PubSub Event Bus"]
+        EB(("📡 Event Bus<br/>35 Event Types"))
+    end
+
+    subgraph CONSUMERS["📥 Event Consumers"]
+        NS["🔔 Notification Service"]
+        VS["🏢 Vendor Service"]
+        SS["🔍 Search Service"]
+    end
+
+    subgraph CHANNELS["📢 Notification Channels"]
+        PUSH["📱 FCM Push"]
+        SMS_C["💬 MSG91 SMS"]
+        WA["📲 WhatsApp"]
+        EMAIL["📧 SendGrid Email"]
+        INAPP["🔔 In-App Feed"]
+    end
+
+    subgraph QUEUE["📦 BullMQ Job Queue"]
+        JOB1["daily-vendor-digest"]
+        JOB2["event-reminders"]
+        JOB3["stale-booking-nag"]
+        JOB4["escrow-auto-release"]
+    end
+
+    BS & PS & RS & ES_P --> EB
+    EB --> NS & VS & SS
+    NS --> PUSH & SMS_C & WA & EMAIL & INAPP
+    NS --> QUEUE
+
+    style PRODUCERS fill:#e3f2fd,stroke:#1565c0,color:#000
+    style BUS fill:#fff3e0,stroke:#ef6c00,color:#000
+    style CONSUMERS fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style CHANNELS fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style QUEUE fill:#fce4ec,stroke:#c62828,color:#000
 ```
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--              SECTION 18 — ADMIN & OPERATIONS PANEL              -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🏢 18. Admin & Operations Panel
 
@@ -925,7 +1490,7 @@ graph LR
 ### 18.2 RBAC Matrix
 
 | Action | `admin` | `super_admin` |
-|--------|---------|---------------|
+|--------|:-------:|:-------------:|
 | View dashboard | ✅ | ✅ |
 | Approve vendor KYC | ✅ | ✅ |
 | Suspend vendor | ✅ | ✅ |
@@ -934,7 +1499,37 @@ graph LR
 | Delete user | ❌ | ✅ |
 | Modify commission % | ❌ | ✅ |
 
+### 18.3 Admin Decision Flow — KYC Approval
+
+```mermaid
+flowchart TD
+    START["🏢 Vendor Submits KYC"] --> QUEUE["Added to KYC Queue"]
+    QUEUE --> ADMIN["Admin Reviews Documents"]
+    ADMIN --> CHECK{Documents Valid?}
+
+    CHECK -->|GST Missing| REJECT["❌ Rejected<br/>(Reason: Missing GST)"]
+    CHECK -->|PAN Mismatch| REJECT
+    CHECK -->|All Valid| APPROVE["✅ Approved"]
+
+    REJECT --> NOTIFY_R["📱 Notify Vendor:<br/>'Resubmit Documents'"]
+    NOTIFY_R --> RESUBMIT["Vendor Resubmits"]
+    RESUBMIT --> QUEUE
+
+    APPROVE --> ACTIVATE["Vendor Status → ACTIVE"]
+    ACTIVATE --> INDEX["Index in Elasticsearch"]
+    INDEX --> LIVE["🟢 Vendor Goes Live"]
+
+    style START fill:#e3f2fd,stroke:#1565c0,color:#000
+    style APPROVE fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style REJECT fill:#fce4ec,stroke:#c62828,color:#000
+    style LIVE fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                SECTION 19 — ANALYTICS & TRACKING                -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 📊 19. Analytics & Tracking
 
@@ -950,27 +1545,61 @@ graph LR
 ### 19.2 KPIs
 
 | Metric | Formula | Target |
-|--------|---------|--------|
+|--------|---------|:------:|
 | Booking Conversion | bookings / enquiries | > 25% |
 | Vendor Response Rate | responded_in_24h / total_enquiries | > 85% |
 | Escrow Release Rate | released / total_escrowed | > 92% |
 | Dispute Rate | disputes / total_bookings | < 3% |
-| NPS | Promoters - Detractors | > 60 |
+| NPS | Promoters − Detractors | > 60 |
+
+### 19.3 Analytics Funnel
+
+```mermaid
+flowchart TD
+    F1["👀 Page View<br/>(100%)"] --> F2["🔍 Vendor Search<br/>(60%)"]
+    F2 --> F3["📋 Vendor Detail View<br/>(35%)"]
+    F3 --> F4["📝 Enquiry Sent<br/>(15%)"]
+    F4 --> F5["💬 Quote Received<br/>(12%)"]
+    F5 --> F6["💳 Payment Initiated<br/>(8%)"]
+    F6 --> F7["✅ Booking Confirmed<br/>(6%)"]
+    F7 --> F8["⭐ Review Submitted<br/>(4%)"]
+
+    style F1 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style F2 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style F3 fill:#fff3e0,stroke:#ef6c00,color:#000
+    style F4 fill:#fff3e0,stroke:#ef6c00,color:#000
+    style F5 fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style F6 fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style F7 fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style F8 fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                    SECTION 20 — DEVOPS & CI/CD                  -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🚀 20. DevOps & CI/CD
 
 ### 20.1 CI Pipeline (`.github/workflows/ci.yml`)
 
 ```mermaid
-graph LR
-  A[Push/PR] --> B[Lint + TypeCheck]
-  B --> C[Service Tests<br/>Postgres + Redis]
-  B --> D[Build Web App]
-  B --> E[Flutter Analyze + Test]
-  E --> F[Build Android APK]
-  C --> G[Upload Coverage]
+flowchart LR
+    A["📤 Push / PR"] --> B["🔍 Lint + TypeCheck"]
+    B --> C["🧪 Service Tests<br/>Postgres + Redis"]
+    B --> D["🏗️ Build Web App"]
+    B --> E["📱 Flutter Analyze + Test"]
+    E --> F["📦 Build Android APK"]
+    C --> G["📊 Upload Coverage"]
+
+    style A fill:#e3f2fd,stroke:#1565c0,color:#000
+    style B fill:#fff3e0,stroke:#ef6c00,color:#000
+    style C fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style D fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style E fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style F fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style G fill:#e8f5e9,stroke:#2e7d32,color:#000
 ```
 
 **Jobs:**
@@ -983,15 +1612,20 @@ graph LR
 ### 20.2 CD Pipeline (`.github/workflows/cd.yml`)
 
 ```mermaid
-graph LR
-  A[Tag v* / merge develop] --> B[Resolve Environment]
-  B --> C[Deploy Services to ECS]
-  B --> D[Deploy Web to Vercel]
-  B --> E[Deploy Portals to S3+CF]
-  C --> F[Run DB Migrations]
-  C & D & F --> G[Smoke Tests]
-  G --> H{Production Gate}
-  H -->|Approved| I[Production Deploy 🚀]
+flowchart LR
+    A["🏷️ Tag v* / Merge"] --> B["🔀 Resolve Environment"]
+    B --> C["🚢 Deploy Services<br/>to ECS"]
+    B --> D["🌐 Deploy Web<br/>to Vercel"]
+    B --> E["📦 Deploy Portals<br/>to S3+CF"]
+    C --> F["🗄️ Run DB Migrations"]
+    C & D & F --> G["🧪 Smoke Tests"]
+    G --> H{"🔒 Production Gate"}
+    H -->|Approved| I["🚀 Production Deploy"]
+
+    style A fill:#e3f2fd,stroke:#1565c0,color:#000
+    style G fill:#fff3e0,stroke:#ef6c00,color:#000
+    style H fill:#fce4ec,stroke:#c62828,color:#000
+    style I fill:#e8f5e9,stroke:#2e7d32,color:#000
 ```
 
 **Features:**
@@ -1016,14 +1650,58 @@ infrastructure/terraform/
 └── production/main.tf — Production environment
 ```
 
+### 20.4 Deployment Architecture
+
+```mermaid
+flowchart TD
+    subgraph DEV["💻 Developer"]
+        D1["git push / PR"]
+    end
+
+    subgraph CI_PIPE["🔄 CI Pipeline (GitHub Actions)"]
+        CI1["Lint + Type Check"] --> CI2["Unit Tests"]
+        CI2 --> CI3["Build Artifacts"]
+        CI3 --> CI4["Docker Build + Push ECR"]
+    end
+
+    subgraph STAGING["🟡 Staging"]
+        ST1["ECS Fargate<br/>(12 services)"]
+        ST2["Vercel Preview<br/>(Next.js)"]
+        ST3["S3 + CloudFront<br/>(Admin + Vendor)"]
+        ST4["RDS PostgreSQL"]
+        ST5["ElastiCache Redis"]
+    end
+
+    subgraph PROD["🟢 Production"]
+        PR1["ECS Fargate<br/>(Multi-AZ)"]
+        PR2["Vercel Production"]
+        PR3["S3 + CloudFront"]
+        PR4["RDS Multi-AZ"]
+        PR5["ElastiCache Cluster"]
+    end
+
+    DEV --> CI_PIPE
+    CI_PIPE -->|Auto on develop| STAGING
+    CI_PIPE -->|Manual Approval| PROD
+
+    style DEV fill:#e3f2fd,stroke:#1565c0,color:#000
+    style CI_PIPE fill:#fff3e0,stroke:#ef6c00,color:#000
+    style STAGING fill:#fff9c4,stroke:#f9a825,color:#000
+    style PROD fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                 SECTION 21 — LEGAL & COMPLIANCE                 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## ⚖️ 21. Legal & Compliance
 
 ### 21.1 Compliance Checklist
 
 | Regulation | Requirement | Status |
-|------------|-------------|--------|
+|------------|-------------|:------:|
 | **DPDP Act 2023** | Consent management, data localization | 🚧 Planned |
 | **RBI Guidelines** | Escrow account compliance, payment aggregator | 🚧 Planned |
 | **GST** | Auto-invoice generation, TDS/TCS on commission | 🚧 Planned |
@@ -1040,12 +1718,16 @@ infrastructure/terraform/
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                  SECTION 22 — AI & AUTOMATION                   -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 🤖 22. AI & Automation
 
 ### 22.1 Current (Scaffolded)
 
 | Feature | Technology | Status |
-|---------|-----------|--------|
+|---------|-----------|:------:|
 | Vendor Search Ranking | Elasticsearch BM25 + boosting | ✅ Working |
 | Price Estimation | Statistical (percentile-based) | 🟡 Partial |
 | Recommendation Engine | FastAPI + collaborative filtering | 🚧 Scaffold |
@@ -1053,19 +1735,54 @@ infrastructure/terraform/
 ### 22.2 Planned AI Features
 
 | Feature | Approach | Priority |
-|---------|----------|----------|
+|---------|----------|:--------:|
 | AI Vendor Matching | Embeddings (vendor profile → user preferences) | P1 |
 | Smart Pricing | Regression on historical bookings + demand | P2 |
 | Review Sentiment | NLP classification (positive/negative/neutral) | P2 |
 | Chatbot (Support) | RAG over FAQ + booking context | P3 |
 | Auto-Photography Style | Image classification for portfolio tags | P3 |
 
+### 22.3 AI Service Architecture
+
+```mermaid
+flowchart TD
+    subgraph INPUT["📥 Input Sources"]
+        I1["User Preferences<br/>(budget, city, category)"]
+        I2["Vendor Profiles<br/>(portfolio, ratings, packages)"]
+        I3["Historical Bookings<br/>(conversion, satisfaction)"]
+    end
+
+    subgraph AI_ENGINE["🤖 AI Service (FastAPI)"]
+        M1["Budget Optimizer<br/>(Statistical Model)"]
+        M2["Vendor Matcher<br/>(Embeddings + Cosine Sim)"]
+        M3["Sentiment Analyzer<br/>(NLP Classifier)"]
+        M4["Chatbot<br/>(RAG + LLM)"]
+    end
+
+    subgraph OUTPUT["📤 Output"]
+        O1["Ranked Vendor List"]
+        O2["Budget Breakdown"]
+        O3["Review Insights"]
+        O4["Chat Responses"]
+    end
+
+    INPUT --> AI_ENGINE --> OUTPUT
+
+    style INPUT fill:#e3f2fd,stroke:#1565c0,color:#000
+    style AI_ENGINE fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style OUTPUT fill:#e8f5e9,stroke:#2e7d32,color:#000
+```
+
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                SECTION 23 — COMPETITOR ANALYSIS                 -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🏆 23. Competitor Analysis
 
 | Feature | WeddingOS | WedMeGood | WeddingWire | Zola |
-|---------|-----------|-----------|-------------|------|
+|---------|:---------:|:---------:|:-----------:|:----:|
 | Escrow Payments | ✅ | ❌ | ❌ | ❌ |
 | D-Day Timeline Engine | ✅ | ❌ | ❌ | 🟡 |
 | Real-time Vendor Chat | ✅ | ❌ | 🟡 | ❌ |
@@ -1085,39 +1802,43 @@ infrastructure/terraform/
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                   SECTION 24 — FUTURE ROADMAP                   -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 🔮 24. Future Roadmap
 
-### 24.1 Mindmap
+### 24.1 Roadmap Mindmap
 
 ```mermaid
 mindmap
-  root((WeddingOS 2027))
-    Q3 2026
-      Production Launch (Hyderabad)
-      Payment reconciliation
-      App Store submission
-      Vendor onboarding campaign
-    Q4 2026
-      Multi-city (Mumbai, Delhi, Bangalore)
-      Loyalty points system
-      Wedding registry
-      Vendor subscription tiers
-    Q1 2027
-      AI matching v1
-      Photo delivery system
-      WhatsApp booking bot
-      NRI market (US/UK)
-    Q2 2027
-      Event coordination live feed
-      Vendor insurance platform
-      Corporate events expansion
-      SEA markets (Singapore, Malaysia)
+    root((WeddingOS 2027))
+        Q3 2026
+            Production Launch — Hyderabad
+            Payment reconciliation
+            App Store submission
+            Vendor onboarding campaign
+        Q4 2026
+            Multi-city — Mumbai, Delhi, Bangalore
+            Loyalty points system
+            Wedding registry
+            Vendor subscription tiers
+        Q1 2027
+            AI matching v1
+            Photo delivery system
+            WhatsApp booking bot
+            NRI market — US/UK
+        Q2 2027
+            Event coordination live feed
+            Vendor insurance platform
+            Corporate events expansion
+            SEA markets — Singapore, Malaysia
 ```
 
 ### 24.2 Feature Prioritization (RICE)
 
 | Feature | Reach | Impact | Confidence | Effort | Score |
-|---------|-------|--------|------------|--------|-------|
+|---------|:-----:|:------:|:----------:|:------:|:-----:|
 | Razorpay production keys | 10K | 10 | 100% | 1w | **100** |
 | Vendor KYC flow | 5K | 8 | 90% | 2w | **36** |
 | AI recommendations | 10K | 6 | 50% | 6w | **8** |
@@ -1125,12 +1846,16 @@ mindmap
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--              SECTION 25 — SCREENSHOTS & RECORDINGS              -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 📸 25. Screenshots & Recordings
 
 > Screenshots will be added after UI freeze. Current pages implemented:
 
 <details>
-<summary><strong>Web App Pages (12 screens)</strong></summary>
+<summary><strong>🌐 Web App Pages (12 screens)</strong></summary>
 
 | Page | Description |
 |------|-------------|
@@ -1148,7 +1873,7 @@ mindmap
 </details>
 
 <details>
-<summary><strong>Admin Panel Pages (5 screens)</strong></summary>
+<summary><strong>🏢 Admin Panel Pages (5 screens)</strong></summary>
 
 | Page | Description |
 |------|-------------|
@@ -1161,7 +1886,7 @@ mindmap
 </details>
 
 <details>
-<summary><strong>Vendor Portal Pages (5 screens)</strong></summary>
+<summary><strong>🏪 Vendor Portal Pages (5 screens)</strong></summary>
 
 | Page | Description |
 |------|-------------|
@@ -1174,7 +1899,7 @@ mindmap
 </details>
 
 <details>
-<summary><strong>Flutter Mobile Screens (6 screens)</strong></summary>
+<summary><strong>📱 Flutter Mobile Screens (6 screens)</strong></summary>
 
 | Screen | Description |
 |--------|-------------|
@@ -1188,6 +1913,10 @@ mindmap
 </details>
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                    SECTION 26 — ACCESS & DEMO                   -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🔑 26. Access & Demo
 
@@ -1211,16 +1940,20 @@ mindmap
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                 SECTION 27 — EXPECTATIONS & SCOPE               -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 📐 27. Expectations & Scope
 
-### What This Repo IS
+### 27.1 What This Repo IS
 
 - ✅ A production-grade monorepo with real business logic
 - ✅ A complete E2E architecture (discovery → payment → execution)
 - ✅ A reference implementation of escrow-backed marketplace infra
 - ✅ A deployable system (CI/CD pipelines, Terraform modules)
 
-### What This Repo is NOT (yet)
+### 27.2 What This Repo is NOT (yet)
 
 - ❌ A fully tested production system (test coverage needs work)
 - ❌ Deployed to cloud with real traffic
@@ -1229,6 +1962,10 @@ mindmap
 - ❌ Legally reviewed (T&C, privacy policy pending)
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                    SECTION 28 — SPECIAL NOTES                   -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 📝 28. Special Notes
 
@@ -1256,12 +1993,16 @@ mindmap
 
 ---
 
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--               SECTION 29 — FINAL ANALYSIS & ROADMAP             -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+
 ## 🎯 29. Final Analysis & Roadmap
 
 ### 29.1 Production Readiness Scorecard
 
 | # | Capability | Score | Status |
-|---|-----------|------:|--------|
+|:-:|-----------|------:|:------:|
 | 1 | Web Frontend (Next.js) | 8/10 | ✅ 10 pages, React Query, Axios client wired |
 | 2 | Mobile Frontend (Flutter) | 5/10 | 🟡 10+ screens, Riverpod, Dio — partial API wiring |
 | 3 | Auth Service (OTP → JWT) | 8/10 | ✅ Real MSG91 + Redis, RS256, lockout |
@@ -1286,27 +2027,27 @@ mindmap
 
 ```mermaid
 gantt
-  title WeddingOS — Path to Production
-  dateFormat  YYYY-MM-DD
-  axisFormat  %b %d
+    title WeddingOS — Path to Production
+    dateFormat  YYYY-MM-DD
+    axisFormat  %b %d
 
-  section P0 — Must Have
-  Razorpay prod keys + testing     :2026-05-10, 5d
-  DB backups + monitoring          :2026-05-10, 5d
-  Unit tests (>60% coverage)       :2026-05-12, 14d
-  Security audit                   :2026-05-20, 7d
+    section P0 — Must Have
+    Razorpay prod keys + testing     :2026-05-10, 5d
+    DB backups + monitoring          :2026-05-10, 5d
+    Unit tests (>60% coverage)       :2026-05-12, 14d
+    Security audit                   :2026-05-20, 7d
 
-  section P1 — Beta Launch
-  Flutter API integration          :2026-05-15, 14d
-  Legal pages (T&C, Privacy)       :2026-05-15, 7d
-  Terraform apply (staging)        :2026-05-20, 5d
-  Vendor onboarding (50)           :2026-05-25, 14d
+    section P1 — Beta Launch
+    Flutter API integration          :2026-05-15, 14d
+    Legal pages (T&C, Privacy)       :2026-05-15, 7d
+    Terraform apply (staging)        :2026-05-20, 5d
+    Vendor onboarding (50)           :2026-05-25, 14d
 
-  section P2 — Public Launch
-  App Store submission             :2026-06-10, 14d
-  Marketing website                :2026-06-10, 7d
-  Analytics (PostHog)              :2026-06-15, 7d
-  Launch Hyderabad                 :2026-06-25, 1d
+    section P2 — Public Launch
+    App Store submission             :2026-06-10, 14d
+    Marketing website                :2026-06-10, 7d
+    Analytics (PostHog)              :2026-06-15, 7d
+    Launch Hyderabad                 :2026-06-25, 1d
 ```
 
 ### 29.3 Next Actions (Top 10)
@@ -1323,6 +2064,10 @@ gantt
 - [ ] Set up PostHog/Mixpanel event tracking
 
 ---
+
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
+<!--                       QUICK START                               -->
+<!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ -->
 
 ## 🚀 Quick Start
 
