@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Payment Successful — WeddingOS</title>
+  <style>
+    body{margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#f8f9fa;color:#1a1a2e}
+    .container{max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)}
+    .header{background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:32px 40px;text-align:center}
+    .header h1{margin:0;font-size:24px;color:#fff;font-weight:700}
+    .body{padding:40px}
+    table.details{width:100%;border-collapse:collapse;margin:20px 0}
+    table.details td{padding:10px 0;font-size:14px;border-bottom:1px solid #f3f4f6;color:#374151}
+    table.details td:first-child{color:#6b7280;width:40%}
+    .amount-box{background:#f0fdf4;border:1px solid #86efac;border-radius:12px;padding:24px;text-align:center;margin:24px 0}
+    .amount-box .label{font-size:13px;color:#6b7280;margin:0 0 4px}
+    .amount-box .value{font-size:36px;font-weight:800;color:#059669;margin:0}
+    .cta{display:block;margin:32px auto 0;width:fit-content;background:#7c3aed;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600}
+    .footer{background:#f3f4f6;padding:20px 40px;text-align:center;font-size:12px;color:#9ca3af}
+    .footer a{color:#7c3aed;text-decoration:none}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>✅ Payment Successful</h1>
+  </div>
+  <div class="body">
+    <p style="font-size:18px;font-weight:700;margin:0 0 8px">Hi {{ CUSTOMER_NAME }},</p>
+    <p style="color:#6b7280;margin:0 0 24px">Your payment has been received and held securely in escrow.</p>
+
+    <div class="amount-box">
+      <p class="label">Amount Paid</p>
+      <p class="value">₹{{ AMOUNT }}</p>
+    </div>
+
+    <table class="details">
+      <tr><td>Payment ID</td><td style="font-family:monospace;font-size:12px">{{ PAYMENT_ID }}</td></tr>
+      <tr><td>Booking ID</td><td style="font-family:monospace;font-size:12px">{{ BOOKING_ID }}</td></tr>
+      <tr><td>Vendor</td><td>{{ VENDOR_NAME }}</td></tr>
+      <tr><td>Event Date</td><td>{{ EVENT_DATE }}</td></tr>
+      <tr><td>Status</td><td><strong style="color:#059669">Held in Escrow 🔒</strong></td></tr>
+    </table>
+
+    <p style="font-size:13px;color:#6b7280">The payment will be released to {{ VENDOR_NAME }} only after you confirm satisfactory event completion.</p>
+
+    <a class="cta" href="https://weddingos.in/bookings/{{ BOOKING_ID }}">View Booking ↗</a>
+  </div>
+  <div class="footer">
+    <p><a href="https://weddingos.in/unsubscribe">Unsubscribe</a> · <a href="https://weddingos.in/privacy">Privacy</a></p>
+  </div>
+</div>
+</body>
+</html>

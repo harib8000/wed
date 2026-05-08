@@ -1,5 +1,8 @@
 // Domain Events — all events published to the message bus
 
+// Re-export event bus
+export { EventBus, createEventBus, getEventBus } from './event-bus';
+
 export type DomainEventType =
   // Auth events
   | 'auth.otp_sent'

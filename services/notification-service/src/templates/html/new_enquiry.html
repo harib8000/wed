@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>New Enquiry — WeddingOS</title>
+  <style>
+    body{margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#f8f9fa}
+    .container{max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)}
+    .header{background:linear-gradient(135deg,#7c3aed 0%,#c026d3 100%);padding:32px 40px;text-align:center}
+    .header h1{margin:0;font-size:24px;color:#fff;font-weight:700}
+    .body{padding:40px}
+    .badge{display:inline-block;background:#f5f3ff;color:#7c3aed;font-size:12px;font-weight:600;padding:4px 10px;border-radius:20px;margin-bottom:16px}
+    table.details{width:100%;border-collapse:collapse;margin:20px 0}
+    table.details td{padding:10px 0;font-size:14px;border-bottom:1px solid #f3f4f6;color:#374151}
+    table.details td:first-child{color:#6b7280;width:40%}
+    .cta{display:block;margin:32px auto 0;width:fit-content;background:#7c3aed;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600}
+    .footer{background:#f3f4f6;padding:20px 40px;text-align:center;font-size:12px;color:#9ca3af}
+    .footer a{color:#7c3aed;text-decoration:none}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>💍 WeddingOS</h1>
+  </div>
+  <div class="body">
+    <span class="badge">New Enquiry</span>
+    <p style="font-size:22px;font-weight:700;margin:0 0 8px">You have a new booking enquiry!</p>
+    <p style="color:#6b7280;margin:0 0 24px">Hi {{ VENDOR_NAME }}, a couple is interested in your services.</p>
+
+    <table class="details">
+      <tr><td>Customer</td><td><strong>{{ CUSTOMER_NAME }}</strong></td></tr>
+      <tr><td>Event Date</td><td><strong>{{ EVENT_DATE }}</strong></td></tr>
+      <tr><td>Event Type</td><td>{{ EVENT_TYPE }}</td></tr>
+      <tr><td>City</td><td>{{ EVENT_CITY }}</td></tr>
+      <tr><td>Guest Count</td><td>{{ GUEST_COUNT }}</td></tr>
+      <tr><td>Requirements</td><td>{{ REQUIREMENTS }}</td></tr>
+    </table>
+
+    <p style="font-size:14px;color:#6b7280">Please respond within 24 hours to improve your response rate and ranking.</p>
+
+    <a class="cta" href="https://vendor.weddingos.in/bookings/{{ BOOKING_ID }}">Respond to Enquiry ↗</a>
+  </div>
+  <div class="footer">
+    <p><a href="https://weddingos.in/unsubscribe">Unsubscribe</a> · <a href="https://weddingos.in/privacy">Privacy</a></p>
+  </div>
+</div>
+</body>
+</html>

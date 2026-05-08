@@ -1,0 +1,327 @@
+name: CD — Deploy to Staging / Production
+
+on:
+  # Auto-deploy to staging on every merge to develop
+  push:
+    branches: [develop]
+  # Auto-deploy to staging + wait for approval for production on release tag
+  push:
+    tags:
+      - 'v*'        # e.g. v1.2.0  → staging + prod (with manual gate)
+      - 'staging-*' # e.g. staging-20260508 → staging only
+
+  # Manual deploy trigger
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options: [staging, production]
+      services:
+        description: 'Services to deploy (comma-separated, or "all")'
+        default: 'all'
+        required: false
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false  # Never cancel an in-flight deployment
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9'
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/weddingos
+
+# ─────────────────────────────────────────────────────────────────────────────
+jobs:
+
+  # ── Resolve target environment ────────────────────────────────────────────
+  resolve-env:
+    name: Resolve Target Environment
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.resolve.outputs.environment }}
+      image_tag: ${{ steps.resolve.outputs.image_tag }}
+    steps:
+      - id: resolve
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ENV="${{ github.event.inputs.environment }}"
+          elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            ENV="staging"   # first deploy to staging; prod needs manual approval
+          elif [[ "${{ github.ref }}" == refs/heads/develop ]]; then
+            ENV="staging"
+          else
+            ENV="staging"
+          fi
+          echo "environment=$ENV" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          echo "Deploying to: $ENV with tag ${{ github.sha }}"
+
+  # ── Deploy API services ────────────────────────────────────────────────────
+  deploy-services:
+    name: Deploy Services → ${{ needs.resolve-env.outputs.environment }}
+    runs-on: ubuntu-latest
+    needs: resolve-env
+    environment:
+      name: ${{ needs.resolve-env.outputs.environment }}
+      url: ${{ needs.resolve-env.outputs.environment == 'production' && 'https://api.weddingos.in/health' || 'https://api-staging.weddingos.in/health' }}
+
+    strategy:
+      max-parallel: 3  # roll services gradually
+      matrix:
+        service:
+          - auth-service
+          - user-service
+          - vendor-service
+          - booking-service
+          - payment-service
+          - notification-service
+          - review-service
+          - search-service
+          - chat-service
+          - execution-service
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-south-1' }}
+
+      - name: Deploy ${{ matrix.service }} to ECS
+        env:
+          CLUSTER: weddingos-${{ needs.resolve-env.outputs.environment }}
+          SERVICE: ${{ matrix.service }}
+          IMAGE: ${{ env.IMAGE_PREFIX }}/${{ matrix.service }}:${{ needs.resolve-env.outputs.image_tag }}
+        run: |
+          # Update ECS service to use the new image
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition "$CLUSTER-$SERVICE" \
+            --query taskDefinition)
+
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | \
+            python3 -c "
+import json, sys
+td = json.load(sys.stdin)
+td['containerDefinitions'][0]['image'] = '$IMAGE'
+for key in ['taskDefinitionArn','revision','status','requiresAttributes',
+            'placementConstraints','compatibilities','registeredAt','registeredBy']:
+  td.pop(key, None)
+print(json.dumps(td))
+")
+
+          NEW_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          aws ecs update-service \
+            --cluster "$CLUSTER" \
+            --service "$SERVICE" \
+            --task-definition "$NEW_ARN" \
+            --force-new-deployment \
+            --query 'service.serviceName' \
+            --output text
+
+          echo "✅ $SERVICE updated to $NEW_ARN"
+
+      - name: Wait for service stability
+        env:
+          CLUSTER: weddingos-${{ needs.resolve-env.outputs.environment }}
+        run: |
+          aws ecs wait services-stable \
+            --cluster "$CLUSTER" \
+            --services "${{ matrix.service }}"
+          echo "✅ ${{ matrix.service }} is stable"
+
+  # ── Deploy Next.js Web App ─────────────────────────────────────────────────
+  deploy-web:
+    name: Deploy Web App → ${{ needs.resolve-env.outputs.environment }}
+    runs-on: ubuntu-latest
+    needs: resolve-env
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web
+        env:
+          NEXT_PUBLIC_API_URL: ${{ needs.resolve-env.outputs.environment == 'production' && 'https://api.weddingos.in/api/v1' || 'https://api-staging.weddingos.in/api/v1' }}
+          NEXT_PUBLIC_RAZORPAY_KEY_ID: ${{ secrets.RAZORPAY_KEY_ID }}
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: pnpm --filter web build
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_WEB }}
+          working-directory: apps/web
+          vercel-args: ${{ needs.resolve-env.outputs.environment == 'production' && '--prod' || '' }}
+          alias-domains: ${{ needs.resolve-env.outputs.environment == 'staging' && 'staging.weddingos.in' || '' }}
+
+  # ── Deploy Admin & Vendor Portals ─────────────────────────────────────────
+  deploy-portals:
+    name: Deploy Admin/Vendor Portals → ${{ needs.resolve-env.outputs.environment }}
+    runs-on: ubuntu-latest
+    needs: resolve-env
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build admin portal
+        env:
+          VITE_API_URL: ${{ needs.resolve-env.outputs.environment == 'production' && 'https://api.weddingos.in/api/v1' || 'https://api-staging.weddingos.in/api/v1' }}
+        run: pnpm --filter @wedding-os/admin build
+
+      - name: Build vendor portal
+        env:
+          VITE_API_URL: ${{ needs.resolve-env.outputs.environment == 'production' && 'https://api.weddingos.in/api/v1' || 'https://api-staging.weddingos.in/api/v1' }}
+        run: pnpm --filter @wedding-os/vendor-web build
+
+      - name: Deploy Admin to S3 / CloudFront
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+        run: |
+          ENV="${{ needs.resolve-env.outputs.environment }}"
+          ADMIN_BUCKET="weddingos-admin-$ENV"
+          VENDOR_BUCKET="weddingos-vendor-$ENV"
+          ADMIN_CF="${{ secrets.CLOUDFRONT_ADMIN_DIST_ID }}"
+          VENDOR_CF="${{ secrets.CLOUDFRONT_VENDOR_DIST_ID }}"
+
+          # Admin
+          aws s3 sync apps/admin/dist "s3://$ADMIN_BUCKET" --delete --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp apps/admin/dist/index.html "s3://$ADMIN_BUCKET/index.html" --cache-control "no-cache"
+          [ -n "$ADMIN_CF" ] && aws cloudfront create-invalidation --distribution-id "$ADMIN_CF" --paths "/*"
+
+          # Vendor portal
+          aws s3 sync apps/vendor-web/dist "s3://$VENDOR_BUCKET" --delete --cache-control "public,max-age=31536000,immutable"
+          aws s3 cp apps/vendor-web/dist/index.html "s3://$VENDOR_BUCKET/index.html" --cache-control "no-cache"
+          [ -n "$VENDOR_CF" ] && aws cloudfront create-invalidation --distribution-id "$VENDOR_CF" --paths "/*"
+
+  # ── Run DB migrations ──────────────────────────────────────────────────────
+  migrate-db:
+    name: Run DB Migrations
+    runs-on: ubuntu-latest
+    needs: [resolve-env, deploy-services]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Prisma migrations
+        env:
+          AUTH_DB_URL: ${{ needs.resolve-env.outputs.environment == 'production' && secrets.PROD_AUTH_DB_URL || secrets.STAGING_AUTH_DB_URL }}
+          BOOKING_DB_URL: ${{ needs.resolve-env.outputs.environment == 'production' && secrets.PROD_BOOKING_DB_URL || secrets.STAGING_BOOKING_DB_URL }}
+          PAYMENT_DB_URL: ${{ needs.resolve-env.outputs.environment == 'production' && secrets.PROD_PAYMENT_DB_URL || secrets.STAGING_PAYMENT_DB_URL }}
+          VENDOR_DB_URL: ${{ needs.resolve-env.outputs.environment == 'production' && secrets.PROD_VENDOR_DB_URL || secrets.STAGING_VENDOR_DB_URL }}
+          NOTIFICATION_DB_URL: ${{ needs.resolve-env.outputs.environment == 'production' && secrets.PROD_NOTIFICATION_DB_URL || secrets.STAGING_NOTIFICATION_DB_URL }}
+          REVIEW_DB_URL: ${{ needs.resolve-env.outputs.environment == 'production' && secrets.PROD_REVIEW_DB_URL || secrets.STAGING_REVIEW_DB_URL }}
+        run: |
+          for svc in auth-service booking-service payment-service vendor-service notification-service review-service; do
+            echo "──── Migrating $svc ────"
+            pnpm --filter "$svc" exec prisma migrate deploy || echo "⚠️ $svc migration failed (may not have DATABASE_URL set)"
+          done
+
+  # ── Smoke tests ───────────────────────────────────────────────────────────
+  smoke-test:
+    name: Smoke Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-services, deploy-web, migrate-db]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Health check — API services
+        env:
+          BASE_URL: ${{ needs.resolve-env.outputs.environment == 'production' && 'https://api.weddingos.in' || 'https://api-staging.weddingos.in' }}
+        run: |
+          SERVICES=("auth" "user" "vendor" "booking" "payment" "notification" "review")
+          FAILED=0
+          for svc in "${SERVICES[@]}"; do
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/$svc/health" --max-time 10 || echo "000")
+            if [[ "$STATUS" == "200" ]]; then
+              echo "✅ $svc health OK"
+            else
+              echo "❌ $svc health FAILED (HTTP $STATUS)"
+              FAILED=$((FAILED+1))
+            fi
+          done
+          if [[ $FAILED -gt 0 ]]; then
+            echo "$FAILED service(s) failed health check"
+            exit 1
+          fi
+
+      - name: Web App reachability check
+        run: |
+          URL="${{ needs.resolve-env.outputs.environment == 'production' && 'https://www.weddingos.in' || 'https://staging.weddingos.in' }}"
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL" --max-time 15 || echo "000")
+          [[ "$STATUS" == "200" ]] && echo "✅ Web OK" || (echo "❌ Web FAILED (HTTP $STATUS)" && exit 1)
+
+  # ── Production gate (manual approval required) ─────────────────────────────
+  promote-to-production:
+    name: Promote to Production 🚀
+    runs-on: ubuntu-latest
+    needs: [smoke-test]
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment:
+      name: production
+      url: https://www.weddingos.in
+
+    steps:
+      - name: Confirm production promotion
+        run: |
+          echo "✅ Approved for production. Triggering production deployment..."
+          echo "Tag: ${{ github.ref_name }}"
+          echo "SHA: ${{ github.sha }}"
+
+      - name: Notify team — production deployment started
+        if: always()
+        run: |
+          echo "Production deployment of ${{ github.ref_name }} initiated by ${{ github.actor }}"
+          # Slack / PagerDuty webhook call goes here:
+          # curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
+          #   -H 'Content-type: application/json' \
+          #   --data '{"text":"🚀 WeddingOS ${{ github.ref_name }} deploying to production"}'

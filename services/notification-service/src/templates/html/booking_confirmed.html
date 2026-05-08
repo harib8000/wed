@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Booking Confirmed — WeddingOS</title>
+  <style>
+    body{margin:0;padding:0;font-family:'Helvetica Neue',Arial,sans-serif;background:#f8f9fa;color:#1a1a2e}
+    .container{max-width:600px;margin:40px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.08)}
+    .header{background:linear-gradient(135deg,#7c3aed 0%,#c026d3 100%);padding:32px 40px;text-align:center}
+    .header h1{margin:0;font-size:24px;color:#fff;font-weight:700}
+    .header p{margin:6px 0 0;font-size:13px;color:rgba(255,255,255,.75)}
+    .body{padding:40px}
+    .highlight{background:#f5f3ff;border-left:4px solid #7c3aed;padding:16px 20px;border-radius:0 8px 8px 0;margin:20px 0}
+    .highlight p{margin:0;font-size:15px;color:#374151}
+    table.details{width:100%;border-collapse:collapse;margin:20px 0}
+    table.details td{padding:10px 0;font-size:14px;border-bottom:1px solid #f3f4f6;color:#374151}
+    table.details td:first-child{color:#6b7280;width:40%}
+    .cta{display:block;margin:32px auto 0;width:fit-content;background:#7c3aed;color:#fff;text-decoration:none;padding:14px 32px;border-radius:8px;font-size:15px;font-weight:600}
+    .escrow-badge{background:#ecfdf5;border:1px solid #6ee7b7;padding:12px 16px;border-radius:8px;font-size:13px;color:#065f46;margin:20px 0}
+    .footer{background:#f3f4f6;padding:20px 40px;text-align:center;font-size:12px;color:#9ca3af}
+    .footer a{color:#7c3aed;text-decoration:none}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>💍 WeddingOS</h1>
+    <p>India's Wedding Operating System</p>
+  </div>
+  <div class="body">
+    <p style="font-size:22px;font-weight:700;margin:0 0 8px">Booking Confirmed! 🎉</p>
+    <p style="color:#6b7280;margin:0 0 24px">Hi {{ CUSTOMER_NAME }}, your wedding booking has been confirmed.</p>
+
+    <div class="highlight">
+      <p>Your payment is safely held in <strong>escrow</strong> and will be released to the vendor only after your event is complete and you confirm satisfaction.</p>
+    </div>
+
+    <table class="details">
+      <tr><td>Vendor</td><td><strong>{{ VENDOR_NAME }}</strong></td></tr>
+      <tr><td>Service</td><td>{{ SERVICE_CATEGORY }}</td></tr>
+      <tr><td>Package</td><td>{{ PACKAGE_NAME }}</td></tr>
+      <tr><td>Event Date</td><td><strong>{{ EVENT_DATE }}</strong></td></tr>
+      <tr><td>Amount (Escrow)</td><td><strong>₹{{ AMOUNT }}</strong></td></tr>
+      <tr><td>Booking ID</td><td style="font-family:monospace;font-size:12px">{{ BOOKING_ID }}</td></tr>
+    </table>
+
+    <div class="escrow-badge">
+      🔒 <strong>Escrow Protected</strong> — WeddingOS holds your payment safely. Funds are released only after you confirm event completion.
+    </div>
+
+    <a class="cta" href="https://weddingos.in/bookings/{{ BOOKING_ID }}">View Booking ↗</a>
+  </div>
+  <div class="footer">
+    <p>Questions? Reply to this email or chat with support on WhatsApp.</p>
+    <p><a href="https://weddingos.in/unsubscribe">Unsubscribe</a> · <a href="https://weddingos.in/privacy">Privacy Policy</a> · <a href="https://weddingos.in/terms">Terms</a></p>
+  </div>
+</div>
+</body>
+</html>
