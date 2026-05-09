@@ -65,6 +65,7 @@ export function HeroSection() {
               <select
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
+                aria-label="Select city"
                 className="outline-none text-gray-700 bg-transparent cursor-pointer"
               >
                 {['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Jaipur'].map((c) => (
@@ -72,7 +73,7 @@ export function HeroSection() {
                 ))}
               </select>
             </div>
-            <button type="submit" className="btn-primary rounded-xl flex items-center gap-2 whitespace-nowrap">
+            <button type="submit" aria-label="Search vendors" className="btn-primary rounded-xl flex items-center gap-2 whitespace-nowrap">
               <Search size={18} />
               Search
             </button>
@@ -85,6 +86,7 @@ export function HeroSection() {
             <button
               key={cat}
               onClick={() => router.push(`/vendors?category=${cat.toLowerCase()}`)}
+              aria-label={`Browse ${cat} vendors`}
               className="px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white/90 text-sm hover:bg-white/20 transition-all"
             >
               {cat}

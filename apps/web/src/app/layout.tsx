@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="font-sans bg-white text-gray-900 antialiased pb-16 md:pb-0">
         <Providers>
-          {children}
+          <div id="main-content">{children}</div>
           <BottomNav />
           <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         </Providers>

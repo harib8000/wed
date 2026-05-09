@@ -47,11 +47,11 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div role="list" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {STEPS.map((step, index) => {
             const Icon = step.icon;
             return (
-              <div key={step.step} className="relative">
+              <div key={step.step} role="listitem" className="relative">
                 <div className="card p-6 text-center h-full hover:shadow-md transition-shadow">
                   <div className="flex items-center justify-center mb-4">
                     <div className={`w-16 h-16 ${step.bgColor} rounded-2xl flex items-center justify-center`}>

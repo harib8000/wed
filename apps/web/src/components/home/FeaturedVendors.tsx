@@ -49,6 +49,7 @@ function VendorCard({ vendor }: { vendor: typeof FEATURED_VENDORS[0] }) {
           <span className="badge bg-white/90 text-gray-900 text-xs shadow-sm">{vendor.badge}</span>
         </div>
         <button
+          aria-label={liked ? `Remove ${vendor.name} from wishlist` : `Add ${vendor.name} to wishlist`}
           onClick={() => {
             const next = !liked;
             setLiked(next);

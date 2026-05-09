@@ -34,6 +34,9 @@ export function Navbar() {
       'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
       scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-gray-100' : 'bg-transparent'
     )}>
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:bg-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg focus:text-brand-600 focus:font-medium">
+        Skip to main content
+      </a>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
@@ -75,15 +78,15 @@ export function Navbar() {
           <div className="hidden md:flex items-center gap-3">
             {isAuthenticated && user ? (
               <>
-                <Link href="/vendors" className={clsx('p-2 rounded-lg transition-colors', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
+                <Link href="/vendors" aria-label="Search vendors" className={clsx('p-2 rounded-lg transition-colors', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Search size={20} />
                 </Link>
-                <Link href="/bookings" className={clsx('p-2 rounded-lg transition-colors relative', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
+                <Link href="/bookings" aria-label="Notifications" className={clsx('p-2 rounded-lg transition-colors relative', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Bell size={20} />
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                 </Link>
                 <div className="flex items-center gap-2">
-                  <Link href="/profile" className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors">
+                  <Link href="/profile" aria-label="Your profile" className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors">
                     <div className="w-8 h-8 rounded-full gradient-brand flex items-center justify-center">
                       <span className="text-white text-xs font-bold">{user.phone.slice(-2)}</span>
                     </div>
@@ -107,6 +110,7 @@ export function Navbar() {
 
           {/* Mobile menu button */}
           <button
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             className={clsx('md:hidden p-2 rounded-lg', scrolled ? 'text-gray-700' : 'text-white')}
             onClick={() => setMobileOpen(!mobileOpen)}
           >
