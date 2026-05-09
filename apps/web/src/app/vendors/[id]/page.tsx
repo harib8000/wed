@@ -1,8 +1,13 @@
 'use client';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, Share2 } from 'lucide-react';
+import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, Share2, SearchX } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+
+const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
+const stagger = { animate: { transition: { staggerChildren: 0.1 } } };
 
 // Mock vendor detail
 const MOCK_VENDOR = {
@@ -34,8 +39,98 @@ const VENDOR_MAP: Record<string, typeof MOCK_VENDOR> = {
   'vendor-3': { ...MOCK_VENDOR, id: '3', businessName: 'Flavours Catering Co.', category: 'Catering', rating: 4.7, totalReviews: 312, totalBookings: 420, basePrice: 800, description: 'Hyderabad\'s finest multi-cuisine catering service with live counters, traditional Hyderabadi Biryani, and 200+ menu options. Serving weddings from 100 to 5000 guests.', yearsExperience: 15, teamSize: 120, packages: [{ id: 'p1', name: 'Classic', price: 800, priceType: 'per_plate', description: 'Standard buffet menu', inclusions: ['15 Items Buffet', 'Welcome Drinks', 'Basic Setup', 'Service Staff'], minGuests: 100, maxGuests: 500 }, { id: 'p2', name: 'Royal', price: 1200, priceType: 'per_plate', description: 'Premium multi-cuisine', inclusions: ['25 Items Buffet', 'Live Counters', 'Premium Beverages', 'Themed Setup', 'Dedicated Manager'], minGuests: 200, maxGuests: 2000 }, { id: 'p3', name: 'Grand Feast', price: 2000, priceType: 'per_plate', description: 'Ultimate luxury dining', inclusions: ['40+ Items', 'Live Counters', 'Biryani Counter', 'Dessert Bar', 'Ice Cream Station', 'Luxury Crockery'], minGuests: 300, maxGuests: 5000 }], tags: ['Multi-cuisine', 'Live Counters', 'Biryani', 'Vegetarian', 'Non-veg'] },
 };
 
+function LoadingSkeleton() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="pt-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="h-5 w-36 bg-gray-200 rounded animate-pulse" />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="card overflow-hidden">
+                <div className="h-72 bg-gray-200 animate-pulse" />
+                <div className="p-4 grid grid-cols-4 gap-2">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="aspect-square rounded-lg bg-gray-200 animate-pulse" />
+                  ))}
+                </div>
+              </div>
+              <div className="card p-6 space-y-4">
+                <div className="h-7 w-64 bg-gray-200 rounded animate-pulse" />
+                <div className="h-4 w-48 bg-gray-200 rounded animate-pulse" />
+                <div className="space-y-2">
+                  <div className="h-3 w-full bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-5/6 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-4/6 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="card p-6 space-y-4">
+                <div className="h-6 w-48 bg-gray-200 rounded animate-pulse" />
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-32 bg-gray-200 rounded-xl animate-pulse" />
+                ))}
+              </div>
+            </div>
+            <div className="lg:col-span-1">
+              <div className="card p-6 space-y-4">
+                <div className="h-8 w-32 mx-auto bg-gray-200 rounded animate-pulse" />
+                <div className="h-10 w-full bg-gray-200 rounded-xl animate-pulse" />
+                <div className="h-10 w-full bg-gray-200 rounded-xl animate-pulse" />
+                <div className="h-10 w-full bg-gray-200 rounded-xl animate-pulse" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
+function VendorNotFound() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <div className="pt-16 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center px-4">
+          <div className="mx-auto mb-6 w-20 h-20 rounded-full bg-gray-100 flex items-center justify-center">
+            <SearchX size={36} className="text-gray-400" />
+          </div>
+          <h1 className="text-2xl font-bold font-heading mb-2">Vendor Not Found</h1>
+          <p className="text-gray-500 mb-6 max-w-md mx-auto">
+            The vendor you&apos;re looking for doesn&apos;t exist or may have been removed. Browse our curated list of verified wedding vendors instead.
+          </p>
+          <Link href="/vendors" className="btn-primary inline-flex items-center gap-2">
+            <ArrowLeft size={16} /> Browse All Vendors
+          </Link>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
 export default function VendorDetailPage({ params }: { params: { id: string } }) {
-  const v = VENDOR_MAP[params.id] || MOCK_VENDOR;
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const v = VENDOR_MAP[params.id];
+  const isNotFound = !v;
+
+  if (isLoading) return <LoadingSkeleton />;
+  if (isNotFound) return <VendorNotFound />;
+
+  const similarVendors = Object.entries(VENDOR_MAP)
+    .filter(([key]) => key !== params.id)
+    .slice(0, 3)
+    .map(([key, vendor]) => ({ key, ...vendor }));
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -43,17 +138,17 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
       <div className="pt-16">
         {/* Back */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link href="/vendors" className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand-600 transition-colors">
+          <Link href="/vendors" className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand-600 transition-colors" aria-label="Back to vendors list">
             <ArrowLeft size={16} /> Back to Vendors
           </Link>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-8" {...stagger} initial="initial" animate="animate">
             {/* Left - Main content */}
             <div className="lg:col-span-2 space-y-6">
               {/* Hero Image + Portfolio */}
-              <div className="card overflow-hidden">
+              <motion.div className="card overflow-hidden" {...fadeIn}>
                 <div className="h-72 overflow-hidden">
                   <img src={v.portfolio[0].url} alt={v.businessName} className="w-full h-full object-cover" />
                 </div>
@@ -66,10 +161,10 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                     ))}
                   </div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Details */}
-              <div className="card p-6">
+              <motion.div className="card p-6" {...fadeIn}>
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
@@ -87,8 +182,8 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"><Heart size={18} className="text-gray-400" /></button>
-                    <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"><Share2 size={18} className="text-gray-400" /></button>
+                    <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors" aria-label="Save to wishlist"><Heart size={18} className="text-gray-400" /></button>
+                    <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors" aria-label="Share vendor"><Share2 size={18} className="text-gray-400" /></button>
                   </div>
                 </div>
                 <p className="text-gray-600 text-sm leading-relaxed mb-4">{v.description}</p>
@@ -97,10 +192,10 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                   <div className="text-center"><div className="font-bold text-lg">{v.totalBookings}+</div><div className="text-xs text-gray-500">Events Done</div></div>
                   <div className="text-center"><div className="font-bold text-lg">{v.teamSize}+</div><div className="text-xs text-gray-500">Team Size</div></div>
                 </div>
-              </div>
+              </motion.div>
 
               {/* Packages */}
-              <div className="card p-6">
+              <motion.div className="card p-6" {...fadeIn}>
                 <h2 className="text-xl font-bold font-heading mb-4">Packages & Pricing</h2>
                 <div className="space-y-4">
                   {v.packages.map((pkg, i) => (
@@ -127,10 +222,10 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
 
               {/* Reviews */}
-              <div className="card p-6">
+              <motion.div className="card p-6" {...fadeIn}>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold font-heading">Reviews</h2>
                   <div className="flex items-center gap-2">
@@ -157,11 +252,11 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                     </div>
                   ))}
                 </div>
-              </div>
+              </motion.div>
             </div>
 
             {/* Right - CTA Sidebar */}
-            <div className="lg:col-span-1">
+            <motion.div className="lg:col-span-1" {...fadeIn}>
               <div className="card p-6 sticky top-24">
                 <div className="text-center mb-4">
                   <p className="text-3xl font-bold text-brand-700">₹{(v.basePrice / 100000).toFixed(1)}L</p>
@@ -194,8 +289,42 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                   <div className="flex items-center gap-2"><CheckCircle size={14} className="text-green-500" />Verified KYC vendor</div>
                 </div>
               </div>
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
+
+          {/* Similar Vendors */}
+          {similarVendors.length > 0 && (
+            <motion.div className="mt-12" {...fadeIn}>
+              <h2 className="text-xl font-bold font-heading mb-6">Similar Vendors You May Like</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {similarVendors.map((sv) => (
+                  <Link key={sv.key} href={`/vendors/${sv.key}`} className="card overflow-hidden hover:shadow-lg transition-shadow group">
+                    <div className="h-40 overflow-hidden">
+                      <img src={sv.portfolio[0].url} alt={sv.businessName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    </div>
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-gray-900">{sv.businessName}</h3>
+                        {sv.verificationStatus === 'verified' && <CheckCircle size={14} className="text-green-500" />}
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
+                        <span className="badge bg-brand-100 text-brand-700 text-xs capitalize">{sv.category}</span>
+                        <div className="flex items-center gap-1"><MapPin size={12} />{sv.city}</div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 text-sm">
+                          <Star size={14} className="fill-gold-400 text-gold-400" />
+                          <strong>{sv.rating}</strong>
+                          <span className="text-gray-400">({sv.totalReviews})</span>
+                        </div>
+                        <p className="text-sm font-semibold text-brand-700">₹{(sv.basePrice / 100000).toFixed(1)}L</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
       <Footer />
