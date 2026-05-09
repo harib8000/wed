@@ -51,8 +51,8 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
 ];
 
 function parsePriceNumber(price: string): number {
-  const cleaned = price.replace(/[^\d.KLkl]/g, '');
-  const num = parseFloat(cleaned) || 0;
+  const match = price.match(/[\d]+(?:\.[\d]+)?/);
+  const num = match ? parseFloat(match[0]) : 0;
   if (/L/i.test(price)) return num * 100000;
   if (/K/i.test(price)) return num * 1000;
   return num;
