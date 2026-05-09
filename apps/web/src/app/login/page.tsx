@@ -1,23 +1,77 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Heart, Store, Users, Crown, Shield, Zap, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Phone, ArrowLeft, Loader2, Shield, Heart, Store, Users, Crown, Zap } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import { useAuthStore, UserRole } from '@/store/authStore';
 
-type Step = 'phone' | 'otp';
-type LoginMode = 'couple' | 'vendor';
+// ─── Role cards for the selection page ──────────────────────────────────────────
 
-// ─── Demo accounts ────────────────────────────────────────────────────────────
-// These are pre-seeded demo accounts for testing the platform.
-// In dev mode the backend logs OTP to console; in production these would
-// be real accounts with a fixed OTP (e.g. 123456) or a bypass flag.
+interface RoleOption {
+  role: UserRole;
+  label: string;
+  description: string;
+  href: string;
+  icon: React.ElementType;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  gradient: string;
+}
+
+const ROLE_OPTIONS: RoleOption[] = [
+  {
+    role: 'customer',
+    label: 'Couple / Customer',
+    description: 'Planning your dream wedding? Browse vendors, compare packages, book services with escrow protection.',
+    href: '/login/couple',
+    icon: Heart,
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-50',
+    borderColor: 'border-pink-200 hover:border-pink-400 hover:shadow-pink-100',
+    gradient: 'from-pink-500 to-rose-500',
+  },
+  {
+    role: 'vendor',
+    label: 'Vendor / Service Provider',
+    description: 'Grow your wedding business. Manage bookings, packages, payouts & connect with couples.',
+    href: '/login/vendor',
+    icon: Store,
+    color: 'text-brand-600',
+    bgColor: 'bg-brand-50',
+    borderColor: 'border-brand-200 hover:border-brand-400 hover:shadow-brand-100',
+    gradient: 'from-brand-500 to-purple-500',
+  },
+  {
+    role: 'coordinator',
+    label: 'Wedding Coordinator',
+    description: 'Manage event timelines, coordinate vendors, track tasks & ensure flawless execution.',
+    href: '/login/coordinator',
+    icon: Users,
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-50',
+    borderColor: 'border-indigo-200 hover:border-indigo-400 hover:shadow-indigo-100',
+    gradient: 'from-indigo-500 to-blue-500',
+  },
+  {
+    role: 'admin',
+    label: 'Platform Admin',
+    description: 'Internal operations — vendor verification, dispute resolution, platform analytics.',
+    href: '/login/admin',
+    icon: Crown,
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-200 hover:border-amber-400 hover:shadow-amber-100',
+    gradient: 'from-amber-500 to-orange-500',
+  },
+];
+
+// ─── Demo accounts ──────────────────────────────────────────────────────────────
 
 interface DemoAccount {
   label: string;
-  description: string;
   phone: string;
   otp: string;
   role: UserRole;
@@ -28,66 +82,20 @@ interface DemoAccount {
 }
 
 const DEMO_ACCOUNTS: DemoAccount[] = [
-  {
-    label: 'Couple / Customer',
-    description: 'Browse vendors, book services, manage your wedding',
-    phone: '9876543210',
-    otp: '123456',
-    role: 'customer',
-    icon: Heart,
-    color: 'text-pink-600',
-    bgColor: 'bg-pink-50',
-    borderColor: 'border-pink-200 hover:border-pink-400',
-  },
-  {
-    label: 'Vendor',
-    description: 'Manage your business, packages, bookings & payouts',
-    phone: '9876543211',
-    otp: '123456',
-    role: 'vendor',
-    icon: Store,
-    color: 'text-brand-600',
-    bgColor: 'bg-brand-50',
-    borderColor: 'border-brand-200 hover:border-brand-400',
-  },
-  {
-    label: 'Coordinator',
-    description: 'Manage event timelines, tasks & vendor coordination',
-    phone: '9876543212',
-    otp: '123456',
-    role: 'coordinator',
-    icon: Users,
-    color: 'text-indigo-600',
-    bgColor: 'bg-indigo-50',
-    borderColor: 'border-indigo-200 hover:border-indigo-400',
-  },
-  {
-    label: 'Admin',
-    description: 'Platform administration, vendor verification, disputes',
-    phone: '9876543213',
-    otp: '123456',
-    role: 'admin',
-    icon: Crown,
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200 hover:border-amber-400',
-  },
+  { label: 'Couple', phone: '9876543210', otp: '123456', role: 'customer', icon: Heart, color: 'text-pink-600', bgColor: 'bg-pink-50', borderColor: 'border-pink-200 hover:border-pink-400' },
+  { label: 'Vendor', phone: '9876543211', otp: '123456', role: 'vendor', icon: Store, color: 'text-brand-600', bgColor: 'bg-brand-50', borderColor: 'border-brand-200 hover:border-brand-400' },
+  { label: 'Coordinator', phone: '9876543212', otp: '123456', role: 'coordinator', icon: Users, color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200 hover:border-indigo-400' },
+  { label: 'Admin', phone: '9876543213', otp: '123456', role: 'admin', icon: Crown, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200 hover:border-amber-400' },
 ];
-
-// ─── Role-based redirect mapping ──────────────────────────────────────────────
 
 function getRedirectPath(role: UserRole): string {
   switch (role) {
-    case 'vendor':
-      return '/dashboard'; // vendor dashboard
-    case 'coordinator':
-      return '/dashboard'; // coordinator timeline
+    case 'vendor': return '/dashboard';
+    case 'coordinator': return '/dashboard';
     case 'admin':
-    case 'super_admin':
-      return '/dashboard'; // admin panel
+    case 'super_admin': return '/dashboard';
     case 'customer':
-    default:
-      return '/dashboard'; // couple/customer dashboard
+    default: return '/dashboard';
   }
 }
 
@@ -102,110 +110,23 @@ function getRoleLabel(role: UserRole): string {
   }
 }
 
-// ─── Login mode config ────────────────────────────────────────────────────────
-
-const LOGIN_MODES: { key: LoginMode; label: string; icon: React.ElementType; description: string }[] = [
-  { key: 'couple', label: 'Couple', icon: Heart, description: 'Planning your wedding?' },
-  { key: 'vendor', label: 'Vendor', icon: Store, description: 'Wedding service provider?' },
-];
-
 export default function LoginPage() {
   const router = useRouter();
   const { setUser, setTokens } = useAuthStore();
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
-  const [resendTimer, setResendTimer] = useState(0);
-  const [loginMode, setLoginMode] = useState<LoginMode>('couple');
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
-
-  const startResendTimer = () => {
-    setResendTimer(60);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setResendTimer((t) => {
-        if (t <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-  };
-
-  const formatPhone = (val: string) => {
-    const digits = val.replace(/\D/g, '');
-    if (digits.startsWith('91') && digits.length > 10) return `+${digits}`;
-    if (digits.length === 10) return `+91${digits}`;
-    return val.startsWith('+') ? val : `+91${digits}`;
-  };
-
-  async function handleSendOtp(e: React.FormEvent) {
-    e.preventDefault();
-    if (loading) return;
-    const formattedPhone = formatPhone(phone);
-    if (!formattedPhone.match(/^\+91[6-9]\d{9}$/)) {
-      toast.error('Please enter a valid Indian mobile number'); return;
-    }
-    setLoading(true);
-    try {
-      await authApi.sendOtp(formattedPhone);
-      toast.success('OTP sent to your mobile number!');
-      setStep('otp');
-      startResendTimer();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error?.message || 'Failed to send OTP');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault();
-    if (loading || otp.length !== 6) return;
-    setLoading(true);
-    try {
-      const formattedPhone = formatPhone(phone);
-      const res = await authApi.verifyOtp(formattedPhone, otp);
-      const { accessToken, refreshToken, user } = res.data.data;
-      setTokens(accessToken, refreshToken);
-      setUser(user);
-      const roleLabel = getRoleLabel(user.role);
-      toast.success(`Welcome, ${roleLabel}! 🎉`);
-      router.push(getRedirectPath(user.role));
-    } catch (err: any) {
-      toast.error(err.response?.data?.error?.message || 'Incorrect OTP. Please try again.');
-      setOtp('');
-    } finally {
-      setLoading(false);
-    }
-  }
 
   async function handleDemoLogin(account: DemoAccount) {
     setDemoLoading(account.role);
     try {
-      // Step 1: Send OTP for demo account
       const formattedPhone = `+91${account.phone}`;
       await authApi.sendOtp(formattedPhone);
-
-      // Step 2: Verify with the known demo OTP
       const res = await authApi.verifyOtp(formattedPhone, account.otp);
       const { accessToken, refreshToken, user } = res.data.data;
       setTokens(accessToken, refreshToken);
       setUser(user);
-      const roleLabel = getRoleLabel(user.role);
-      toast.success(`Demo login as ${roleLabel} successful! 🎉`);
+      toast.success(`Demo login as ${getRoleLabel(user.role)} successful! 🎉`);
       router.push(getRedirectPath(user.role));
     } catch {
-      // If backend isn't running, simulate a demo login for UI development
       const demoUser = {
         id: `demo-${account.role}`,
         phone: `+91${account.phone}`,
@@ -214,14 +135,9 @@ export default function LoginPage() {
         phoneVerified: true,
       };
       setUser(demoUser);
-      // Generate mock tokens for demo mode
       const mockToken = `demo_${account.role}_${Date.now()}`;
       setTokens(mockToken, `refresh_${mockToken}`);
-      const roleLabel = getRoleLabel(account.role);
-      toast(`Demo login as ${roleLabel}! ⚠️ Backend offline — using demo mode`, {
-        icon: '🔧',
-        duration: 5000,
-      });
+      toast(`Demo login as ${getRoleLabel(account.role)}! ⚠️ Backend offline — demo mode`, { icon: '🔧', duration: 5000 });
       router.push(getRedirectPath(account.role));
     } finally {
       setDemoLoading(null);
@@ -230,9 +146,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-lg">
         {/* Logo */}
-        <div className="text-center mb-6">
+        <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl gradient-brand flex items-center justify-center">
               <span className="text-white font-bold">W</span>
@@ -242,209 +158,80 @@ export default function LoginPage() {
           <p className="text-gray-500 mt-1 text-sm">India&apos;s Wedding Operating System</p>
         </div>
 
+        {/* Role Selection Card */}
         <div className="card p-6 sm:p-8 shadow-xl">
-          {step === 'phone' ? (
-            <>
-              {/* ─── Login Mode Tabs ─── */}
-              <div className="flex rounded-xl bg-gray-100 p-1 mb-6" role="tablist" aria-label="Login type">
-                {LOGIN_MODES.map((mode) => {
-                  const Icon = mode.icon;
-                  const isActive = loginMode === mode.key;
-                  return (
-                    <button
-                      key={mode.key}
-                      role="tab"
-                      aria-selected={isActive}
-                      onClick={() => setLoginMode(mode.key)}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
-                        isActive
-                          ? 'bg-white shadow-sm text-gray-900'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      <Icon size={16} className={isActive ? (mode.key === 'couple' ? 'text-pink-500' : 'text-brand-600') : ''} />
-                      {mode.label}
-                    </button>
-                  );
-                })}
-              </div>
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold font-heading">Welcome!</h1>
+            <p className="text-gray-500 text-sm mt-1">Choose how you&apos;d like to sign in</p>
+          </div>
 
-              {/* ─── Mode Description ─── */}
-              <div className="text-center mb-5">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 ${
-                  loginMode === 'couple' ? 'bg-pink-100' : 'bg-brand-100'
-                }`}>
-                  {loginMode === 'couple'
-                    ? <Heart size={24} className="text-pink-600" />
-                    : <Store size={24} className="text-brand-600" />
-                  }
-                </div>
-                <h1 className="text-xl font-bold font-heading">
-                  {loginMode === 'couple' ? 'Couple Sign In' : 'Vendor Sign In'}
-                </h1>
-                <p className="text-gray-500 text-sm mt-1">
-                  {loginMode === 'couple'
-                    ? 'Plan your dream wedding with verified vendors'
-                    : 'Manage your wedding services & grow your business'
-                  }
-                </p>
-              </div>
-
-              {/* ─── Phone Form ─── */}
-              <form onSubmit={handleSendOtp} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Mobile Number</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">+91</span>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="9876543210"
-                      className="input-field pl-12"
-                      maxLength={10}
-                      required
-                      autoFocus
-                    />
+          {/* ─── Role Cards ─── */}
+          <div className="space-y-3">
+            {ROLE_OPTIONS.map((option) => {
+              const Icon = option.icon;
+              return (
+                <Link
+                  key={option.role}
+                  href={option.href}
+                  className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md active:scale-[0.98] ${option.borderColor} ${option.bgColor}`}
+                >
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${option.gradient} flex items-center justify-center flex-shrink-0`}>
+                    <Icon size={22} className="text-white" />
                   </div>
-                </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className={`font-bold text-sm ${option.color}`}>{option.label}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{option.description}</p>
+                  </div>
+                  <div className="flex-shrink-0 mt-1">
+                    <span className="text-gray-400 text-sm">→</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
 
-                <button type="submit" disabled={loading || phone.length < 10} className="btn-primary w-full flex items-center justify-center gap-2">
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                  {loading ? 'Sending OTP...' : 'Get OTP →'}
-                </button>
-              </form>
+          {/* ─── Demo Divider ─── */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-white px-3 text-gray-400 font-medium">Quick Demo Access</span>
+            </div>
+          </div>
 
-              <p className="text-center text-xs text-gray-400 mt-3">
-                By continuing, you agree to our{' '}
-                <Link href="/terms" className="text-brand-600">Terms</Link> &{' '}
-                <Link href="/privacy" className="text-brand-600">Privacy Policy</Link>
-              </p>
-
-              {/* ─── Divider ─── */}
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-gray-200" />
-                </div>
-                <div className="relative flex justify-center text-xs">
-                  <span className="bg-white px-3 text-gray-400 font-medium">Try Demo Accounts</span>
-                </div>
-              </div>
-
-              {/* ─── Demo Login Buttons ─── */}
-              <div className="grid grid-cols-2 gap-2.5">
-                {DEMO_ACCOUNTS.map((account) => {
-                  const Icon = account.icon;
-                  const isLoading = demoLoading === account.role;
-                  return (
-                    <button
-                      key={account.role}
-                      onClick={() => handleDemoLogin(account)}
-                      disabled={demoLoading !== null}
-                      className={`relative flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed ${account.borderColor} ${account.bgColor}`}
-                    >
-                      {isLoading ? (
-                        <Loader2 size={20} className={`animate-spin ${account.color}`} />
-                      ) : (
-                        <Icon size={20} className={account.color} />
-                      )}
-                      <span className={`text-xs font-semibold ${account.color}`}>
-                        {account.label}
-                      </span>
-                      <span className="text-[10px] text-gray-400 leading-tight text-center line-clamp-2">
-                        {account.description}
-                      </span>
-                      {/* Quick-access indicator */}
-                      <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
-                        <Zap size={8} className="text-white" />
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <>
-              {/* ─── OTP Step ─── */}
-              <div className="flex items-center mb-6">
-                <button onClick={() => setStep('phone')} className="p-2 rounded-lg hover:bg-gray-100 transition-colors mr-2" aria-label="Go back">
-                  <ArrowLeft size={20} />
-                </button>
-                <div>
-                  <h1 className="text-xl font-bold font-heading">Verify OTP</h1>
-                  <p className="text-sm text-gray-500">Sent to +91 {phone}</p>
-                </div>
-              </div>
-
-              {/* Role badge */}
-              <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-4 ${
-                loginMode === 'couple' ? 'bg-pink-100 text-pink-700' : 'bg-brand-100 text-brand-700'
-              }`}>
-                {loginMode === 'couple' ? <Heart size={12} /> : <Store size={12} />}
-                Logging in as {loginMode === 'couple' ? 'Couple' : 'Vendor'}
-              </div>
-
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">6-Digit OTP</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="• • • • • •"
-                    className="input-field text-center text-2xl tracking-[0.5em] font-bold"
-                    maxLength={6}
-                    required
-                    autoFocus
-                  />
-                  <p className="text-xs text-gray-400 mt-1 text-center">OTP expires in 10 minutes</p>
-                </div>
-
-                <button type="submit" disabled={loading || otp.length !== 6} className="btn-primary w-full flex items-center justify-center gap-2">
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                  {loading ? 'Verifying...' : 'Verify & Continue →'}
-                </button>
-
-                <div className="text-center">
-                  {resendTimer > 0 ? (
-                    <p className="text-sm text-gray-400">Resend OTP in {resendTimer}s</p>
+          {/* ─── Demo Login Buttons ─── */}
+          <div className="grid grid-cols-4 gap-2">
+            {DEMO_ACCOUNTS.map((account) => {
+              const Icon = account.icon;
+              const isLoading = demoLoading === account.role;
+              return (
+                <button
+                  key={account.role}
+                  onClick={() => handleDemoLogin(account)}
+                  disabled={demoLoading !== null}
+                  className={`relative flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed ${account.borderColor} ${account.bgColor}`}
+                >
+                  {isLoading ? (
+                    <Loader2 size={18} className={`animate-spin ${account.color}`} />
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleSendOtp({ preventDefault: () => {} } as any);
-                      }}
-                      className="text-sm text-brand-600 hover:underline"
-                    >
-                      Resend OTP
-                    </button>
+                    <Icon size={18} className={account.color} />
                   )}
-                </div>
-              </form>
-            </>
-          )}
-
-          {/* Security note */}
-          <div className="mt-5 flex items-center justify-center gap-2 text-xs text-gray-400">
-            <Shield size={12} className="text-green-500" />
-            <span>Secured with 256-bit encryption</span>
+                  <span className={`text-[10px] font-semibold ${account.color}`}>{account.label}</span>
+                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
+                    <Zap size={7} className="text-white" />
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* ─── Footer context ─── */}
-        <p className="text-center text-xs text-gray-400 mt-4">
-          {loginMode === 'couple'
-            ? 'Are you a vendor? '
-            : 'Planning a wedding? '
-          }
-          <button
-            onClick={() => setLoginMode(loginMode === 'couple' ? 'vendor' : 'couple')}
-            className="text-brand-600 font-medium hover:underline"
-          >
-            {loginMode === 'couple' ? 'Sign in as Vendor' : 'Sign in as Couple'}
-          </button>
-        </p>
+        {/* Security note */}
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+          <Shield size={12} className="text-green-500" />
+          <span>Secured with 256-bit encryption</span>
+        </div>
       </div>
     </div>
   );
