@@ -1,24 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { WifiOff, Wifi } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function NetworkStatus() {
   const [isOnline, setIsOnline] = useState(true);
   const [showReconnected, setShowReconnected] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const goOnline = () => {
       setIsOnline(true);
       setShowReconnected(true);
+      // Clear any existing timer
+      if (timerRef.current) clearTimeout(timerRef.current);
       // Hide reconnected banner after 3 seconds
-      setTimeout(() => setShowReconnected(false), 3000);
+      timerRef.current = setTimeout(() => setShowReconnected(false), 3000);
     };
 
     const goOffline = () => {
       setIsOnline(false);
       setShowReconnected(false);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
 
     window.addEventListener('online', goOnline);
@@ -30,6 +34,7 @@ export function NetworkStatus() {
     return () => {
       window.removeEventListener('online', goOnline);
       window.removeEventListener('offline', goOffline);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
 

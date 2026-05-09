@@ -237,7 +237,7 @@ export default function VendorsPage() {
       setVisibleCount(prev => Math.min(prev + LOAD_MORE_SIZE, filtered.length));
       setIsLoadingMore(false);
     }, 500);
-  }, []);
+  }, [filtered.length]);
 
   const clearFilters = useCallback(() => {
     setSearch('');
