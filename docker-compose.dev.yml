@@ -120,6 +120,7 @@ services:
       - '4002:4002'
     volumes:
       - ./services/user-service/src:/app/src
+      - ./packages:/app/packages
 
   vendor-service:
     build:
@@ -145,6 +146,7 @@ services:
       - '4003:4003'
     volumes:
       - ./services/vendor-service/src:/app/src
+      - ./packages:/app/packages
 
   booking-service:
     build:
@@ -169,6 +171,7 @@ services:
       - '4004:4004'
     volumes:
       - ./services/booking-service/src:/app/src
+      - ./packages:/app/packages
 
   payment-service:
     build:
@@ -197,6 +200,7 @@ services:
       - '4005:4005'
     volumes:
       - ./services/payment-service/src:/app/src
+      - ./packages:/app/packages
 
   execution-service:
     build:
@@ -220,6 +224,7 @@ services:
       - '4006:4006/udp'
     volumes:
       - ./services/execution-service/src:/app/src
+      - ./packages:/app/packages
 
   notification-service:
     build:
@@ -242,6 +247,96 @@ services:
       - '4008:4008'
     volumes:
       - ./services/notification-service/src:/app/src
+      - ./packages:/app/packages
+
+  review-service:
+    build:
+      context: ./services/review-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-review
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4009
+      DATABASE_URL: postgresql://weddingos:weddingos_dev@postgres:5432/weddingos?schema=reviews
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - '4009:4009'
+    volumes:
+      - ./services/review-service/src:/app/src
+      - ./packages:/app/packages
+
+  chat-service:
+    build:
+      context: ./services/chat-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-chat
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4010
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      MONGODB_URI: mongodb://mongo:27017/weddingos_chat
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - '4010:4010'
+    volumes:
+      - ./services/chat-service/src:/app/src
+      - ./packages:/app/packages
+
+  search-service:
+    build:
+      context: ./services/search-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-search
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4011
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      AUTH_SERVICE_URL: http://auth-service:4001
+    ports:
+      - '4011:4011'
+    volumes:
+      - ./services/search-service/src:/app/src
+      - ./packages:/app/packages
+
+  media-service:
+    build:
+      context: ./services/media-service
+      dockerfile: Dockerfile
+      target: development
+    container_name: weddingos-media
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 4012
+      REDIS_URL: redis://:redis_dev_password@redis:6379
+      AUTH_SERVICE_URL: http://auth-service:4001
+      AWS_REGION: ap-south-1
+      AWS_S3_BUCKET: weddingos-dev-media
+    ports:
+      - '4012:4012'
+    volumes:
+      - ./services/media-service/src:/app/src
+      - ./packages:/app/packages
 
   ai-service:
     build:
