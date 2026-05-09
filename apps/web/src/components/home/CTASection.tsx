@@ -39,7 +39,7 @@ export function CTASection() {
         {/* Vendor CTA */}
         <div className="mt-12 pt-10 border-t border-white/20">
           <p className="text-white/70 text-sm mb-3">Are you a wedding vendor?</p>
-          <Link href="/vendor/register" className="text-white font-medium hover:text-gold-300 transition-colors">
+          <Link href="/login" className="text-white font-medium hover:text-gold-300 transition-colors">
             Join as a Vendor — Grow your business →
           </Link>
         </div>

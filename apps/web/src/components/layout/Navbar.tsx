@@ -128,7 +128,7 @@ export function Navbar() {
           ) : (
             <>
               <Link href="/#how-it-works" className="block py-2 text-gray-700 font-medium">How it Works</Link>
-              <Link href="/pricing" className="block py-2 text-gray-700 font-medium">Pricing</Link>
+              <Link href="/vendors" className="block py-2 text-gray-700 font-medium">Pricing</Link>
             </>
           )}
           <div className="pt-2 border-t border-gray-100">

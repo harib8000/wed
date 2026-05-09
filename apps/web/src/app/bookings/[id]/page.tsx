@@ -3,10 +3,11 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Calendar, MapPin, Phone, CheckCircle2, Circle, Clock, Shield, AlertTriangle, ChevronRight, Building2, Camera, Download, MessageSquare, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Phone, CheckCircle2, Circle, Clock, Shield, AlertTriangle, ChevronRight, Building2, Camera, MessageSquare, XCircle } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuthStore } from '@/store/authStore';
 import { bookingApi, paymentApi } from '@/lib/api';
+import toast from 'react-hot-toast';
 
 // ─── Types ─────────────────────────────────────────────────
 type BookingStatus = 'ENQUIRY' | 'QUOTE_SENT' | 'QUOTE_ACCEPTED' | 'ADVANCE_PAID' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
@@ -95,6 +96,7 @@ export default function BookingDetailPage() {
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [acceptingQuote, setAcceptingQuote] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -335,9 +337,25 @@ export default function BookingDetailPage() {
               Message Vendor
             </Link>
             {!['COMPLETED', 'CANCELLED'].includes(booking.status) && (
-              <button className="flex-1 flex items-center justify-center gap-2 bg-white border border-red-200 hover:border-red-300 py-3 rounded-xl text-sm font-medium text-red-600 transition">
+              <button
+                disabled={cancelling}
+                onClick={async () => {
+                  if (!confirm('Are you sure you want to cancel this booking?')) return;
+                  setCancelling(true);
+                  try {
+                    await bookingApi.cancel(booking.id, 'Cancelled by customer');
+                    toast.success('Booking cancelled successfully');
+                    router.push('/bookings');
+                  } catch {
+                    toast.error('Failed to cancel booking. Please try again.');
+                  } finally {
+                    setCancelling(false);
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-2 bg-white border border-red-200 hover:border-red-300 py-3 rounded-xl text-sm font-medium text-red-600 transition disabled:opacity-50"
+              >
                 <XCircle className="w-4 h-4" />
-                Cancel Booking
+                {cancelling ? 'Cancelling...' : 'Cancel Booking'}
               </button>
             )}
           </div>
