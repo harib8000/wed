@@ -218,7 +218,10 @@ export default function LoginPage() {
       const mockToken = `demo_${account.role}_${Date.now()}`;
       setTokens(mockToken, `refresh_${mockToken}`);
       const roleLabel = getRoleLabel(account.role);
-      toast.success(`Demo login as ${roleLabel}! 🎉 (offline mode)`);
+      toast(`Demo login as ${roleLabel}! ⚠️ Backend offline — using demo mode`, {
+        icon: '🔧',
+        duration: 5000,
+      });
       router.push(getRedirectPath(account.role));
     } finally {
       setDemoLoading(null);
