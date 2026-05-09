@@ -17,7 +17,7 @@ class _RoleConfig {
   final String demoSubtitle;
   final IconData icon;
   final Color color;
-  final VoidCallback Function(WidgetRef ref, BuildContext context) onDemoLogin;
+  final void Function(WidgetRef ref, BuildContext context) onDemoLogin;
 
   const _RoleConfig({
     required this.key,
@@ -42,7 +42,7 @@ final _roles = [
     demoSubtitle: 'Browse vendors, book & pay',
     icon: Icons.favorite,
     color: const Color(0xFFDB2777),
-    onDemoLogin: (ref, ctx) => () {
+    onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoCustomerLogin();
       ctx.go('/');
     },
@@ -56,7 +56,7 @@ final _roles = [
     demoSubtitle: 'Manage bookings & services',
     icon: Icons.storefront,
     color: const Color(0xFF059669),
-    onDemoLogin: (ref, ctx) => () {
+    onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoVendorLogin();
       ctx.go('/');
     },
@@ -70,7 +70,7 @@ final _roles = [
     demoSubtitle: 'Manage events & timelines',
     icon: Icons.groups,
     color: const Color(0xFF4F46E5),
-    onDemoLogin: (ref, ctx) => () {
+    onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoCoordinatorLogin();
       ctx.go('/');
     },
@@ -84,7 +84,7 @@ final _roles = [
     demoSubtitle: 'Platform administration',
     icon: Icons.shield,
     color: const Color(0xFFD97706),
-    onDemoLogin: (ref, ctx) => () {
+    onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoAdminLogin();
       ctx.go('/');
     },
@@ -291,7 +291,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   label: role.demoName,
                   subtitle: role.demoSubtitle,
                   color: role.color,
-                  onTap: role.onDemoLogin(ref, context),
+                  onTap: () => role.onDemoLogin(ref, context),
                 ),
               )),
 
@@ -489,7 +489,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 label: role.demoName,
                 subtitle: role.demoSubtitle,
                 color: role.color,
-                onTap: role.onDemoLogin(ref, context),
+                onTap: () => role.onDemoLogin(ref, context),
               ),
 
               const SizedBox(height: 20),
