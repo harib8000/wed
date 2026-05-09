@@ -166,6 +166,11 @@ India's default channel. OTP, booking confirmations, payment receipts — all vi
 | 14 | [🐛 Bugs & Blockers](#-14-known-bugs--blockers) | Critical path issues | 29 | [🎯 Final Analysis](#-29-final-analysis--roadmap) | Scorecard, Gantt, actions |
 | 15 | [💼 Business Logic](#-15-business-logic) | Commission, refunds | 🚀 | [Quick Start](#-quick-start) | Setup in 5 minutes |
 | — | — | — | 📚 | [Deep Dive Addendum](#-deep-dive-addendum) | Service internals, types, events |
+| — | — | — | 📊 | [30. Deep Analysis & Rating](#-30-deep-analysis--implementation-rating) | PRD audit, gap analysis |
+| — | — | — | 📋 | [31. PRD Implementation Plan](#-31-prd-implementation-plan--16-epics--user-stories) | 16 epics, 70+ user stories |
+| — | — | — | 🏃 | [32. Sprint Breakdown](#-32-detailed-sprint-breakdown--all-44-sprints) | 44 sprints, story points |
+| — | — | — | ⚡ | [33. Execution Plan](#-33-execution-plan--architecture--decision-log) | Decision log, API checklist |
+| — | — | — | 🧠 | [34. AI Service Algorithms](#-34-ai-service--detailed-algorithms--implementation) | Budget optimizer, recommendations |
 
 </details>
 
@@ -3501,6 +3506,999 @@ interface EscrowHold {
 | MongoDB | `mongo:7-jammy` | 27017 | — | `mongo_data` |
 
 ---
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!--           SECTION 30 — DEEP ANALYSIS & IMPLEMENTATION RATING              -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+
+## 📊 30. Deep Analysis & Implementation Rating
+
+*Comprehensive audit of every PRD section and Master Bible section against actual codebase — verified, not claimed.*
+
+</div>
+
+---
+
+> **Audit Date:** May 2026 (Revised)
+> **Source Documents:** `WeddingOS_PRD_v1.0.docx` (16 sections, 1,824 paragraphs) + `WeddingOS_Vol3_MasterBible.docx` (22 sections, 2,365 paragraphs)
+> **Codebase:** Turborepo monorepo — 12 services, 4 frontend apps, 5 shared packages
+
+### 30.1 Overall Rating
+
+<div align="center">
+
+```
+╔══════════════════════════════════════════════════════╗
+║                                                      ║
+║           OVERALL RATING:  7.2 / 10                  ║
+║           ████████████████████░░░░░░  72%            ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
+```
+
+</div>
+
+> **Verdict:** Production-grade microservices with real Razorpay payment integration, RS256 JWT auth, Elasticsearch search, Socket.IO real-time chat, S3 media uploads, BullMQ job queues, and a full booking state machine with optimistic locking. All 11 Express services have real controllers, Prisma schemas, Zod validation, structured logging (Pino), rate limiting, and error handling. The Next.js web app has complete customer-facing pages with API client integration. CI/CD pipeline (GitHub Actions) covers lint, test, Docker build, Flutter APK, and Terraform deploy.
+>
+> **Remaining gaps:** Admin/Vendor portals are scaffolded only, AI service is partial, E2E tests are missing, observability (APM/tracing) is not wired, and legal/compliance documents are pending.
+
+### 30.2 PRD v1.0 — Section-by-Section Rating
+
+| # | PRD Section | Rating | Bar | Status |
+|:-:|------------|:------:|:---:|--------|
+| 1 | Executive Summary & Vision | N/A | — | Business doc — no code needed |
+| 2 | Product Architecture | **8/10** | `████████░░` | Monorepo ✅, 12 services ✅, shared packages ✅, event bus ✅, Kong gateway config ✅, Terraform modules ✅. Missing: GraphQL layer |
+| 3 | Database Design | **8/10** | `████████░░` | 8 Prisma schemas with 20+ models, indexes, enums, auditing. Booking has optimistic locking via `version` field. Missing: Analytics tables |
+| 4 | API Design Specification | **8/10** | `████████░░` | Full CRUD endpoints across all services. Auth (send-otp/verify/refresh/logout/me/register-vendor), Vendor (search/CRUD/packages/portfolio/availability), Booking (enquire/quote/accept/confirm/cancel), Payment (create-order/verify/webhook/refund/escrow-release), Reviews, Notifications, Chat, Execution timeline |
+| 5 | Security Architecture | **7/10** | `███████░░░` | JWT RS256 ✅, OTP with lockout ✅, rate limiting ✅, Zod validation ✅, helmet ✅, Razorpay signature verification (OWASP) ✅, httpOnly cookies ✅. Missing: CSRF tokens, WAF, PII encryption |
+| 6 | Customer App Features | **7/10** | `███████░░░` | Next.js 14 with all pages (home/login/dashboard/vendors/vendor-detail/bookings/booking-detail/checkout/profile/wishlist), Zustand auth store, React Query, Axios API client with refresh interceptor. Missing: AI budget planner UI, guest management |
+| 7 | Vendor OS (B2B SaaS) | **3/10** | `███░░░░░░░` | Vite scaffold with layout, login, dashboard, bookings, analytics, profile pages. Mostly mock data. Missing: Lead CRM, invoice generation, subscription management |
+| 8 | Execution Engine | **7/10** | `███████░░░` | Full timeline service with CRUD, task categories, status machine (PENDING→IN_PROGRESS→DONE/SKIPPED), linked booking support, BullMQ reminder jobs, Socket.IO real-time updates. Missing: GPS check-in, auto-generation from booking |
+| 9 | AI/ML Layer | **2/10** | `██░░░░░░░░` | FastAPI scaffold with budget-planner, recommend, chat routes using Pydantic models. LLM call logic started (OpenAI/Claude support). Missing: Actual model training, collaborative filtering, fraud detection |
+| 10 | Payment & Escrow | **9/10** | `█████████░` | Full Razorpay integration: order creation (idempotent), signature verification, webhook handler, escrow hold creation with scheduled release, platform fee calculation (10% + 18% GST), refund support, payout tracking. BullMQ for async escrow release |
+| 11 | Performance Architecture | **3/10** | `███░░░░░░░` | Redis caching available, BullMQ queues for async work. Missing: CDN config, connection pooling tuning, query optimization, APM |
+| 12 | DevOps, CI/CD & Infra | **7/10** | `███████░░░` | GitHub Actions CI (lint, test, build, Docker, Flutter, deploy staging/prod) ✅, docker-compose.infra.yml ✅, docker-compose.dev.yml ✅, Terraform modules (networking, database, compute, storage, monitoring) ✅. Missing: Monitoring dashboards, alerting rules |
+| 13 | Phase-wise Implementation | **6/10** | `██████░░░░` | Phase 1–2 complete, Phase 3 partially done |
+| 14 | AI Developer Prompt Library | N/A | — | Reference doc for dev team |
+| 15 | Go-to-Market Strategy | N/A | — | Business doc — no code needed |
+| 16 | Testing Strategy | **2/10** | `██░░░░░░░░` | Jest configs in all services, some test files. Missing: Comprehensive unit tests, integration tests, E2E tests (Playwright) |
+
+### 30.3 Master Bible Vol.3 — Section-by-Section Rating
+
+| # | Bible Section | Rating | Bar | Status |
+|:-:|-------------|:------:|:---:|--------|
+| 1 | Code Architecture & Folder Structure | **8/10** | `████████░░` | Clean monorepo, service-internal structure follows convention (routes/controllers/services/middleware/config/utils). Shared packages for types/events/errors/utils |
+| 2 | Financial Model & Unit Economics | N/A | — | Business doc |
+| 3 | Third-Party API Integration | **6/10** | `██████░░░░` | Razorpay ✅, MSG91 (configured) ✅, Firebase Admin SDK ✅, SendGrid ✅, AWS S3 ✅, Elasticsearch ✅, MongoDB ✅. Missing: DigiLocker KYC, bank penny drop, WhatsApp 360dialog |
+| 4 | Capacity Planning & Scaling | **2/10** | `██░░░░░░░░` | BullMQ queues for async work. Missing: Auto-scaling config, connection pooling, k6 load tests |
+| 5 | Mobile App Release Process | **5/10** | `█████░░░░░` | Flutter app with GoRouter, Riverpod providers, Dio API client, FCM push, Material 3 theme, 10+ screens. CI builds APK + IPA. Missing: Full screen implementations, play store listing |
+| 6 | Operations Manual | N/A | — | Business process doc |
+| 7 | Growth & Marketing Automation | **0/10** | `░░░░░░░░░░` | Not started |
+| 8 | Data Pipeline & Analytics | **0/10** | `░░░░░░░░░░` | Not started |
+| 9 | Partnership Integration | N/A | — | Business process doc |
+| 10 | Load Testing Scripts | **0/10** | `░░░░░░░░░░` | Not started |
+| 11 | Privacy Center & Cookie Consent | **0/10** | `░░░░░░░░░░` | Not started |
+| 12 | OpenAPI Specification | **0/10** | `░░░░░░░░░░` | docs/openapi/ is empty |
+| 13 | Multi-City Expansion | **3/10** | `███░░░░░░░` | Vendor model supports city/state/serviceCities. Missing: City-based config/pricing |
+| 14 | Content Management System | **0/10** | `░░░░░░░░░░` | Not started |
+| 15 | Admin Real-Time Ops Dashboard | **3/10** | `███░░░░░░░` | Vite scaffold with pages. Missing: Real WebSocket feed, KPI dashboard |
+| 16 | Webhook Handler Guide | **7/10** | `███████░░░` | Razorpay webhook handler with signature verification exists in payment-service |
+| 17 | Performance Budget | **0/10** | `░░░░░░░░░░` | No Lighthouse CI |
+| 18 | Architecture Decision Records | **0/10** | `░░░░░░░░░░` | docs/adr/ is empty |
+| 19 | Investor Metrics Dashboard | N/A | — | Business doc |
+| 20 | Technical Debt Register | N/A | — | Process doc |
+| 21 | Vendor Payout Reconciliation | **5/10** | `█████░░░░░` | Escrow + payout tracking exists. Missing: Automated daily reconciliation |
+| 22 | Pre-Launch Checklist | **4/10** | `████░░░░░░` | Core infra, health checks, Docker, CI/CD done. Missing: Security audit, performance testing, legal docs |
+
+### 30.4 What Actually Exists (Verified Against Codebase)
+
+#### Backend Services — All Production-Grade
+
+| Service | Port | Implementation | Key Features |
+|---------|:----:|:--------------:|-------------|
+| **auth-service** | 4001 | ✅ Complete | OTP (MSG91), JWT RS256, refresh token rotation, account lockout, register-vendor |
+| **user-service** | 4002 | ✅ Complete | Profile CRUD, S3 avatar upload, notification preferences, KYC document model |
+| **vendor-service** | 4003 | ✅ Complete | CRUD, Elasticsearch sync, portfolio, packages, availability blocking, autocomplete |
+| **booking-service** | 4004 | ✅ Complete | FSM (ENQUIRY→QUOTE_SENT→ACCEPTED→ADVANCE_PENDING→CONFIRMED→COMPLETED/CANCELLED), optimistic locking, platform fee calc, audit log |
+| **payment-service** | 4005 | ✅ Complete | Razorpay orders (idempotent), signature verification, webhook handler, escrow hold, scheduled release, refunds |
+| **execution-service** | 4006 | ✅ Complete | Wedding timeline CRUD, task management, categories, reminder jobs (BullMQ) |
+| **notification-service** | 4008 | ✅ Complete | Multi-channel (FCM, SMS/MSG91, WhatsApp, SendGrid email, in-app), BullMQ queue, event-driven subscription |
+| **review-service** | 4009 | ✅ Complete | Post-booking reviews (1 per booking), category ratings, vendor reply, helpful voting |
+| **chat-service** | 4010 | ✅ Complete | Socket.IO real-time, MongoDB (Mongoose), conversation management, unread tracking |
+| **search-service** | 4011 | ✅ Complete | Elasticsearch full-text search, filters, aggregations |
+| **media-service** | 4012 | ✅ Complete | S3 presigned URLs, type validation, Sharp image processing, cleanup |
+
+#### Frontend Apps — Status
+
+| App | Technology | Pages | Status |
+|-----|-----------|:-----:|:------:|
+| **web** | Next.js 14 + Tailwind + React Query + Zustand | 10 pages | ✅ Complete (API client wired) |
+| **admin** | React 18 + Vite + Ant Design | 5 pages | 🟡 Scaffold (mock data fallback) |
+| **vendor-web** | React 18 + Vite + Tailwind + Recharts | 6 pages | 🟡 Scaffold (mock data fallback) |
+| **mobile** | Flutter 3.19 + Riverpod + GoRouter + Dio | 10+ screens | 🟡 Partially implemented |
+
+#### Infrastructure — Status
+
+| Component | Status | Details |
+|-----------|:------:|---------|
+| Docker Compose (infra) | ✅ | Postgres 16, Redis 7, Elasticsearch 8, MongoDB 7 |
+| Docker Compose (dev) | ✅ | All 11 services |
+| Dockerfiles | ✅ | All services (multi-stage, non-root user) |
+| GitHub Actions CI/CD | ✅ | Lint, test, build, Docker push, Flutter APK/IPA, Terraform deploy |
+| Terraform | ✅ | Modules (networking, database, compute, storage, monitoring), staging + production |
+| Kong API Gateway | ✅ | Declarative config with rate limiting |
+| Event Bus | ✅ | Redis pub/sub (shared-events package, 35 typed events) |
+
+### 30.5 Remaining Gaps (Priority Ordered)
+
+#### 🔴 HIGH — Required for Beta Launch
+
+| # | Gap | Estimated Effort |
+|:-:|-----|:----------------:|
+| 1 | **E2E Tests** — Playwright for web, integration tests for services (~0% coverage) | 2 weeks |
+| 2 | **Admin Portal Build-Out** — Real CRUD screens, vendor approval queue, dispute management | 1 week |
+| 3 | **Vendor Portal Build-Out** — Booking calendar, lead management, payout dashboard | 1 week |
+| 4 | **Observability** — Sentry, OpenTelemetry traces, Grafana dashboards | 1 week |
+| 5 | **Secrets Management** — Migrate from .env to AWS Secrets Manager / Vault | 3 days |
+| 6 | **Legal Pages** — Privacy Policy, T&C, Refund Policy (DPDP compliance) | 1 week |
+
+#### 🟡 MEDIUM — Required for Production
+
+| # | Gap | Estimated Effort |
+|:-:|-----|:----------------:|
+| 7 | **OpenAPI Documentation** — Auto-generate from Zod schemas | 3 days |
+| 8 | **Load Testing** — k6 scripts for critical paths | 3 days |
+| 9 | **AI Service Completion** — Wire LLM calls, budget optimizer | 1 week |
+| 10 | **Flutter Mobile Completion** — Wire remaining screens to API | 2 weeks |
+| 11 | **KYC Pipeline** — DigiLocker / bank verification integration | 1 week |
+| 12 | **Performance Monitoring** — Lighthouse CI, APM | 3 days |
+
+#### 🟢 POST-LAUNCH
+
+| # | Gap | Estimated Effort |
+|:-:|-----|:----------------:|
+| 13 | Guest Management module | 1 week |
+| 14 | Analytics pipeline (ClickHouse / Metabase) | 2 weeks |
+| 15 | Multi-language support (i18n) | 1 week |
+| 16 | WhatsApp Business API integration (360dialog) | 1 week |
+| 17 | Wedding loans/insurance partnerships | 2 weeks |
+| 18 | Coordinator portal | 2 weeks |
+
+### 30.6 Effort to Beta Launch
+
+> **Estimated effort to beta launch: 3 focused sprints (~6 weeks).**
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!--          SECTION 31 — PRD IMPLEMENTATION PLAN (16 EPICS)                  -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+
+## 📋 31. PRD Implementation Plan — 16 Epics & User Stories
+
+*Complete sprint-level plan derived from PRD v1.0 + Vol.3 Master Bible — 16 epics, 70+ user stories, 5 phases, 44+ sprints.*
+
+</div>
+
+---
+
+### 31.1 Phase Overview
+
+| Phase | Duration | Sprints | Goal | Revenue Target | Key Deliverable |
+|-------|---------|:-------:|------|:--------------:|----------------|
+| **1. Validation** | Month 0–2 (8 weeks) | S1–S4 | Prove demand, no-code | ₹0 | Landing page + 50 vendors + 10 couples |
+| **2. MVP** | Month 2–5 (14 weeks) | S5–S11 | Live bookable platform | ₹1–5L GMV/mo | End-to-end booking + payment |
+| **3. Traction** | Month 5–10 (20 weeks) | S12–S21 | Product-market fit | ₹50L+ GMV/mo | Full Vendor OS + search + admin |
+| **4. Differentiation** | Month 10–18 (32 weeks) | S22–S37 | Execution Engine live | ₹2Cr+ GMV/mo | Task system + day-of dashboard |
+| **5. Scale** | Month 18+ | S38+ | Multi-city, AI-powered | ₹20Cr+ GMV/mo | Multi-city + vernacular + loans |
+
+> **Sprint Cadence:** 2-week sprints, Monday start
+> **Ceremonies:** Sprint Planning (Monday AM), Daily Standup, Demo (Friday W2), Retro (Friday W2)
+
+### 31.2 Phase Progression Diagram
+
+```mermaid
+flowchart LR
+    P1["🟢 Phase 1<br/>Validation<br/>8 weeks<br/>S1–S4"]
+    P2["🔵 Phase 2<br/>MVP<br/>14 weeks<br/>S5–S11"]
+    P3["🟣 Phase 3<br/>Traction<br/>20 weeks<br/>S12–S21"]
+    P4["🟠 Phase 4<br/>Differentiation<br/>32 weeks<br/>S22–S37"]
+    P5["🔴 Phase 5<br/>Scale<br/>Ongoing<br/>S38+"]
+
+    P1 -->|"500+ visitors<br/>50+ vendor apps"| P2
+    P2 -->|"50+ vendors live<br/>₹1L+ GMV"| P3
+    P3 -->|"200+ vendors<br/>₹50L+ GMV"| P4
+    P4 -->|"50+ events executed<br/>₹2Cr+ GMV"| P5
+
+    style P1 fill:#e8f5e9,stroke:#2e7d32,color:#000
+    style P2 fill:#e3f2fd,stroke:#1565c0,color:#000
+    style P3 fill:#f3e5f5,stroke:#7b1fa2,color:#000
+    style P4 fill:#fff3e0,stroke:#ef6c00,color:#000
+    style P5 fill:#fce4ec,stroke:#c62828,color:#000
+```
+
+### 31.3 All 16 Epics & User Stories
+
+<details>
+<summary><strong>Epic 1: Platform Foundation (Phase 1) — 5 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-1.1 | As a visitor, I can land on a page that explains Wedding OS value proposition | P0 | 1 |
+| US-1.2 | As a couple, I can fill a form to express interest in wedding planning | P0 | 1 |
+| US-1.3 | As a vendor, I can apply to join the platform via Google Form | P0 | 1 |
+| US-1.4 | As operations, I can track vendors in Airtable CRM | P0 | 1 |
+| US-1.5 | As marketing, I can run Instagram content series for Hyderabad weddings | P1 | 1 |
+
+</details>
+
+<details>
+<summary><strong>Epic 2: Authentication & User Management (Phase 2) — 5 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-2.1 | As a user, I can register/login with phone OTP | P0 | 2 |
+| US-2.2 | As a user, I can login via Google OAuth | P1 | 2 |
+| US-2.3 | As a user, I can view and edit my profile | P0 | 2 |
+| US-2.4 | As a system, I manage JWT access + refresh tokens with rotation | P0 | 2 |
+| US-2.5 | As a system, I enforce rate limiting on OTP (3/10min, lockout at 5 fails) | P0 | 2 |
+
+</details>
+
+<details>
+<summary><strong>Epic 3: Vendor Management (Phase 2) — 6 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-3.1 | As a vendor, I can register my business with category, city, contact | P0 | 2 |
+| US-3.2 | As a vendor, I can upload portfolio photos (up to 20) | P0 | 2 |
+| US-3.3 | As a vendor, I can create and manage service packages with pricing | P0 | 2 |
+| US-3.4 | As a vendor, I can set my availability calendar and block dates | P0 | 2 |
+| US-3.5 | As a vendor, I can view my profile as customers see it | P1 | 2 |
+| US-3.6 | As admin, I can verify vendor KYC documents | P0 | 2 |
+
+</details>
+
+<details>
+<summary><strong>Epic 4: Vendor Discovery (Phase 2) — 5 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-4.1 | As a customer, I can browse vendors by category | P0 | 2 |
+| US-4.2 | As a customer, I can filter vendors by city, price range, rating | P0 | 2 |
+| US-4.3 | As a customer, I can view a vendor's complete profile with portfolio | P0 | 2 |
+| US-4.4 | As a customer, I can check vendor availability on a specific date | P0 | 2 |
+| US-4.5 | As a customer, I can save vendors to favorites | P1 | 2 |
+
+</details>
+
+<details>
+<summary><strong>Epic 5: Booking & Enquiry System (Phase 2) — 6 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-5.1 | As a customer, I can send an enquiry to a vendor for a specific date | P0 | 2 |
+| US-5.2 | As a vendor, I can receive enquiry notifications (in-app + push) | P0 | 2 |
+| US-5.3 | As a vendor, I can send a quote (package or custom price) | P0 | 2 |
+| US-5.4 | As a customer, I can accept/reject a vendor quote | P0 | 2 |
+| US-5.5 | As a customer, I can confirm a booking by paying advance | P0 | 2 |
+| US-5.6 | As a system, booking creates escrow hold on advance payment | P0 | 2 |
+
+</details>
+
+<details>
+<summary><strong>Epic 6: Payment & Escrow (Phase 2) — 5 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-6.1 | As a customer, I can pay via Razorpay (UPI, cards, NetBanking) | P0 | 2 |
+| US-6.2 | As a system, I verify Razorpay webhook signatures (HMAC-SHA256) | P0 | 2 |
+| US-6.3 | As a system, I create escrow hold on successful payment | P0 | 2 |
+| US-6.4 | As a system, I auto-release escrow 7 days post-event (if no dispute) | P0 | 2 |
+| US-6.5 | As a vendor, I can see my wallet balance and pending payouts | P1 | 2 |
+
+</details>
+
+<details>
+<summary><strong>Epic 7: Event Management (Phase 2) — 3 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-7.1 | As a customer, I can create a wedding event with date, city, budget | P0 | 2 |
+| US-7.2 | As a customer, I can see all booked vendors for my event | P0 | 2 |
+| US-7.3 | As a customer, I can track my wedding budget vs spend | P1 | 2 |
+
+</details>
+
+<details>
+<summary><strong>Epic 8: AI Budget Planner (Phase 2) — 3 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-8.1 | As a customer, I can input budget/city/guests and get AI plan (3 tiers) | P1 | 2 |
+| US-8.2 | As a customer, I can adjust budget allocation sliders | P1 | 2 |
+| US-8.3 | As a customer, I can see vendor recommendations per category | P2 | 2 |
+
+</details>
+
+<details>
+<summary><strong>Epic 9: Notifications (Phase 2) — 3 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-9.1 | As a user, I receive push notifications for bookings, payments | P0 | 2 |
+| US-9.2 | As a user, I receive SMS for OTP and critical booking updates | P0 | 2 |
+| US-9.3 | As a user, I receive in-app notification feed | P1 | 2 |
+
+</details>
+
+<details>
+<summary><strong>Epic 10: Vendor OS (Phase 3) — 6 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-10.1 | As a vendor, I can see lead pipeline (Kanban: Enquiry→Quoted→Confirmed) | P0 | 3 |
+| US-10.2 | As a vendor, I can view revenue dashboard (monthly/quarterly) | P0 | 3 |
+| US-10.3 | As a vendor, I can auto-generate GST invoices | P1 | 3 |
+| US-10.4 | As a vendor, I can subscribe to Premium/Enterprise tier | P0 | 3 |
+| US-10.5 | As a vendor, I can view my performance analytics | P1 | 3 |
+| US-10.6 | As a vendor, I can use response templates for enquiries | P2 | 3 |
+
+</details>
+
+<details>
+<summary><strong>Epic 11: Advanced Search (Phase 3) — 4 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-11.1 | As a customer, I can full-text search vendors (Elasticsearch) | P0 | 3 |
+| US-11.2 | As a customer, I can see autocomplete suggestions | P1 | 3 |
+| US-11.3 | As a customer, I can search vendors on a map view | P1 | 3 |
+| US-11.4 | As a customer, I can find vendors within X km radius | P1 | 3 |
+
+</details>
+
+<details>
+<summary><strong>Epic 12: Review & Rating System (Phase 3) — 3 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-12.1 | As a customer, I can leave a verified review after event completion | P0 | 3 |
+| US-12.2 | As a customer, I can upload photos with my review | P1 | 3 |
+| US-12.3 | As a system, reviews are only from verified bookings | P0 | 3 |
+
+</details>
+
+<details>
+<summary><strong>Epic 13: Admin Panel (Phase 3) — 5 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-13.1 | As admin, I can see real-time ops dashboard (GMV, bookings, disputes) | P0 | 3 |
+| US-13.2 | As admin, I can verify/reject vendor KYC with document review | P0 | 3 |
+| US-13.3 | As admin, I can manage disputes (review evidence, resolve) | P0 | 3 |
+| US-13.4 | As admin, I can manually release/hold escrow payments | P0 | 3 |
+| US-13.5 | As admin, I can view/manage all users and vendors | P1 | 3 |
+
+</details>
+
+<details>
+<summary><strong>Epic 14: Guest Management (Phase 3) — 3 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-14.1 | As a customer, I can add guests (manual or Excel import) | P1 | 3 |
+| US-14.2 | As a customer, I can track RSVP status | P1 | 3 |
+| US-14.3 | As a customer, I can assign meal preferences (veg/non-veg/Jain) | P2 | 3 |
+
+</details>
+
+<details>
+<summary><strong>Epic 15: Execution Engine (Phase 4) — 6 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-15.1 | As a system, I auto-generate task list on booking confirmation | P0 | 4 |
+| US-15.2 | As a customer, I can see event timeline (T-180 to T+1) | P0 | 4 |
+| US-15.3 | As a vendor, I can check in on event day with GPS | P0 | 4 |
+| US-15.4 | As a coordinator, I see live vendor check-in dashboard | P0 | 4 |
+| US-15.5 | As a system, I send runsheet to all vendors 24h before | P0 | 4 |
+| US-15.6 | As anyone, I can report issues in real-time (photo + description) | P1 | 4 |
+
+</details>
+
+<details>
+<summary><strong>Epic 16: AI Enhancement (Phase 4) — 3 stories</strong></summary>
+
+| ID | User Story | Priority | Phase |
+|----|-----------|:--------:|:-----:|
+| US-16.1 | As a customer, I can get personalized vendor recommendations | P1 | 4 |
+| US-16.2 | As a customer, I can chat with AI wedding planning assistant | P1 | 4 |
+| US-16.3 | As a system, I can detect fake reviews via ML | P2 | 4 |
+
+</details>
+
+### 31.4 Go/No-Go Criteria per Phase
+
+| Phase | Criteria | Measured By |
+|-------|---------|------------|
+| **Phase 1 → 2** | 500+ visitors, 50+ vendor apps, 3+ willing to pay | Analytics + Airtable |
+| **Phase 2 → 3** | 50+ vendors live, 10+ real bookings, ₹1L+ GMV, payment working | Platform dashboard |
+| **Phase 3 → 4** | 200+ vendors, 100+ monthly bookings, ₹50L+ GMV, NPS >40 | Analytics + surveys |
+| **Phase 4 → 5** | Execution Engine used for 50+ events, ₹2Cr+ GMV, 3+ coordinators | Event data + revenue |
+
+### 31.5 Definition of Done
+
+<details>
+<summary><strong>Per Story & Per Sprint (click to expand)</strong></summary>
+
+#### For every story:
+- [ ] Code written with TypeScript (strict mode)
+- [ ] Zod validation on all inputs
+- [ ] Unit tests passing (minimum 80%, 100% for auth/payment)
+- [ ] Integration tests for API endpoints
+- [ ] No Snyk critical vulnerabilities
+- [ ] Code reviewed and approved (1 reviewer minimum)
+- [ ] Works on mobile web (responsive)
+- [ ] Error states handled (network error, empty state, loading)
+- [ ] API follows standard response envelope `{ success, data, error, meta }`
+- [ ] Deployed to staging and manually verified
+
+#### For every sprint:
+- [ ] All P0 stories completed
+- [ ] All tests passing in CI
+- [ ] Demo to stakeholders completed
+- [ ] Sprint retrospective conducted
+- [ ] Next sprint backlog groomed
+
+</details>
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!--          SECTION 32 — DETAILED SPRINT BREAKDOWN (44 SPRINTS)              -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+
+## 🏃 32. Detailed Sprint Breakdown — All 44 Sprints
+
+*Every sprint with tasks, story points, dependencies, and deliverables. Complete sprint-level engineering plan.*
+
+</div>
+
+---
+
+### 32.1 Sprint Index
+
+| Sprint | Phase | Duration | Focus | SP |
+|:------:|:-----:|:--------:|-------|:--:|
+| S1 | 1 | W1–2 | Foundation & Landing Page | — |
+| S2 | 1 | W3–4 | Vendor Outreach | — |
+| S3 | 1 | W5–6 | Traction & Iteration | — |
+| S4 | 1 | W7–8 | Validation Gate (**GO/NO-GO**) | — |
+| S5 | 2 | W9–10 | Auth Service + Project Scaffolding | 41 |
+| S6 | 2 | W11–12 | Vendor Service & Profile CRUD | 40 |
+| S7 | 2 | W13–14 | Vendor Search & Customer Web | 39 |
+| S8 | 2 | W15–16 | Booking & Enquiry System | 48 |
+| S9 | 2 | W17–18 | Payment & Escrow (Razorpay) | 51 |
+| S10 | 2 | W19–20 | Flutter Mobile App + Vendor Dashboard | 49 |
+| S11 | 2 | W21–22 | AI Budget Planner + Reviews + MVP Polish | 46 |
+| S12 | 3 | W23–24 | Elasticsearch Integration | 36 |
+| S13 | 3 | W25–26 | Vendor OS — CRM & Pipeline | 30 |
+| S14 | 3 | W27–28 | Vendor Subscriptions & Monetization | 34 |
+| S15 | 3 | W29–30 | Admin Panel v1 | 37 |
+| S16 | 3 | W31–32 | SMS + WhatsApp Notifications | 30 |
+| S17 | 3 | W33–34 | Guest Management + Budget Tracker | 28 |
+| S18 | 3 | W35–36 | Review System v2 + Referral | 22 |
+| S19 | 3 | W37–38 | Microservice Extraction (Auth + Payment) | 39 |
+| S20 | 3 | W39–40 | More Microservice Extraction + Scaling | 39 |
+| S21 | 3 | W41–42 | Phase 3 Polish + Traction Gate | 33 |
+| S22–23 | 4 | W43–46 | Task & Timeline Engine | 46 |
+| S24–25 | 4 | W47–50 | Event Day System | 53 |
+| S26–27 | 4 | W51–54 | Coordinator Portal | 34 |
+| S28–29 | 4 | W55–58 | Escrow 2.0 + Advanced Payments | 37 |
+| S30–31 | 4 | W59–62 | AI 2.0 | 41 |
+| S32–33 | 4 | W63–66 | Vendor Verification 2.0 + Chat | 27 |
+| S34–35 | 4 | W67–70 | ClickHouse Analytics + Dashboards | 33 |
+| S36–37 | 4 | W71–72 | Phase 4 Polish + Launch | 25 |
+| S38–39 | 5 | W73–76 | Multi-City Expansion (Mumbai) | — |
+| S40–41 | 5 | W77–80 | Internationalization (i18n) | — |
+| S42–43 | 5 | W81–84 | Wedding Loans + Insurance | — |
+| S44+ | 5 | W85+ | City-by-City Expansion | — |
+
+### 32.2 Phase 2 Sprint Details (MVP — S5 to S11)
+
+<details>
+<summary><strong>Sprint 5 (W9–10): Auth Service + Project Scaffolding — 41 SP (click to expand)</strong></summary>
+
+| Task ID | Task | SP | Story |
+|:-------:|------|:--:|:-----:|
+| T-5.1 | Set up pnpm monorepo with Turborepo | 3 | — |
+| T-5.2 | Create shared packages: shared-types, shared-utils, shared-errors | 3 | — |
+| T-5.3 | Set up Docker Compose: PostgreSQL, Redis, Elasticsearch (dev) | 3 | — |
+| T-5.4 | Create Express app boilerplate with middleware chain | 3 | — |
+| T-5.5 | Implement Prisma schema: users, user_profiles, refresh_tokens | 3 | US-2.1 |
+| T-5.6 | Build POST /auth/send-otp (MSG91 integration, Redis TTL, rate limit) | 5 | US-2.1, 2.5 |
+| T-5.7 | Build POST /auth/verify-otp (JWT RS256, refresh token rotation) | 5 | US-2.1, 2.4 |
+| T-5.8 | Build POST /auth/refresh and POST /auth/logout | 3 | US-2.4 |
+| T-5.9 | Auth middleware (JWT verification, Redis blacklist check) | 3 | US-2.4 |
+| T-5.10 | Zod validation middleware + request ID middleware | 2 | — |
+| T-5.11 | Unit + integration tests for auth (100% coverage target) | 5 | — |
+| T-5.12 | Set up CI: GitHub Actions (lint + type-check + test) | 3 | — |
+| | **Sprint Total** | **41** | |
+
+**Deliverable:** Auth service working end-to-end with OTP login, JWT, rate limiting, tests, CI pipeline.
+
+</details>
+
+<details>
+<summary><strong>Sprint 6 (W11–12): Vendor Service & Profile CRUD — 40 SP</strong></summary>
+
+| Task ID | Task | SP | Story |
+|:-------:|------|:--:|:-----:|
+| T-6.1 | Prisma schema: vendors, vendor_packages, vendor_portfolio | 3 | US-3.1 |
+| T-6.2 | POST /auth/register-vendor (vendor user creation + profile setup) | 5 | US-3.1 |
+| T-6.3 | PUT /vendors/me (update own profile) | 3 | US-3.1 |
+| T-6.4 | GET /vendors/:id (public vendor profile view) | 3 | US-4.3 |
+| T-6.5 | CRUD /vendors/me/packages (create, update, delete packages) | 5 | US-3.3 |
+| T-6.6 | S3 presigned URL for portfolio photo upload | 3 | US-3.2 |
+| T-6.7 | GET /vendors/:id/portfolio (portfolio media list) | 2 | US-4.3 |
+| T-6.8 | Vendor availability: set weekly schedule, block dates | 5 | US-3.4 |
+| T-6.9 | GET /vendors/:id/availability?date=YYYY-MM-DD | 3 | US-4.4 |
+| T-6.10 | Admin endpoint: PUT /admin/vendors/:id/verify (KYC approval) | 3 | US-3.6 |
+| T-6.11 | Unit + integration tests | 5 | — |
+| | **Sprint Total** | **40** | |
+
+**Deliverable:** Complete vendor CRUD — register, profile, packages, portfolio upload, availability.
+
+</details>
+
+<details>
+<summary><strong>Sprint 7 (W13–14): Vendor Search & Customer Web — 39 SP</strong></summary>
+
+| Task ID | Task | SP | Story |
+|:-------:|------|:--:|:-----:|
+| T-7.1 | GET /vendors (list with filters: category, city, price, rating) | 5 | US-4.1, 4.2 |
+| T-7.2 | Cursor-based pagination for vendor list | 3 | — |
+| T-7.3 | Sort: relevance, price_asc, price_desc, rating_desc | 3 | US-4.2 |
+| T-7.4 | Next.js project setup: app router, layout, theme (purple brand) | 5 | — |
+| T-7.5 | Login page: phone OTP flow UI | 5 | US-2.1 |
+| T-7.6 | Vendor search page: filter sidebar + results grid | 5 | US-4.1 |
+| T-7.7 | Vendor card component (photo, rating, price, verified badge) | 3 | US-4.3 |
+| T-7.8 | Vendor profile page (SSR for SEO) | 5 | US-4.3 |
+| T-7.9 | Save vendor to favorites (heart button) | 2 | US-4.5 |
+| T-7.10 | Responsive design: mobile web | 3 | — |
+| | **Sprint Total** | **39** | |
+
+**Deliverable:** Customer can search vendors, filter, view profiles on web. Login working.
+
+</details>
+
+<details>
+<summary><strong>Sprint 8 (W15–16): Booking & Enquiry System — 48 SP</strong></summary>
+
+| Task ID | Task | SP | Story |
+|:-------:|------|:--:|:-----:|
+| T-8.1 | Prisma schema: bookings, events | 3 | US-5.1 |
+| T-8.2 | POST /bookings/enquire (create enquiry, notify vendor) | 5 | US-5.1 |
+| T-8.3 | GET /bookings (list user's bookings with status filter) | 3 | — |
+| T-8.4 | GET /bookings/:id (booking details, authorization check) | 3 | — |
+| T-8.5 | PUT /bookings/:id/quote (vendor sends quote) | 5 | US-5.3 |
+| T-8.6 | PUT /bookings/:id/confirm (customer confirms, triggers payment) | 5 | US-5.4 |
+| T-8.7 | PUT /bookings/:id/cancel (with cancellation policy enforcement) | 5 | — |
+| T-8.8 | POST /events (create wedding event) | 3 | US-7.1 |
+| T-8.9 | GET /events/:id (event details + booked vendors) | 3 | US-7.2 |
+| T-8.10 | Push notification setup (Firebase FCM) | 5 | US-9.1 |
+| T-8.11 | Enquiry + booking notification triggers (push + in-app) | 3 | US-5.2 |
+| T-8.12 | Booking flow UI (web): Enquire → Quote → Confirm | 5 | US-5.1–5.5 |
+| | **Sprint Total** | **48** | |
+
+**Deliverable:** Complete enquiry-to-booking flow working end-to-end on web.
+
+</details>
+
+<details>
+<summary><strong>Sprint 9 (W17–18): Payment & Escrow (Razorpay) — 51 SP</strong></summary>
+
+| Task ID | Task | SP | Story |
+|:-------:|------|:--:|:-----:|
+| T-9.1 | Prisma schema: payments, escrow_holds | 3 | US-6.1 |
+| T-9.2 | POST /payments/create-order (Razorpay order creation with idempotency) | 5 | US-6.1 |
+| T-9.3 | Razorpay checkout integration (web — React component) | 5 | US-6.1 |
+| T-9.4 | POST /webhooks/razorpay (webhook handler with signature verification) | 8 | US-6.2 |
+| T-9.5 | Escrow hold creation on payment.captured event | 5 | US-6.3 |
+| T-9.6 | Booking status update on payment verification | 3 | US-5.5 |
+| T-9.7 | BullMQ job: auto-release escrow 7 days post-event | 5 | US-6.4 |
+| T-9.8 | Vendor wallet: balance view endpoint | 3 | US-6.5 |
+| T-9.9 | Payment confirmation UI (success + receipt page) | 3 | — |
+| T-9.10 | Payment + escrow tests (100% coverage) | 8 | — |
+| T-9.11 | Test with Razorpay test mode: full payment round trip | 3 | — |
+| | **Sprint Total** | **51** | |
+
+**Deliverable:** Real payment working with Razorpay, escrow auto-hold and release. **Critical path complete.**
+
+</details>
+
+<details>
+<summary><strong>Sprint 10 (W19–20): Flutter Mobile + Vendor Dashboard — 49 SP</strong></summary>
+
+| Task ID | Task | SP | Story |
+|:-------:|------|:--:|:-----:|
+| T-10.1 | Flutter project setup: Riverpod, GoRouter, Dio, theme | 5 | — |
+| T-10.2 | Auth screens: phone OTP login, auto-read SMS | 5 | US-2.1 |
+| T-10.3 | Home screen with category chips + featured vendors | 5 | — |
+| T-10.4 | Vendor search screen with filters (bottom sheet) | 5 | US-4.1 |
+| T-10.5 | Vendor profile screen (portfolio, packages, reviews) | 5 | US-4.3 |
+| T-10.6 | Booking flow: enquire → view quote → pay advance | 8 | US-5.1–5.5 |
+| T-10.7 | Vendor web dashboard (Vite+React): enquiry list, booking calendar | 8 | US-10.1 |
+| T-10.8 | Vendor dashboard: respond to enquiry, send quote | 5 | US-5.3 |
+| T-10.9 | Vendor dashboard: basic analytics (views, enquiries, bookings) | 3 | — |
+| | **Sprint Total** | **49** | |
+
+**Deliverable:** Mobile app with core flow. Vendor dashboard for managing enquiries/bookings.
+
+</details>
+
+<details>
+<summary><strong>Sprint 11 (W21–22): AI Budget Planner + Reviews + MVP Polish — 46 SP</strong></summary>
+
+| Task ID | Task | SP | Story |
+|:-------:|------|:--:|:-----:|
+| T-11.1 | Python FastAPI: POST /ai/budget-plan (3-tier plan generation) | 8 | US-8.1 |
+| T-11.2 | Budget plan UI (web): interactive sliders, 3-tier display | 5 | US-8.2 |
+| T-11.3 | Onboarding wizard UI: wedding type → date → city → guests → budget | 5 | US-8.1 |
+| T-11.4 | Prisma schema: reviews | 2 | US-12.1 |
+| T-11.5 | POST /bookings/:id/review (verified review after event) | 3 | US-12.1 |
+| T-11.6 | GET /vendors/:id/reviews (paginated reviews list) | 2 | — |
+| T-11.7 | Review display on vendor profile (web + mobile) | 3 | — |
+| T-11.8 | Customer dashboard: my events, my bookings, budget tracker mini | 5 | US-7.2, 7.3 |
+| T-11.9 | Error handling polish: all screens have error + empty states | 3 | — |
+| T-11.10 | Skeleton loading states for all list pages | 2 | — |
+| T-11.11 | Bug fixes, QA cycle, performance audit | 5 | — |
+| T-11.12 | Deploy to staging, run E2E smoke tests | 3 | — |
+| T-11.13 | **MVP LAUNCH DECISION** | — | — |
+| | **Sprint Total** | **46** | |
+
+**Deliverable:** MVP feature-complete. AI budget planner, reviews, polished UX. Ready for real users.
+
+</details>
+
+### 32.3 MVP Launch Checklist
+
+- [ ] Auth: OTP login working (web + mobile)
+- [ ] 50+ vendors with complete profiles on platform
+- [ ] Search/filter vendors working
+- [ ] Enquiry → Quote → Payment flow complete
+- [ ] Razorpay live mode activated, test ₹1 transaction passed
+- [ ] Escrow hold + auto-release working
+- [ ] Push notifications working (FCM)
+- [ ] AI budget planner giving reasonable results
+- [ ] Review system working
+- [ ] Customer + Vendor dashboards functional
+- [ ] Mobile app submitted to Play Store + App Store
+- [ ] Privacy Policy + Terms of Service live
+- [ ] SSL, error tracking (Sentry), logging configured
+
+### 32.4 Phase 3 Sprint Summary (Traction — S12 to S21)
+
+<details>
+<summary><strong>Phase 3 Sprints S12–S21 (click to expand)</strong></summary>
+
+| Sprint | Focus | SP | Key Deliverables |
+|:------:|-------|:--:|-----------------|
+| S12 | Elasticsearch Integration | 36 | Vendor full-text search, autocomplete, geo-search, map view |
+| S13 | Vendor OS — CRM & Pipeline | 30 | Kanban board, revenue dashboard, performance analytics |
+| S14 | Vendor Subscriptions | 34 | Free/Premium/Enterprise tiers, Razorpay Subscriptions, feature gating |
+| S15 | Admin Panel v1 | 37 | KPI dashboard, KYC review, dispute management, escrow management |
+| S16 | SMS + WhatsApp | 30 | Multi-channel fan-out, 360dialog, notification preferences |
+| S17 | Guest Management | 28 | Guest CRUD, RSVP, meal preferences, budget tracker |
+| S18 | Review System v2 | 22 | Photo reviews, moderation, referral system |
+| S19 | Microservice Extraction (1) | 39 | Extract auth + payment services, Kong gateway |
+| S20 | Microservice Extraction (2) | 39 | Extract vendor + booking + search + notification, RDS migration |
+| S21 | Phase 3 Polish | 33 | Load testing, security scan, performance optimization |
+
+**Phase 3 Go/No-Go:**
+- [ ] ₹50L+ GMV/month achieved
+- [ ] 200+ active vendors on platform
+- [ ] 100+ monthly bookings
+- [ ] Vendor subscription revenue: ₹40K+/month
+- [ ] Customer NPS > 40
+- [ ] Microservices architecture running stable in production
+
+</details>
+
+### 32.5 Phase 4 Sprint Summary (Differentiation — S22 to S37)
+
+<details>
+<summary><strong>Phase 4 Sprints S22–S37 (click to expand)</strong></summary>
+
+| Sprint | Focus | SP | Key Deliverables |
+|:------:|-------|:--:|-----------------|
+| S22–23 | Task & Timeline Engine | 46 | 25+ task templates, auto-generation, Gantt timeline, due date alerts |
+| S24–25 | Event Day System | 53 | Runsheet engine, GPS check-in, Socket.IO real-time room, issue reporting |
+| S26–27 | Coordinator Portal | 34 | Coordinator role, multi-event management, emergency vendor replacement |
+| S28–29 | Escrow 2.0 | 37 | Milestone payments (30/40/30), auto-reminders, TDS tracking, payout automation |
+| S30–31 | AI 2.0 | 41 | Collaborative filtering recommendations, budget optimizer with city multipliers, AI chatbot (Claude API), sentiment analysis |
+| S32–33 | Verification + Chat | 27 | DigiLocker PAN verification, in-app chat (Socket.IO per booking) |
+| S34–35 | Analytics (ClickHouse) | 33 | ClickHouse setup, PostgreSQL CDC, dbt models, Metabase dashboards |
+| S36–37 | Phase 4 Polish | 25 | Load test 2K users, full wedding lifecycle E2E test |
+
+</details>
+
+### 32.6 Phase 5 Sprint Summary (Scale — S38+)
+
+<details>
+<summary><strong>Phase 5 Sprints S38+ (click to expand)</strong></summary>
+
+| Sprint | Focus | Key Tasks |
+|:------:|-------|-----------|
+| S38–39 | Multi-City (Mumbai) | City data model + cost multipliers, city-aware search, Mumbai vendor acquisition, Mumbai SEO content |
+| S40–41 | Internationalization | Flutter ARB localization, Hindi + Telugu translation, Next.js i18n routing (/hi/, /te/) |
+| S42–43 | Wedding Loans + Insurance | NBFC partner API (eligibility, application), Acko insurance integration |
+| S44+ | City Expansion | Delhi, Bangalore, Chennai, Pune — each city: 60-day vendor acquisition → launch, NRI wedding support |
+
+</details>
+
+### 32.7 Technical Dependencies
+
+```mermaid
+graph TD
+    A[Auth Service] --> B[All Other Services]
+    C[Vendor Service] --> D[Search Service]
+    C --> E[Booking Service]
+    E --> F[Payment Service]
+    F --> G[Escrow System]
+    E --> H[Execution Service]
+    H --> I[Notification Service]
+    D --> J[Elasticsearch]
+    A --> K[Redis]
+    F --> L[Razorpay]
+    I --> M["MSG91 + FCM + 360dialog"]
+
+    style A fill:#e3f2fd,stroke:#1565c0,color:#000
+    style F fill:#fff3e0,stroke:#ef6c00,color:#000
+    style G fill:#fff3e0,stroke:#ef6c00,color:#000
+    style H fill:#f3e5f5,stroke:#7b1fa2,color:#000
+```
+
+### 32.8 Risk Register (Implementation)
+
+| Risk | Impact | Probability | Mitigation |
+|------|:------:|:-----------:|-----------|
+| Razorpay KYC rejected | HIGH | Low | Apply early, have backup (PayU) |
+| App Store rejection (Apple) | MEDIUM | Medium | Provide test account, explain OTP flow |
+| WhatsApp template rejection | MEDIUM | Medium | Submit templates early, have SMS fallback |
+| Vendor adoption slower than expected | HIGH | Medium | Increase in-person visits, extend free period |
+| First payment dispute | MEDIUM | High | Manual resolution for first 100 events |
+| Elasticsearch cluster instability | MEDIUM | Low | Monitor closely, have PostgreSQL FTS fallback |
+| AWS Free Tier expiry | LOW | Certain | Budget for ₹5K-15K/month from Month 3 |
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!--          SECTION 33 — EXECUTION PLAN (claude.md)                          -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+
+## ⚡ 33. Execution Plan — Architecture & Decision Log
+
+*Master execution blueprint covering Web, Mobile (Flutter), Backend, and Infrastructure decisions.*
+
+</div>
+
+---
+
+### 33.1 Completed Milestones
+
+- [x] **Monorepo structure** — Turborepo + pnpm workspaces
+- [x] **All 12 microservice scaffolds** — src/, routes, controllers, Prisma schemas
+- [x] **Shared packages** — shared-types, shared-events, shared-errors, shared-utils, ui-kit
+- [x] **Web app (Next.js)** — Full homepage, vendor listing, vendor detail, login (OTP), dashboard
+- [x] **Web top navbar** — Conditional navigation (guest vs logged-in), Bookings/Wishlist/Profile links
+- [x] **Web bottom navbar** — Mobile-responsive bottom tab bar (/, /vendors, /bookings, /wishlist, /profile)
+- [x] **Web category browsing** — 10 wedding categories with image cards
+- [x] **Web vendor detail pages** — Multi-vendor data, packages, reviews
+- [x] **Web bug fixes** — Hydration error, timer leak, OTP resend, null guards, silent catch
+- [x] **Web /bookings page** — Booking list with status tabs (All/Active/Pending/Completed), stats header
+- [x] **Web /bookings/[id] page** — Escrow protection timeline, payment summary, activity log, actions
+- [x] **Web /checkout/[vendorId] page** — Package selector, event details form, Razorpay integration
+- [x] **Web /profile page** — Edit profile, wedding countdown, logout, menu links
+- [x] **Web /wishlist page** — Saved vendors with category filters, remove action
+- [x] **Flutter scaffold** — 11 files: main, theme, router, api_client, app_shell, 6 screens
+- [x] **README.md** — 3500+ line master engineering document
+- [x] **Prisma schemas** — auth, booking, payment, execution, notification, review services
+- [x] **Docker configs** — Dockerfiles for auth, user, ai services
+- [x] **Kong API gateway config** — Route definitions
+- [x] **Terraform modules** — Staging + production configurations
+- [x] **CI/CD Pipeline** — GitHub Actions CI (lint/test/build) + CD (Docker/ECS/Vercel/S3)
+
+### 33.2 Remaining Web Pages to Build
+
+| Page | Route | Priority | Description |
+|------|-------|:--------:|-------------|
+| Chat | `/chat` | P2 | Vendor messaging (WebSocket) |
+| Write Review | `/reviews/write` | P3 | Post-event review form (star rating + text + photo) |
+
+### 33.3 API Integration Checklist
+
+```
+[x] GET  /api/v1/vendors         — Vendor listing (replace mock data)
+[x] GET  /api/v1/vendors/:id     — Vendor detail
+[x] POST /api/v1/auth/send-otp   — Send OTP
+[x] POST /api/v1/auth/verify-otp — Verify & get JWT
+[x] GET  /api/v1/bookings        — User bookings
+[x] POST /api/v1/bookings        — Create booking
+[x] GET  /api/v1/bookings/:id    — Booking detail
+[x] POST /api/v1/payments/escrow — Initiate escrow payment
+[x] GET  /api/v1/reviews/:vendorId — Vendor reviews
+[ ] POST /api/v1/reviews         — Submit review
+[x] GET  /api/v1/users/me        — Current user profile
+[x] PUT  /api/v1/users/me        — Update profile
+[x] GET  /api/v1/search?q=       — Full-text search
+```
+
+### 33.4 Decision Log
+
+| # | Date | Decision | Rationale | Status |
+|:-:|------|----------|-----------|:------:|
+| 1 | Session 1 | Use Flutter for mobile | Cross-platform (iOS + Android) from single codebase, strong UI toolkit, Dart performance | ✅ |
+| 2 | Session 1 | Use Riverpod for state | Compile-safe, testable, better than Provider for complex state | ✅ |
+| 3 | Session 1 | Use GoRouter for navigation | Declarative routing, deep link support, ShellRoute for bottom nav | ✅ |
+| 4 | Session 1 | Use Dio for HTTP | Interceptors for auth, request/response logging, cancel tokens | ✅ |
+| 5 | Session 1 | OTP-based auth (no passwords) | Simpler UX, common in India, reduces password storage risk | ✅ |
+| 6 | Session 1 | Escrow payment model | Builds trust — couples pay only when satisfied | ✅ |
+| 7 | Session 1 | Turborepo for monorepo | Incremental builds, remote caching, task dependencies | ✅ |
+| 8 | Session 1 | 12 microservices architecture | Separation of concerns, independent scaling, team ownership | ✅ |
+| 9 | Session 1 | Redis for event bus (not Kafka) | Simpler ops for MVP; upgrade to Kafka at scale | ✅ |
+| 10 | Session 1 | Razorpay (not Stripe) | India-native, escrow support, UPI integration | ✅ |
+
+### 33.5 Risk Register (Technical)
+
+| Risk | Impact | Probability | Mitigation |
+|------|:------:|:-----------:|-----------|
+| Razorpay escrow API changes | High | Low | Abstract payment gateway behind adapter pattern |
+| High vendor image volume | Medium | High | CDN + WebP auto-conversion + lazy loading |
+| OTP delivery failures | High | Medium | Multi-provider fallback (Twilio + MSG91) |
+| Elasticsearch cluster issues | Medium | Low | Fallback to PostgreSQL full-text search |
+| Flutter build issues cross-platform | Medium | Medium | CI matrix builds + device farm testing |
+| Data migration errors | High | Low | Prisma migration rollback scripts + staging validation |
+
+### 33.6 Testing Strategy
+
+| Type | Tool | Coverage Target | Scope |
+|------|------|:--------------:|-------|
+| Unit | Jest (TS), pytest (Python) | 80% | Service logic, utils |
+| Integration | Jest + Supertest | 70% | API endpoints |
+| E2E (Web) | Playwright | Critical paths | Login → Book → Pay |
+| E2E (Mobile) | Flutter integration_test | Critical paths | Login → Browse → Book |
+| Load | k6 | 1,000 RPS | API gateway + services |
+| Security | OWASP ZAP | No critical/high | All endpoints |
+
+#### Key Test Scenarios
+
+```
+1. User Registration & Login
+   - Send OTP → Verify OTP → Get JWT → Access protected route
+
+2. Vendor Discovery
+   - Browse categories → Filter by city → Sort by rating → View detail
+
+3. Booking Lifecycle
+   - Select package → Create booking → Pay (escrow) → Vendor confirms
+   → Event completes → Release escrow → Submit review
+
+4. Payment Edge Cases
+   - Payment failure → Retry → Success
+   - Refund request → Admin approval → Refund processed
+   - Escrow timeout → Auto-release / dispute
+
+5. Real-time Features
+   - Chat message sent → Received in real-time
+   - Booking status change → Push notification delivered
+```
+
+---
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!--     SECTION 34 — AI SERVICE — DETAILED ALGORITHMS                        -->
+<!-- ██████████████████████████████████████████████████████████████████████████ -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+
+<div align="center">
+
+## 🧠 34. AI Service — Detailed Algorithms & Implementation
+
+*Budget optimization algorithms, vendor matching logic, and AI chatbot architecture.*
+
+</div>
+
+---
+
+### 34.1 Budget Optimizer Algorithm
+
+> **Endpoint:** `POST /ai/budget-plan`
+> **Input:** city, budget_inr, guest_count, event_type, wedding_date
+
+```
+Algorithm Steps:
+1. Base allocation weights per category:
+   - Venue: 35%, Catering: 28%, Decor: 15%, Photography: 10%
+   - Makeup: 5%, Music: 4%, Transport: 2%, Invitations: 1%
+
+2. City multiplier:
+   - Hyderabad: 1.0, Mumbai: 1.35, Delhi: 1.25, Bangalore: 1.20
+
+3. Guest count scaling (non-linear):
+   - Under 200: 1.0x, 200-500: 1.15x, 500-1000: 1.35x, 1000+: 1.5x
+
+4. Seasonal adjustment:
+   - Nov-Feb (peak): +15%, Oct (semi-peak): +10%
+   - Jun-Aug (monsoon): -10%
+
+5. Output: 3 tiers (Budget / Standard / Premium) + insights
+```
+
+### 34.2 Vendor Recommendation Engine
+
+> **Endpoint:** `GET /ai/recommend-vendors`
+
+```
+Scoring Formula:
+  Score = Rating × 0.30
+        + Relevance × 0.25
+        + Availability × 0.20
+        + PriceMatch × 0.15
+        + ResponseRate × 0.10
+
+Process:
+1. Query vendor-service for candidates matching category + city
+2. Calculate per-vendor scores
+3. Rank and return top 5 per category
+4. Include smart insights: "Your catering budget is 15% below
+   market rate for 500 guests in Hyderabad"
+```
+
+### 34.3 AI Chatbot Architecture
+
+> **Endpoint:** `POST /ai/chat`
+
+```
+Stack: FastAPI + OpenAI/Claude API
+- System prompt with wedding planning context + user's event details
+- Conversation history management (Redis-backed)
+- Context injection: user budget, city, booked vendors
+- Guardrails: wedding-related topics only
+```
+
+### 34.4 Price Predictor
+
+> **Endpoint:** `GET /ai/price-estimate`
+
+```
+Input: vendor_category, city, event_date, guest_count
+Output: {min, median, max, confidence}
+Method: Rule-based initially (percentile calculations from booking data),
+        ML regression when 500+ bookings available
+```
+
+---
+
 
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 <!--                       FOOTER                                              -->
