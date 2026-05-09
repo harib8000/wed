@@ -105,6 +105,40 @@ class AuthNotifier extends Notifier<AuthState> {
       ),
     );
   }
+
+  /// Bypass login with a demo coordinator account
+  void demoCoordinatorLogin() {
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      user: const User(
+        id: 'demo-coordinator-1',
+        phone: '9876543212',
+        name: 'Meera Events',
+        role: 'COORDINATOR',
+        status: 'ACTIVE',
+        phoneVerified: true,
+        email: 'meera@events.com',
+        city: 'Mumbai',
+      ),
+    );
+  }
+
+  /// Bypass login with a demo admin account
+  void demoAdminLogin() {
+    state = AuthState(
+      status: AuthStatus.authenticated,
+      user: const User(
+        id: 'demo-admin-1',
+        phone: '9876543213',
+        name: 'WeddingOS Admin',
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        phoneVerified: true,
+        email: 'admin@weddingos.in',
+        city: 'Bangalore',
+      ),
+    );
+  }
 }
 
 final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);

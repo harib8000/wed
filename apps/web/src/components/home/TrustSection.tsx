@@ -1,3 +1,7 @@
+'use client';
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { motion, useInView } from 'framer-motion';
 import { Shield, Star, Lock, Clock, HeadphonesIcon, Award } from 'lucide-react';
 
 const TRUST_FEATURES = [
@@ -9,7 +13,77 @@ const TRUST_FEATURES = [
   { icon: HeadphonesIcon, title: 'Dispute Resolution', desc: 'Dedicated dispute team resolves any issues within 48 hours.', color: 'text-red-600 bg-red-50' },
 ];
 
+const STATS = [
+  { target: 50000, suffix: '+', prefix: '', label: 'Weddings Planned', format: true },
+  { target: 500, suffix: ' Cr+', prefix: '₹', label: 'Bookings Processed', format: false },
+  { target: 10000, suffix: '+', prefix: '', label: 'Verified Vendors', format: true },
+  { target: 4.9, suffix: '/5', prefix: '', label: 'Average Rating', format: false },
+];
+
+function useCountUp(target: number, duration = 2000) {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLDivElement>(null);
+  const hasAnimated = useRef(false);
+
+  const animate = useCallback(() => {
+    if (hasAnimated.current) return;
+    hasAnimated.current = true;
+    const start = performance.now();
+    const step = (now: number) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setCount(eased * target);
+      if (progress < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target, duration]);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) animate(); },
+      { threshold: 0.3 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [animate]);
+
+  return { ref, count };
+}
+
+function formatNumber(n: number, shouldFormat: boolean) {
+  if (shouldFormat) return Math.round(n).toLocaleString('en-IN');
+  if (n % 1 !== 0) return n.toFixed(1);
+  return Math.round(n).toString();
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.1, duration: 0.5, ease: 'easeOut' },
+  }),
+};
+
+function StatItem({ stat }: { stat: typeof STATS[number] }) {
+  const { ref, count } = useCountUp(stat.target);
+  return (
+    <div ref={ref} className="text-center">
+      <div className="text-3xl font-bold font-heading text-brand-600 mb-1">
+        {stat.prefix}{formatNumber(count, stat.format)}{stat.suffix}
+      </div>
+      <div className="text-gray-500 text-sm">{stat.label}</div>
+    </div>
+  );
+}
+
 export function TrustSection() {
+  const gridRef = useRef(null);
+  const isInView = useInView(gridRef, { once: true, margin: '-50px' });
+
   return (
     <section className="py-20 bg-gradient-to-br from-gray-50 to-brand-50/30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -21,33 +95,32 @@ export function TrustSection() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {TRUST_FEATURES.map((feature) => {
+        <div ref={gridRef} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {TRUST_FEATURES.map((feature, i) => {
             const Icon = feature.icon;
             return (
-              <div key={feature.title} className="card p-6 hover:shadow-md transition-shadow">
+              <motion.div
+                key={feature.title}
+                custom={i}
+                initial="hidden"
+                animate={isInView ? 'visible' : 'hidden'}
+                variants={cardVariants}
+                className="card p-6 hover:shadow-md transition-shadow"
+              >
                 <div className={`w-12 h-12 rounded-xl ${feature.color} flex items-center justify-center mb-4`}>
                   <Icon size={22} />
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
                 <p className="text-gray-500 text-sm leading-relaxed">{feature.desc}</p>
-              </div>
+              </motion.div>
             );
           })}
         </div>
 
-        {/* Stats */}
+        {/* Stats with count-up animation */}
         <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {[
-            { value: '50,000+', label: 'Weddings Planned' },
-            { value: '₹500 Cr+', label: 'Bookings Processed' },
-            { value: '10,000+', label: 'Verified Vendors' },
-            { value: '4.9/5', label: 'Average Rating' },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-3xl font-bold font-heading text-brand-600 mb-1">{stat.value}</div>
-              <div className="text-gray-500 text-sm">{stat.label}</div>
-            </div>
+          {STATS.map((stat) => (
+            <StatItem key={stat.label} stat={stat} />
           ))}
         </div>
       </div>

@@ -1,14 +1,26 @@
+'use client';
+
+import { useRef } from 'react';
 import Link from 'next/link';
+import { motion, useInView } from 'framer-motion';
 import { ArrowRight, Smartphone, Globe } from 'lucide-react';
 
 export function CTASection() {
+  const sectionRef = useRef(null);
+  const isInView = useInView(sectionRef, { once: true, margin: '-80px' });
+
   return (
-    <section className="py-20 bg-gradient-to-r from-brand-600 to-purple-700 relative overflow-hidden">
+    <section ref={sectionRef} className="py-20 bg-gradient-to-r from-brand-600 to-purple-700 relative overflow-hidden">
       <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=1920&q=80')] bg-cover bg-center opacity-10" />
       <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-white/5 -translate-y-16 translate-x-16" />
       <div className="absolute bottom-0 left-0 w-96 h-96 rounded-full bg-white/5 translate-y-24 -translate-x-24" />
 
-      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 text-center">
+      <motion.div
+        className="relative max-w-4xl mx-auto px-4 sm:px-6 text-center"
+        initial={{ opacity: 0, y: 40 }}
+        animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 40 }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
+      >
         <h2 className="font-heading text-3xl sm:text-5xl font-bold text-white mb-6">
           Start Planning Your
           <span className="block text-gold-300">Dream Wedding Today</span>
@@ -18,11 +30,16 @@ export function CTASection() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-          <Link href="/login" className="bg-white text-brand-700 font-semibold px-8 py-4 rounded-xl hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 justify-center">
-            <Globe size={20} />
-            Start Planning — Free
-            <ArrowRight size={18} />
-          </Link>
+          <motion.div
+            animate={{ scale: [1, 1.04, 1] }}
+            transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <Link href="/login" className="bg-white text-brand-700 font-semibold px-8 py-4 rounded-xl hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 justify-center">
+              <Globe size={20} />
+              Start Planning — Free
+              <ArrowRight size={18} />
+            </Link>
+          </motion.div>
           <Link href="/vendors" className="bg-white/10 border border-white/30 text-white font-semibold px-8 py-4 rounded-xl hover:bg-white/20 transition-all flex items-center gap-2 justify-center">
             <Smartphone size={20} />
             Browse Vendors
@@ -43,7 +60,7 @@ export function CTASection() {
             Join as a Vendor — Grow your business →
           </Link>
         </div>
-      </div>
+      </motion.div>
     </section>
   );
 }

@@ -1,94 +1,152 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Heart, Store, Users, Crown, Shield, Zap, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { Phone, ArrowLeft, Loader2, Shield } from 'lucide-react';
 import { authApi } from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
+import { useAuthStore, UserRole } from '@/store/authStore';
 
-type Step = 'phone' | 'otp';
+// ─── Role cards for the selection page ──────────────────────────────────────────
+
+interface RoleOption {
+  role: UserRole;
+  label: string;
+  description: string;
+  href: string;
+  icon: React.ElementType;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+  gradient: string;
+}
+
+const ROLE_OPTIONS: RoleOption[] = [
+  {
+    role: 'customer',
+    label: 'Couple / Customer',
+    description: 'Planning your dream wedding? Browse vendors, compare packages, book services with escrow protection.',
+    href: '/login/couple',
+    icon: Heart,
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-50',
+    borderColor: 'border-pink-200 hover:border-pink-400 hover:shadow-pink-100',
+    gradient: 'from-pink-500 to-rose-500',
+  },
+  {
+    role: 'vendor',
+    label: 'Vendor / Service Provider',
+    description: 'Grow your wedding business. Manage bookings, packages, payouts & connect with couples.',
+    href: '/login/vendor',
+    icon: Store,
+    color: 'text-brand-600',
+    bgColor: 'bg-brand-50',
+    borderColor: 'border-brand-200 hover:border-brand-400 hover:shadow-brand-100',
+    gradient: 'from-brand-500 to-purple-500',
+  },
+  {
+    role: 'coordinator',
+    label: 'Wedding Coordinator',
+    description: 'Manage event timelines, coordinate vendors, track tasks & ensure flawless execution.',
+    href: '/login/coordinator',
+    icon: Users,
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-50',
+    borderColor: 'border-indigo-200 hover:border-indigo-400 hover:shadow-indigo-100',
+    gradient: 'from-indigo-500 to-blue-500',
+  },
+  {
+    role: 'admin',
+    label: 'Platform Admin',
+    description: 'Internal operations — vendor verification, dispute resolution, platform analytics.',
+    href: '/login/admin',
+    icon: Crown,
+    color: 'text-amber-600',
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-200 hover:border-amber-400 hover:shadow-amber-100',
+    gradient: 'from-amber-500 to-orange-500',
+  },
+];
+
+// ─── Demo accounts ──────────────────────────────────────────────────────────────
+
+interface DemoAccount {
+  label: string;
+  phone: string;
+  otp: string;
+  role: UserRole;
+  icon: React.ElementType;
+  color: string;
+  bgColor: string;
+  borderColor: string;
+}
+
+const DEMO_ACCOUNTS: DemoAccount[] = [
+  { label: 'Couple', phone: '9876543210', otp: '123456', role: 'customer', icon: Heart, color: 'text-pink-600', bgColor: 'bg-pink-50', borderColor: 'border-pink-200 hover:border-pink-400' },
+  { label: 'Vendor', phone: '9876543211', otp: '123456', role: 'vendor', icon: Store, color: 'text-brand-600', bgColor: 'bg-brand-50', borderColor: 'border-brand-200 hover:border-brand-400' },
+  { label: 'Coordinator', phone: '9876543212', otp: '123456', role: 'coordinator', icon: Users, color: 'text-indigo-600', bgColor: 'bg-indigo-50', borderColor: 'border-indigo-200 hover:border-indigo-400' },
+  { label: 'Admin', phone: '9876543213', otp: '123456', role: 'admin', icon: Crown, color: 'text-amber-600', bgColor: 'bg-amber-50', borderColor: 'border-amber-200 hover:border-amber-400' },
+];
+
+function getRedirectPath(role: UserRole): string {
+  switch (role) {
+    case 'vendor': return '/dashboard';
+    case 'coordinator': return '/dashboard';
+    case 'admin':
+    case 'super_admin': return '/dashboard';
+    case 'customer':
+    default: return '/dashboard';
+  }
+}
+
+function getRoleLabel(role: UserRole): string {
+  switch (role) {
+    case 'customer': return '💑 Couple';
+    case 'vendor': return '🏪 Vendor';
+    case 'coordinator': return '📋 Coordinator';
+    case 'admin': return '👑 Admin';
+    case 'super_admin': return '⚡ Super Admin';
+    default: return role;
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
   const { setUser, setTokens } = useAuthStore();
-  const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [resendTimer, setResendTimer] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [demoLoading, setDemoLoading] = useState<string | null>(null);
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, []);
-
-  const startResendTimer = () => {
-    setResendTimer(60);
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setResendTimer((t) => {
-        if (t <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000);
-  };
-
-  const formatPhone = (val: string) => {
-    const digits = val.replace(/\D/g, '');
-    if (digits.startsWith('91') && digits.length > 10) return `+${digits}`;
-    if (digits.length === 10) return `+91${digits}`;
-    return val.startsWith('+') ? val : `+91${digits}`;
-  };
-
-  async function handleSendOtp(e: React.FormEvent) {
-    e.preventDefault();
-    if (loading) return;
-    const formattedPhone = formatPhone(phone);
-    if (!formattedPhone.match(/^\+91[6-9]\d{9}$/)) {
-      toast.error('Please enter a valid Indian mobile number'); return;
-    }
-    setLoading(true);
+  async function handleDemoLogin(account: DemoAccount) {
+    setDemoLoading(account.role);
     try {
+      const formattedPhone = `+91${account.phone}`;
       await authApi.sendOtp(formattedPhone);
-      toast.success('OTP sent to your mobile number!');
-      setStep('otp');
-      startResendTimer();
-    } catch (err: any) {
-      toast.error(err.response?.data?.error?.message || 'Failed to send OTP');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOtp(e: React.FormEvent) {
-    e.preventDefault();
-    if (loading || otp.length !== 6) return;
-    setLoading(true);
-    try {
-      const formattedPhone = formatPhone(phone);
-      const res = await authApi.verifyOtp(formattedPhone, otp);
+      const res = await authApi.verifyOtp(formattedPhone, account.otp);
       const { accessToken, refreshToken, user } = res.data.data;
       setTokens(accessToken, refreshToken);
       setUser(user);
-      toast.success(`Welcome to Wedding OS! 🎉`);
-      router.push('/dashboard');
-    } catch (err: any) {
-      toast.error(err.response?.data?.error?.message || 'Incorrect OTP. Please try again.');
-      setOtp('');
+      toast.success(`Demo login as ${getRoleLabel(user.role)} successful! 🎉`);
+      router.push(getRedirectPath(user.role));
+    } catch {
+      const demoUser = {
+        id: `demo-${account.role}`,
+        phone: `+91${account.phone}`,
+        role: account.role,
+        status: 'active',
+        phoneVerified: true,
+      };
+      setUser(demoUser);
+      const mockToken = `demo_${account.role}_${Date.now()}`;
+      setTokens(mockToken, `refresh_${mockToken}`);
+      toast(`Demo login as ${getRoleLabel(account.role)}! ⚠️ Backend offline — demo mode`, { icon: '🔧', duration: 5000 });
+      router.push(getRedirectPath(account.role));
     } finally {
-      setLoading(false);
+      setDemoLoading(null);
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-50 to-purple-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-purple-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2">
@@ -97,108 +155,82 @@ export default function LoginPage() {
             </div>
             <span className="font-heading font-bold text-2xl text-gray-900">Wedding OS</span>
           </Link>
-          <p className="text-gray-500 mt-2 text-sm">India&apos;s Wedding Operating System</p>
+          <p className="text-gray-500 mt-1 text-sm">India&apos;s Wedding Operating System</p>
         </div>
 
-        <div className="card p-8 shadow-xl">
-          {step === 'phone' ? (
-            <>
-              <div className="text-center mb-6">
-                <div className="w-14 h-14 bg-brand-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Phone size={24} className="text-brand-600" />
-                </div>
-                <h1 className="text-2xl font-bold font-heading">Sign In / Sign Up</h1>
-                <p className="text-gray-500 text-sm mt-2">Enter your mobile number to get started</p>
-              </div>
-
-              <form onSubmit={handleSendOtp} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Mobile Number</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm">+91</span>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                      placeholder="9876543210"
-                      className="input-field pl-12"
-                      maxLength={10}
-                      required
-                      autoFocus
-                    />
-                  </div>
-                </div>
-
-                <button type="submit" disabled={loading || phone.length < 10} className="btn-primary w-full flex items-center justify-center gap-2">
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                  {loading ? 'Sending OTP...' : 'Get OTP →'}
-                </button>
-              </form>
-
-              <p className="text-center text-xs text-gray-400 mt-4">
-                By continuing, you agree to our{' '}
-                <Link href="/terms" className="text-brand-600">Terms of Service</Link> and{' '}
-                <Link href="/privacy" className="text-brand-600">Privacy Policy</Link>
-              </p>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center mb-6">
-                <button onClick={() => setStep('phone')} className="p-2 rounded-lg hover:bg-gray-100 transition-colors mr-2">
-                  <ArrowLeft size={20} />
-                </button>
-                <div>
-                  <h1 className="text-xl font-bold font-heading">Verify OTP</h1>
-                  <p className="text-sm text-gray-500">Sent to +91 {phone}</p>
-                </div>
-              </div>
-
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">6-Digit OTP</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    placeholder="• • • • • •"
-                    className="input-field text-center text-2xl tracking-[0.5em] font-bold"
-                    maxLength={6}
-                    required
-                    autoFocus
-                  />
-                  <p className="text-xs text-gray-400 mt-1 text-center">OTP expires in 10 minutes</p>
-                </div>
-
-                <button type="submit" disabled={loading || otp.length !== 6} className="btn-primary w-full flex items-center justify-center gap-2">
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : null}
-                  {loading ? 'Verifying...' : 'Verify & Continue →'}
-                </button>
-
-                <div className="text-center">
-                  {resendTimer > 0 ? (
-                    <p className="text-sm text-gray-400">Resend OTP in {resendTimer}s</p>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleSendOtp({ preventDefault: () => {} } as any);
-                      }}
-                      className="text-sm text-brand-600 hover:underline"
-                    >
-                      Resend OTP
-                    </button>
-                  )}
-                </div>
-              </form>
-            </>
-          )}
-
-          {/* Security note */}
-          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400">
-            <Shield size={12} className="text-green-500" />
-            <span>Secured with 256-bit encryption</span>
+        {/* Role Selection Card */}
+        <div className="card p-6 sm:p-8 shadow-xl">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold font-heading">Welcome!</h1>
+            <p className="text-gray-500 text-sm mt-1">Choose how you&apos;d like to sign in</p>
           </div>
+
+          {/* ─── Role Cards ─── */}
+          <div className="space-y-3">
+            {ROLE_OPTIONS.map((option) => {
+              const Icon = option.icon;
+              return (
+                <Link
+                  key={option.role}
+                  href={option.href}
+                  className={`flex items-start gap-4 p-4 rounded-xl border-2 transition-all duration-200 hover:shadow-md active:scale-[0.98] ${option.borderColor} ${option.bgColor}`}
+                >
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${option.gradient} flex items-center justify-center flex-shrink-0`}>
+                    <Icon size={22} className="text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className={`font-bold text-sm ${option.color}`}>{option.label}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{option.description}</p>
+                  </div>
+                  <div className="flex-shrink-0 mt-1">
+                    <span className="text-gray-400 text-sm">→</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* ─── Demo Divider ─── */}
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="bg-white px-3 text-gray-400 font-medium">Quick Demo Access</span>
+            </div>
+          </div>
+
+          {/* ─── Demo Login Buttons ─── */}
+          <div className="grid grid-cols-4 gap-2">
+            {DEMO_ACCOUNTS.map((account) => {
+              const Icon = account.icon;
+              const isLoading = demoLoading === account.role;
+              return (
+                <button
+                  key={account.role}
+                  onClick={() => handleDemoLogin(account)}
+                  disabled={demoLoading !== null}
+                  className={`relative flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed ${account.borderColor} ${account.bgColor}`}
+                >
+                  {isLoading ? (
+                    <Loader2 size={18} className={`animate-spin ${account.color}`} />
+                  ) : (
+                    <Icon size={18} className={account.color} />
+                  )}
+                  <span className={`text-[10px] font-semibold ${account.color}`}>{account.label}</span>
+                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-white flex items-center justify-center">
+                    <Zap size={7} className="text-white" />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Security note */}
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-gray-400">
+          <Shield size={12} className="text-green-500" />
+          <span>Secured with 256-bit encryption</span>
         </div>
       </div>
     </div>

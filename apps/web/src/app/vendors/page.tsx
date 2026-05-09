@@ -1,8 +1,9 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, Star, Heart, X } from 'lucide-react';
+import { Search, MapPin, Star, Heart, X, SlidersHorizontal, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 
@@ -14,6 +15,10 @@ const SORT_OPTIONS = [
   { value: 'price_asc', label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
 ];
+
+const PAGE_SIZE = 8;
+const LOAD_MORE_SIZE = 4;
+const INITIAL_LOAD_DELAY_MS = 800;
 
 // Mock vendors for display — deterministic values to prevent hydration mismatch
 const MOCK_RATINGS = ['4.9', '4.8', '4.7', '4.9', '4.6', '4.8', '4.7', '4.9', '4.8', '4.5', '4.7', '4.6'];
@@ -30,7 +35,85 @@ const MOCK_VENDORS = Array.from({ length: 12 }, (_, i) => ({
   featured: i < 3,
 }));
 
-function VendorCard({ vendor }: { vendor: typeof MOCK_VENDORS[0] }) {
+const cardVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.06, duration: 0.4, ease: 'easeOut' },
+  }),
+};
+
+/* ─── Skeleton Card ─── */
+function SkeletonCard() {
+  return (
+    <div className="card overflow-hidden">
+      <div className="relative h-48 bg-gray-200 animate-pulse" />
+      <div className="p-4 space-y-3">
+        <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4" />
+        <div className="h-3 bg-gray-200 rounded animate-pulse w-1/2" />
+        <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+          <div className="space-y-1">
+            <div className="h-2.5 bg-gray-200 rounded animate-pulse w-12" />
+            <div className="h-4 bg-gray-200 rounded animate-pulse w-16" />
+          </div>
+          <div className="h-8 bg-gray-200 rounded-lg animate-pulse w-20" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      {Array.from({ length: 12 }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+}
+
+/* ─── Empty State ─── */
+function EmptyState({ onClear }: { onClear: () => void }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4 }}
+      className="text-center py-20"
+    >
+      <motion.div
+        animate={{ y: [0, -12, 0] }}
+        transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
+        className="text-7xl mb-6 inline-block"
+      >
+        🔍
+      </motion.div>
+      <motion.div
+        animate={{ rotate: [0, 10, -10, 0] }}
+        transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut', delay: 0.5 }}
+        className="text-5xl mb-4 inline-block"
+      >
+        💐
+      </motion.div>
+      <h3 className="text-xl font-semibold text-gray-900 mb-2">No vendors found</h3>
+      <p className="text-gray-500 max-w-md mx-auto mb-6">
+        We couldn&apos;t find any vendors matching your criteria. Try broadening your search or clearing filters.
+      </p>
+      <button
+        onClick={onClear}
+        className="btn-primary mt-2 inline-flex items-center gap-2"
+      >
+        <X size={16} />
+        Clear All Filters
+      </button>
+    </motion.div>
+  );
+}
+
+/* ─── Vendor Card ─── */
+function VendorCard({ vendor, index }: { vendor: typeof MOCK_VENDORS[0]; index: number }) {
   const [liked, setLiked] = useState(false);
   const formatPrice = (p: number, cat: string) => {
     if (cat === 'catering') return `₹${p.toLocaleString('en-IN')}/plate`;
@@ -40,10 +123,26 @@ function VendorCard({ vendor }: { vendor: typeof MOCK_VENDORS[0] }) {
   };
 
   return (
-    <div className="card group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+    <motion.div
+      custom={index}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      layout
+      className="card group hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+    >
       <div className="relative h-48 overflow-hidden">
-        <img src={vendor.coverImage} alt={vendor.businessName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        <button onClick={() => setLiked(!liked)} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white transition-colors">
+        <img
+          src={vendor.coverImage}
+          alt={vendor.businessName}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          loading="lazy"
+        />
+        <button
+          onClick={() => setLiked(!liked)}
+          aria-label={liked ? `Remove ${vendor.businessName} from wishlist` : `Add ${vendor.businessName} to wishlist`}
+          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+        >
           <Heart size={16} className={liked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
         </button>
         {vendor.featured && (
@@ -71,10 +170,11 @@ function VendorCard({ vendor }: { vendor: typeof MOCK_VENDORS[0] }) {
           <Link href={`/vendors/${vendor.id}`} className="btn-primary text-xs py-2 px-4">View Profile</Link>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
+/* ─── Page ─── */
 export default function VendorsPage() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
@@ -86,7 +186,15 @@ export default function VendorsPage() {
   );
   const [selectedCity, setSelectedCity] = useState('Hyderabad');
   const [sortBy, setSortBy] = useState('rating');
-  const [showFilters, setShowFilters] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Simulate initial load
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), INITIAL_LOAD_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Sync URL params when they change
   useEffect(() => {
@@ -97,11 +205,46 @@ export default function VendorsPage() {
     if (queryParam) setSearch(queryParam);
   }, [categoryParam, queryParam]);
 
-  const filtered = MOCK_VENDORS.filter((v) => {
-    const matchCategory = selectedCategory === 'All' || v.category === selectedCategory.toLowerCase();
-    const matchSearch = !search || v.businessName.toLowerCase().includes(search.toLowerCase());
-    return matchCategory && matchSearch;
-  });
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [search, selectedCategory, selectedCity, sortBy]);
+
+  const filtered = useMemo(() => {
+    return MOCK_VENDORS.filter((v) => {
+      const matchCategory = selectedCategory === 'All' || v.category === selectedCategory.toLowerCase();
+      const matchSearch = !search || v.businessName.toLowerCase().includes(search.toLowerCase());
+      return matchCategory && matchSearch;
+    });
+  }, [search, selectedCategory]);
+
+  const visibleVendors = filtered.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (selectedCategory !== 'All') count++;
+    if (search) count++;
+    if (selectedCity !== 'Hyderabad') count++;
+    if (sortBy !== 'rating') count++;
+    return count;
+  }, [selectedCategory, search, selectedCity, sortBy]);
+
+  const handleLoadMore = useCallback(() => {
+    setIsLoadingMore(true);
+    // Simulate network delay
+    setTimeout(() => {
+      setVisibleCount(prev => Math.min(prev + LOAD_MORE_SIZE, filtered.length));
+      setIsLoadingMore(false);
+    }, 500);
+  }, [filtered.length]);
+
+  const clearFilters = useCallback(() => {
+    setSearch('');
+    setSelectedCategory('All');
+    setSelectedCity('Hyderabad');
+    setSortBy('rating');
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -120,22 +263,55 @@ export default function VendorsPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="input-field pl-10 py-2.5 text-sm"
+                  aria-label="Search vendors"
                 />
-                {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2"><X size={16} className="text-gray-400" /></button>}
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    aria-label="Clear search"
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                  >
+                    <X size={16} className="text-gray-400 hover:text-gray-600" />
+                  </button>
+                )}
               </div>
               {/* City */}
               <div className="relative">
                 <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <select value={selectedCity} onChange={(e) => setSelectedCity(e.target.value)} className="input-field pl-9 pr-8 py-2.5 text-sm appearance-none cursor-pointer min-w-[140px]">
+                <select
+                  value={selectedCity}
+                  onChange={(e) => setSelectedCity(e.target.value)}
+                  aria-label="Select city"
+                  className="input-field pl-9 pr-8 py-2.5 text-sm appearance-none cursor-pointer min-w-[140px]"
+                >
                   {CITIES.map((c) => <option key={c}>{c}</option>)}
                 </select>
               </div>
               {/* Sort */}
               <div className="relative">
-                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="input-field pr-8 py-2.5 text-sm appearance-none cursor-pointer min-w-[160px]">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  aria-label="Sort vendors"
+                  className="input-field pr-8 py-2.5 text-sm appearance-none cursor-pointer min-w-[160px]"
+                >
                   {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
+              {/* Filters chip */}
+              <button
+                onClick={clearFilters}
+                aria-label={activeFilterCount > 0 ? `${activeFilterCount} active filter${activeFilterCount > 1 ? 's' : ''}. Click to clear all filters` : 'Filters'}
+                className="relative shrink-0 inline-flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <SlidersHorizontal size={16} />
+                <span>Filters</span>
+                {activeFilterCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-brand-600 rounded-full">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -146,6 +322,8 @@ export default function VendorsPage() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
+                  aria-label={`Filter by ${cat === 'All' ? 'all categories' : cat}`}
+                  aria-pressed={selectedCategory === cat}
                   className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
                     selectedCategory === cat ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
@@ -159,24 +337,68 @@ export default function VendorsPage() {
 
         {/* Results */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-gray-600 text-sm">
-              Showing <strong>{filtered.length}</strong> vendors in <strong>{selectedCity}</strong>
-              {selectedCategory !== 'All' && <> · <strong>{selectedCategory}</strong></>}
-            </p>
-          </div>
-
-          {filtered.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {filtered.map((vendor) => <VendorCard key={vendor.id} vendor={vendor} />)}
-            </div>
+          {isLoading ? (
+            <SkeletonGrid />
           ) : (
-            <div className="text-center py-20">
-              <div className="text-6xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">No vendors found</h3>
-              <p className="text-gray-500">Try adjusting your search or filters</p>
-              <button onClick={() => { setSearch(''); setSelectedCategory('All'); }} className="btn-primary mt-4">Clear Filters</button>
-            </div>
+            <>
+              {/* Result count */}
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-gray-600 text-sm">
+                  Showing <strong>{Math.min(visibleCount, filtered.length)}</strong> of <strong>{filtered.length}</strong> vendors in <strong>{selectedCity}</strong>
+                  {selectedCategory !== 'All' && <> · <strong>{selectedCategory}</strong></>}
+                </p>
+                {activeFilterCount > 0 && (
+                  <button
+                    onClick={clearFilters}
+                    className="text-sm text-brand-600 hover:text-brand-700 font-medium inline-flex items-center gap-1"
+                  >
+                    <X size={14} />
+                    Clear filters
+                  </button>
+                )}
+              </div>
+
+              {filtered.length > 0 ? (
+                <>
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={`${selectedCategory}-${search}`}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
+                    >
+                      {visibleVendors.map((vendor, i) => (
+                        <VendorCard key={vendor.id} vendor={vendor} index={i} />
+                      ))}
+                    </motion.div>
+                  </AnimatePresence>
+
+                  {/* Load More */}
+                  {hasMore && (
+                    <div className="flex justify-center mt-10">
+                      <button
+                        onClick={handleLoadMore}
+                        disabled={isLoadingMore}
+                        className="inline-flex items-center gap-2 px-8 py-3 rounded-full border-2 border-brand-600 text-brand-600 font-semibold text-sm hover:bg-brand-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        {isLoadingMore ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Loading…
+                          </>
+                        ) : (
+                          <>Load More Vendors</>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <EmptyState onClear={clearFilters} />
+              )}
+            </>
           )}
         </div>
       </div>

@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import Cookies from 'js-cookie';
 
+export type UserRole = 'customer' | 'vendor' | 'coordinator' | 'admin' | 'super_admin';
+
 export interface User {
   id: string;
   phone: string;
   email?: string;
-  role: 'customer' | 'vendor' | 'admin';
+  role: UserRole;
   status: string;
   phoneVerified: boolean;
 }
