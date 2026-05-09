@@ -1,0 +1,649 @@
+<div align="center">
+
+<img src="https://img.shields.io/badge/Wedding%20OS-India's%20First%20Wedding%20Operating%20System-FF6B6B?style=for-the-badge&logo=heart&logoColor=white" alt="Wedding OS" />
+<br/>
+
+# 💍 WEDDING OS — PROJECT MASTER AUDIT DOCUMENT
+
+### *India's First End-to-End Wedding Operating System*
+### *From First Click to Final Applause — The Infrastructure Layer of a ₹2,00,000 Crore Industry*
+
+<br/>
+
+[![Status](https://img.shields.io/badge/Status-Development%20Phase-2196F3?style=for-the-badge)]()
+[![Sprint](https://img.shields.io/badge/Sprint-7%20Plans%20Ready-4CAF50?style=for-the-badge)]()
+[![Services](https://img.shields.io/badge/Microservices-12%20Running-00BCD4?style=for-the-badge)]()
+[![Rating](https://img.shields.io/badge/Completion-3.5%2F10-FF9800?style=for-the-badge)]()
+[![License](https://img.shields.io/badge/License-Proprietary-F44336?style=for-the-badge)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)]()
+[![Node.js](https://img.shields.io/badge/Node.js-24.14-339933?style=for-the-badge&logo=node.js&logoColor=white)]()
+[![Flutter](https://img.shields.io/badge/Flutter-3.19-02569B?style=for-the-badge&logo=flutter&logoColor=white)]()
+[![Next.js](https://img.shields.io/badge/Next.js-14-000000?style=for-the-badge&logo=next.js&logoColor=white)]()
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)]()
+
+<br/>
+
+> **"Build the infrastructure layer of India's wedding industry — where every wedding runs through our platform."**
+
+<br/>
+
+---
+
+**Inspired by the engineering excellence of:**<br/>
+[**Razorpay**](https://github.com/razorpay) · [**Zepto**](https://github.com/zepto-org) · [**Swiggy**](https://github.com/swiggy-engineering) · [**Shopify**](https://github.com/shopify) · [**Airbnb**](https://github.com/airbnb) · [**Uber**](https://github.com/uber)
+
+</div>
+
+---
+
+## 📋 Table of Contents
+
+<details>
+<summary><strong>Click to expand full table of contents</strong></summary>
+
+1. [Project Overview](#1-project-overview)
+2. [Complete Feature List](#2-complete-feature-list)
+3. [Complete User Flow](#3-complete-user-flow)
+4. [App Platforms](#4-app-platforms)
+5. [Complete Tech Stack](#5-complete-tech-stack)
+6. [Project Structure](#6-project-structure)
+7. [Database Structure](#7-database-structure)
+8. [API Structure](#8-api-structure)
+9. [Authentication & Security](#9-authentication--security)
+10. [UI/UX Analysis](#10-uiux-analysis)
+11. [Android App Analysis](#11-android-app-analysis)
+12. [Performance Analysis](#12-performance-analysis)
+13. [Scalability & Future Growth](#13-scalability--future-growth)
+14. [Known Bugs & Blockers](#14-known-bugs--blockers)
+15. [Business Logic](#15-business-logic)
+16. [Payment System](#16-payment-system)
+17. [Notifications & Communication](#17-notifications--communication)
+18. [Admin Panel Analysis](#18-admin-panel-analysis)
+19. [Analytics & Tracking](#19-analytics--tracking)
+20. [DevOps & Deployment](#20-devops--deployment)
+21. [Legal & Compliance](#21-legal--compliance)
+22. [AI Features & Automation](#22-ai-features--automation)
+23. [Similar Platforms / Competitor Analysis](#23-similar-platforms--competitor-analysis)
+24. [Future Feature Wishlist](#24-future-feature-wishlist)
+25. [Screenshots & Recordings](#25-screenshots--recordings)
+26. [Access Details (Optional)](#26-access-details-optional)
+27. [Main Expectations From AI Assistants](#27-main-expectations-from-chatgpt)
+28. [Special Notes](#28-special-notes)
+29. [Final Analysis Request](#29-final-analysis-request)
+
+</details>
+
+---
+
+# 1. PROJECT OVERVIEW
+
+## App / Platform Name
+**WeddingOS** (Wedding Operating System)
+
+## Tagline
+*India's First End-to-End Wedding Operating System. From First Click to Final Applause.*
+
+## Problem Statement
+The Indian wedding industry (₹2,00,000 Crore TAM) is highly fragmented, chaotic, and heavily reliant on unorganized offline networks. Customers face pricing opacity, tracking issues, and scattered vendor coordination. Vendors face manual lead management, uncertain cashflows, and scattered scheduling. WeddingOS brings order, escrow-based financial security, and end-to-end execution to the chaos.
+
+## Industry / Domain
+- Marketplace
+- Execution Platform
+- FinTech (Escrow Payments)
+- SaaS (Vendor CRM/OS)
+
+## Business Type
+- **B2B2C** (Marketplace linking Vendors to Customers)
+- **Commission Model** (Standardized escrow fees per transaction)
+- **SaaS** (Vendor OS subscription for premium B2B tooling)
+
+## Target Users
+- **Customers:** Couples & Families organizing weddings.
+- **Vendors:** Venues, Caterers, Planners, Decorators, Photographers, Artists.
+- **Admins:** Operational staff for platform health, dispute resolution.
+
+## Countries / Regions Targeted
+- Current: **India** (Focus on Tier-1 and Tier-2 cities).
+- Future: **Global / NRI** destination weddings, expanding Pan-Asia.
+
+## Current Project Status
+- **Beta / MVP Implementation Stage** (Current codebase Completion Rating: 3.5/10)
+- Core Monorepo scaffolding set up with 12 microservices. Next UI apps generated but lack deep functionality.
+
+## Main Business Goals
+- Centralize 10% of India's wedding execution flow within 5 years.
+- Standardize payments through Escrow, protecting both customers and vendors.
+- Reduce vendor coordination overhead by 80% with automated workflows.
+- Introduce AI-based budget optimization for Indian weddings.
+
+## Main Revenue Model
+- Transaction Commissions on escrow bookings (e.g., 3-5%).
+- SaaS subscription fees for Vendor OS unlocking premium CRM/Analytics tools.
+- Featured vendor listings / Advertising revenues.
+
+## Core USP (Unique Selling Point)
+We are not just a discovery or listing site (like competitors). We are an **Execution Engine** combined with **Escrow Payments**, offering a **Vendor CRM (SaaS)** wrapper. We handle the discovery, booking, payments, execution timelines, and post-event reviews.
+
+---
+
+# 2. COMPLETE FEATURE LIST
+
+## Existing & Planned Features
+
+### User Features
+- AI Budget Planner & Cost Estimator
+- Discovery Engine for 15+ Vendor Categories
+- Escrow Secure Bookings & Insta-Refunds
+- Real-time Execution Timeline & Dashboard
+- Guest Management System (Digital Invites & RSVPs)
+- Real-time Collaboration (Family sharing mode)
+- Dispute Management & Resolution Centre
+
+### Vendor / Seller Features (Vendor OS)
+- Centralized Enquiry & Pipeline CRM (Kanban style)
+- Calendar & Real-time Availability Blocking
+- Automated Quotation & Invoice Generation
+- Subscription Management & Premium Profile
+- Staff & Sub-contractor coordination (Execution Engine)
+- Earnings & Payout Analytics
+
+### Admin Features
+- User / Vendor Verification (DigiLocker/GST verification approvals)
+- Escrow Release & Refund Overrides
+- Global Dashboard & Metrics (Revenue, Active Events, Churn)
+- Content Moderation & Dispute Arbitration
+
+### Delivery / Agent Features
+- Venue and check-in GPS tracker (for sub-contractors and operational staff checking into an event setup).
+
+### AI Features
+- **Budget Optimizer Algorithm:** Allocates budget seamlessly based on location & guest count.
+- **Vendor Recommender:** Collaborative filtering based on taste and budget.
+- **AI Fraud Detector:** Prevents fake reviews and illegitimate bookings.
+- **AI Chatbot:** Real-time customer support and wedding planning assistant.
+
+---
+
+## Feature Status
+
+| Feature | Status | Notes |
+|---|---|---|
+| Monorepo Architecture | Working | Turborepo, pnpm setup with 12 services |
+| Microservices Shells | Working | Basic setups in Express/FastAPI, lacking depth |
+| User & Vendor Auth | Partial | Basic JWT/Prisma schema exists |
+| AI Service | Buggy | FastAPI Placeholder implemented, missing true ML logic |
+| Payments & Escrow | Pending | Schema created, but no Razorpay/Webhooks integrated |
+| Vendor CRM UI | Pending | Mock data pages in Next.js vendor-web app |
+| Execution Engine | Buggy/Pending | Schema mapped but no Cron/Queue orchestration |
+| React Native/Flutter Mobile | Planned | Structure added, no dart codebase yet |
+
+---
+
+# 3. COMPLETE USER FLOW
+
+## User Journey
+1. **Discovery:** User opens Web/Mobile App → Answers AI Quiz (Budget, City, Guest Count).
+2. **Onboarding:** App auto-generates structured Budget & Checklist. User Registers/Logs in via OTP.
+3. **Execution/Search:** User browses recommended venues/photographers.
+4. **Interaction:** User requests Quote → Vendor counters/accepts.
+5. **Booking:** User accepts Quote → Pays 30% Advance to Escrow via Payment Gateway.
+6. **Timeline Prep:** Tasks auto-generated in Execution Dashboard.
+7. **Event Day:** App tracks check-ins, remaining payments hit Escrow. Event occurs.
+8. **Completion:** Customer approves delivery → Escrow auto-releases to Vendor.
+9. **Feedback:** Verified reviews prompted.
+
+## Vendor Journey
+1. **Validation:** Vendor registers with GST/KYC docs → Admin approves.
+2. **Profile Setup:** Vendor builds packages, sets base pricing.
+3. **CRM Management:** Vendor dashboard shows new "Leads" directly from Customers.
+4. **Booking:** Vendor replies with Quotation → Receives Escrow confirmation.
+5. **Operation:** Calendar auto-blocks dates. Vendor coordinates team ops via Dashboard.
+6. **Payouts:** Event triggers automated T+1 day bank payout processing.
+
+## Admin Workflow
+1. **Validation:** Approving flagged vendor KYCs from Admin Panel.
+2. **Operations:** Managing platform commission percentages dynamically.
+3. **Arbitration:** Resolving blocked Escrow disputes by reviewing chat logs.
+4. **Moderation:** Moderating reported reviews & users.
+
+## Subscription Flow
+- Vendors have a Freemium tier (3 free leads/month). 
+- To unlock unlimited leads or CRM tools, they enter the Subscription Flow -> Choose Monthly/Annual Plan -> Stripe/Razorpay Subscription mandates processed.
+
+---
+
+# 4. APP PLATFORMS
+
+## Available Platforms
+- Android (Customer & Vendor Modes)
+- iOS (Customer & Vendor Modes)
+- Web (Customer Marketplace)
+- Web App (Vendor Dashboard SaaS)
+- Desktop (Admin operations fallback)
+
+## Android App Type
+- **Flutter** (Targeting Sprint 6 for core compilation, cross-compiled for Native performance with local database bindings via Hive).
+
+## iOS App Type
+- **Flutter** Native build (Platform channels used for Apple Pay integrations).
+
+## Web Technology
+- **Next.js 14 App Router** + React.js + Tailwind CSS.
+
+---
+
+# 5. COMPLETE TECH STACK
+
+## Frontend
+- **Framework:** Next.js 14, React Native (Flutter for Mobile)
+- **Language:** TypeScript 5.x, Dart 3.19
+- **UI Libraries:** Tailwind CSS, shadcn/ui
+
+## Backend
+- **Framework:** Node.js (Express), FastAPI (Python for AI Service)
+- **Language:** TypeScript 5.x, Python 3.10+
+- **Architecture:** 12 Microservices bounded contexts
+
+## Database
+- **PostgreSQL 16** via Prisma ORM (Relational strictness, JSONB for metadata)
+- **Redis 7** (Caching, Session, and potential Pub/Sub)
+- **Elasticsearch 8** (Planned for hyper-fast vendor discovery)
+
+## Authentication
+- **JWT (RS256 asymmetric)** at the Microservices layer.
+- **OTP Gateway:** Redis backed TTL keys.
+- **RBAC Middleware:** Handles Admin/Vendor/User route isolation.
+
+## Hosting / Infrastructure
+- **Cloud:** Target AWS (EKS / ECS / Lambda)
+- **API Gateway:** Kong
+- **IaC:** Terraform Modules (Staging, Production environments)
+
+## Storage
+- **Media Files:** AWS S3 (Planned)
+- **CDN:** CloudFront / Cloudflare for rapid image delivery (portfolios).
+
+## APIs & Services Used
+- **Payments:** Razorpay, Stripe
+- **Communication:** MSG91 (SMS), Twilio, WhatsApp 360dialog
+- **KYC:** DigiLocker API, GST API
+- **Maps:** Google Maps / Mapbox
+- **Machine Learning:** OpenAI endpoints (for natural language bots)
+
+---
+
+# 6. PROJECT STRUCTURE
+
+```text
+/workspaces/wed
+├── apps/                # Frontend Applications
+│   ├── admin/           # Next.js Admin Panel
+│   ├── mobile/          # Flutter Customer/Vendor App
+│   ├── vendor-web/      # Next.js Vendor SaaS Platform
+│   └── web/             # Next.js Customer Marketplace Web
+├── docs/                # Architecture, PRDs, Master Bible
+├── infrastructure/      # Infrastructure configurations
+├── packages/            # Shared libraries (Turborepo)
+│   ├── shared-errors/   # Custom Error definitions
+│   ├── shared-events/   # Event bus payloads/types
+│   ├── shared-types/    # Zod/TS types
+│   ├── shared-utils/    # Helper functions
+│   └── ui-kit/          # Centralized React UI components
+├── services/            # Backend Microservices (ai, auth, booking, etc.)
+├── scripts/             # Deployment, DB Seeding & Migrations
+└── sprints/             # 7-Sprint Dev Timeline documentation
+```
+
+## Architecture Pattern
+- **Microservices Architecture:** 12 independently scalable and deployable services.
+- **Turborepo Monorepo:** Enforces strict package boundaries and caches builds.
+
+## State Management
+- **React Context** combined with **React Query** for async state caching.
+- **Provider Pattern** for the Flutter application using Riverpod / Bloc.
+
+---
+
+# 7. DATABASE STRUCTURE
+
+## Database Design
+- **Polyglot Persistence Pattern:** Each microservice has its own isolated `schema.prisma`. 
+- No shared database schemas. Relations between contexts are managed chronologically through async events (Event-Driven).
+
+## Important Tables
+- `auth-service`: Users, Roles, OTPs
+- `vendor-service`: Vendors, Services, Packages, Portfolios
+- `booking-service`: Enquiries, Quotations, Bookings, Contracts
+- `payment-service`: Invoices, EscrowHolds, Payouts, LedgerLogs
+- `execution-service`: Timelines, TimelineTasks, CheckIns
+
+## Current Database Problems
+- **Coupling Risk:** Sync REST APIs mimic monolithic behavior despite microservice structure.
+- **Denormalization Gaps:** The search service is not actively replicating PostgreSQL data streams (requires CDC or Kafka).
+- **Missing Models:** Audit tables, granular permission tracking.
+
+---
+
+# 8. API STRUCTURE
+
+## API Architecture
+- Isolated RESTful APIs routed through **Kong API Gateway**. Kong strips outer headers and passes authenticated JWTs downward. Internal services communicate via REST (needs upgrade to RabbitMQ/Kafka for durability).
+
+## Major APIs
+- `POST /api/v1/auth/login` (Generate OTP)
+- `GET /api/v1/search/vendors` (Paginated, filtered results)
+- `POST /api/v1/booking/enquire` (Start vendor interaction)
+- `POST /api/v1/payments/escrow/capture` (Razorpay Webhook listener)
+
+## API Problems
+- High timeout risk if `search-service` calls `vendor-service` synchronously over REST.
+- Empty implementations: Mock validation returning 200 OK without real db insertion.
+- Auth contexts often duplicate token validations across services instead of relying entirely on the gateway.
+
+---
+
+# 9. AUTHENTICATION & SECURITY
+
+## Authentication Flow
+User sends Phone Number &rarr; OTP generated & stored in Redis &rarr; SMS via MSG91 &rarr; User verifies &rarr; Express returns signed JWT & Refresh Token &rarr; Stored in Secure HttpOnly Cookie (Web) or SecureStorage (Mobile).
+
+## Security Features
+- **JWT (RS256):** Prevents symmetric key compromises.
+- **Helmet Middleware:** Protects Express against header injections.
+- **Rate-Limiting:** Setup against brute-force DDoS attempts.
+
+## Current Security Concerns
+- **Missing CSRF configuration:** Replay attacks possible on web forms.
+- **PII:** Not hashed at rest within PostgreSQL (GDPR/DPDP violation).
+- **Webhooks:** Currently missing signature verification for Payment hooks.
+
+---
+
+# 10. UI/UX ANALYSIS
+
+## Current UI Problems
+- 5 mock Next.js pages implemented to test Turborepo mapping.
+- Minimal state alignment; spacing issues, un-styled forms.
+- Zero error boundary setups preventing white-screen crashes on network failure.
+
+## UX Problems
+- Vendor onboarding expects 12 fields immediately without a segmented wizard flow.
+- "Booking" is a singular click rather than an interactive Quotation negotiation modal.
+
+## Pages Needing Redesign
+- Home Page Discovery Form (Requires Apple-style smooth animations).
+- Vendor CRM / Kanban Pipeline Dashboard.
+- Analytics/Graph representations.
+
+## UI Inspiration Apps
+- **Airbnb:** For trusting peer-to-peer imagery and map-driven discovery.
+- **Spotify / Linear:** Dark-themed, ultra low-latency interface structures.
+- **Razorpay Checkout:** For transparent escrow breakdowns.
+
+---
+
+# 11. ANDROID APP ANALYSIS
+
+## Current Android Issues
+- Flutter project is completely scaffolded but contains 0 logic code.
+- Consequently, lacks Firebase linkages, and background handlers. 
+
+## Android Performance Problems (Anticipated)
+- Caching hundreds of high-res venue images natively kills heap memory.
+- Will require aggressive `cached_network_image` strategies and low-res thumbnails.
+- Startup initialization bindings over-crowding the `main()` method.
+
+## Android Permissions Used
+- `INTERNET`, `ACCESS_FINE_LOCATION` (Execution tracking), `CAMERA`, `READ_EXTERNAL_STORAGE` (Vendor uploads), `FOREGROUND_SERVICE` (Task alerts).
+
+## Play Store Status
+- Pre-Alpha / Internal Testing.
+
+## Play Store Issues
+- Awaiting strict policy verifications around Escrow Handling in India.
+
+---
+
+# 12. PERFORMANCE ANALYSIS
+
+## Slow Areas
+- The microservices architecture introduces intrinsic network latency on direct fetches.
+- Search API lacks inverted index mechanisms, relying entirely on Postgres `ILIKE`.
+
+## Performance Bottlenecks
+- `media-service` processing pipeline. Uploading raw 50MB vendor videos synchronously will kill Node's single thread. (Needs S3 Presigned URLs + Lambda processing).
+- Synchronous database writes for analytics features.
+
+## Caching Strategy
+- Redis implementation mapped but largely unused. Needs to cache Home feeds, Categories, and global metrics.
+
+## Offline Support
+- Target: Mobile app uses `Hive` local storage for Timeline Tasks; syncs when connectivity is restored via `ConnectivityPlus`.
+
+---
+
+# 13. SCALABILITY & FUTURE GROWTH
+
+## Current User Capacity
+- Barebones MVP — ~10 concurrent requests scale limit on pure REST node execution.
+
+## Expected Future Users
+- Target: 10,000 DAU, 400 Concurrent Active Vendors during peak Indian wedding season.
+
+## Expansion Plans
+- District level filtering across Top 15 Indian regions.
+- Launching "WeddingOS Finance" Phase 3 for automated wedding loans.
+
+## Scaling Concerns
+- Database limits: Relational constraints across 12 microservices.
+- High memory drain due to Kong gateway holding concurrent WebSocket streams for Chat Service.
+
+---
+
+# 14. KNOWN BUGS & BLOCKERS
+
+| Issue | Severity | Platform | Status |
+|---|---|---|---|
+| Complete Lack of Event Bus | High | Backend Architecture | Pending |
+| Mock Data in UIs | High | Frontend | Pending |
+| Auth Integration Mismatch | Medium | API/Web | Investigating |
+| Empty Flutter Implementation | Critical | Mobile | Planned (Sprint 6) |
+| Missing CI/CD pipelines | High | DevOps | Pending |
+
+---
+
+# 15. BUSINESS LOGIC
+
+## Pricing Logic
+- Registration & search is completely free. Basic vendor accounts are free.
+
+## Commission Logic
+- Tiered Platform fee: Baseline 5%. Subscribed vendors: 2-3%. Deducted at Escrow Release phase automatically via Payment Gateway Routing.
+
+## Vendor Approval Logic
+- Admin review queue. Trigger auto-approve if GST verified via external API and identity matches. 
+
+## Subscription Logic
+- B2B Monthly SaaS. Uses Stripe/Razorpay standard recurring billing APIs (webhooks). Upgrades them to 'Platinum' ranking in search logic.
+
+## Refund Logic
+- Time-gated: 100% manual refund capability before vendor accepts. 0% automatic post-event. Post-event requires Admin Arbitration mechanism (Review service).
+
+## Payout Logic
+- Event End Timeline triggers the "Ready for Release" webhook. Auto-releases T+1.
+
+---
+
+# 16. PAYMENT SYSTEM
+
+## Payment Providers
+- **Razorpay** (Core Escrow & Route mappings), **Stripe** (International / SaaS billing).
+
+## Payment Flow
+1. Booking initiates -> Redirect to `payment-service` generating `order_id`.
+2. Checkout Modal invoked. User pays.
+3. Gateway Webhook strikes `payment-service` `/capture`. Confirms booking.
+4. Funds held in gateway virtual accounts until Delivery is authenticated.
+5. Delivery -> webhook calls vendor's `BankAccount`, taking 4% platform cut.
+
+## Current Payment Problems
+- Code is skeleton form; zero actual API calls are established. Webhook reconciliations aren't stored idempotently (high risk of DB duplicate increments if Razorpay Double-Triggers).
+
+---
+
+# 17. NOTIFICATIONS & COMMUNICATION
+
+## Push Notifications
+- Provided via Firebase Cloud Messaging (FCM). Handles Real-time app pings.
+
+## SMS / WhatsApp
+- MSG91 / 360dialog APIs. Used for OTP and offline booking status reports.
+
+## Email System
+- AWS SES for formal transactional receipts.
+
+## Notification Problems
+- Microservice `notification-service` needs a message queue (BullMQ), otherwise high traffic events freeze the event loop.
+
+---
+
+# 18. ADMIN PANEL ANALYSIS
+
+## Current Admin Features
+- Skeleton React UI mapped on `apps/admin/`. Login portal.
+
+## Missing Admin Features
+- KYC Verifications Dashboard, Global Rev/Transaction Metrics, Escrow overrides, User ban hammer flags. Dispute context timeline viewer.
+
+## Admin Pain Points
+- Lack of deep links. Admins currently have to query DB manually to find issue contexts.
+
+---
+
+# 19. ANALYTICS & TRACKING
+
+## Analytics Tools
+- Planned: Mixpanel (Product Analytics, Retention funnels), Firebase Analytics (Mobile), Datadog/Grafana (Infra metrics).
+
+## Current Metrics Tracked
+- Zero implementations natively yet.
+
+## Missing Analytics
+- Drop-off rates on Quotation requests, API P99 latency tracking, AI budget planner conversion ratios.
+
+---
+
+# 20. DEVOPS & DEPLOYMENT
+
+## Deployment Process
+- Currently using `docker-compose.dev.yml` for local sandbox deployment. Monorepo Turborepo caching accelerates builds.
+
+## CI/CD
+- GitHub Actions workflows mapped but inert.
+
+## Backup Strategy
+- AWS RDS Automated Snapshots (Targeted).
+
+## Monitoring Tools
+- None currently implemented.
+
+## Current Deployment Problems
+- Because it's a 12-service microservices application, booting the stack locally crushes laptops with < 16GB RAM.
+
+---
+
+# 21. LEGAL & COMPLIANCE
+
+- Platform mandates acceptance of Escrow Nodal Account legalities. 
+- Vendors require automated GST Invoice generations to be financially compliant with government APIs.
+- Digital Personal Data Protection (DPDP) standards: requiring double opt-in for marketing cookies and full account wiping capabilities.
+
+---
+
+# 22. AI FEATURES & AUTOMATION
+
+## Existing AI Features
+- Outlined shell in Python FastAPI `ai-service/`.
+
+## Planned AI Features
+- **AI Recommendation Engine:** "Couples who liked this venue also booked these photographers."
+- **AI Vendor Reply Generation:** Auto-drafting messages to users based on prior successful chat logs.
+- **Budget Auto-Calibration Machine:** Changing the guest count dynamically changes estimated budget constraints per vendor type.
+
+---
+
+# 23. SIMILAR PLATFORMS / COMPETITOR ANALYSIS
+
+## Direct Competitors
+- **WedMeGood, WeddingWire (The Knot), ShaadiSaga.**
+
+## Features You Like From Competitors
+- WedMeGood's visually dominant discovery grid for inspiration.
+- WeddingWire's integrated checklists.
+
+## Features Missing In Your Platform
+- Widespread brand recognition, legacy SEO.
+
+## Competitor Weaknesses
+- **Lead Generation Trap:** They charge vendors for clicks, but 99% of people book entirely off platform. They have *zero visibility* post-discovery.
+- **No Escrow Security:** People get scammed relentlessly on legacy apps. 
+- **No Working Vendor CRM:** Their dashboards are outdated.
+
+## Features We Can Build Better
+- **True End-to-End Orchestration.** By enforcing escrow, we take a % of the actual volume, securing the transaction. The Timeline dashboard makes our app useful *on the wedding day*, not just 6 months prior.
+
+---
+
+# 24. FUTURE FEATURE WISHLIST
+
+- **WeddingOS Finance:** Integrated BNPL (Buy Now Pay Later) or Low-interest lines of credit for weddings directly approved using Escrow API data.
+- **WeddingOS Marketplace:** Extending to physical materials (buying wedding dresses or decorations on-app).
+- **AR/VR Discovery:** Fully virtual venue walk-arounds for destination weddings.
+- **Multi-lingual Voice AI:** Allowing grand-parents to manage digital guestlists simply by talking to their phone.
+
+---
+
+# 25. SCREENSHOTS & RECORDINGS
+*(To be mapped and populated automatically via CI/CD integrations on UI release)*
+
+---
+
+# 26. ACCESS DETAILS (OPTIONAL)
+
+| Application | Environment | Access Command | URL Context |
+|---|---|---|----|
+| Entire Stack | Local Dev | `pnpm dev` | Turborepo Orchestrated |
+| API Gateway | Local Dev | `docker-compose up` | `localhost:8000` |
+| Web Customer | Mock Dev | via Turborepo | `localhost:3000` |
+| Admin Panel | Mock Dev | via Turborepo | `localhost:3001` |
+
+---
+
+# 27. MAIN EXPECTATIONS FROM AI ASSISTANTS
+
+1. **System Architecture Improvement:** Assist in wiring together correct Kafka/Redis PubSub methodologies between services.
+2. **Implementation Velocity:** Build the missing Dart/Flutter configurations rapidly referencing the existing OpenAPI schema specifications.
+3. **Debugging Complexities:** Decouple monolithic REST dependencies and ensure Prisma models map correctly across UUID foreign limits.
+4. **DevOps Hardening:** Construct complete `.github/workflows` to test boundaries before deployment.
+
+---
+
+# 28. SPECIAL NOTES
+
+**The execution map dictates a 7-Sprint sequence.** 
+Ensure any logic implementations strictly follow the current architectural design guidelines found in `docs/PRD_v1.0.md` and `docs/Vol3_MasterBible.md`. Do not bypass microservices boundaries artificially; use the Kong Gateway for structural inter-service testing.
+
+---
+
+# 29. FINAL ANALYSIS REQUEST
+
+This README functions as the comprehensive platform source of truth. As the core architecture stabilizes, developer prompts should focus explicitly on:
+1. Converting placeholder mock DB actions to true SQL operations.
+2. Generating thorough integration tests for the `payment-service` and `booking-service` boundaries to ensure 100% escrow reliability.
+3. Validating mobile offline capabilities extensively to safeguard the "Execution Phase" utility.
+
+*Next-level execution strategy mandates building for failure.* Network partition resilience, database scaling metrics, and CI testing are paramount. 
+
+<div align="center">
+  <b>END OF AUDIT DOCUMENT — READY FOR EXECUTION</b>
+</div>
