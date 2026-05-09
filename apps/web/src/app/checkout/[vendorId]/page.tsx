@@ -133,6 +133,7 @@ export default function CheckoutPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{ package?: string; eventDate?: string }>({});
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -162,8 +163,12 @@ export default function CheckoutPage() {
   const platformFee = selectedPackage ? Math.round(selectedPackage.priceFromPaise * 0.10 * 1.18) : 0; // 10% + 18% GST
 
   const handleSubmit = async () => {
-    if (!selectedPackage || !eventDate || !vendor) {
-      setError('Please select a package and event date');
+    const errors: { package?: string; eventDate?: string } = {};
+    if (!selectedPackage) errors.package = 'Please select a package';
+    if (!eventDate) errors.eventDate = 'Please select a wedding date';
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0 || !vendor) {
+      setError(!vendor ? 'Vendor not found' : '');
       return;
     }
     setError('');
@@ -173,7 +178,7 @@ export default function CheckoutPage() {
       // 1. Create booking enquiry
       const bookingRes = await bookingApi.enquire({
         vendorId: vendor.id,
-        packageId: selectedPackage.id,
+        packageId: selectedPackage!.id,
         eventDate,
         eventType: 'WEDDING',
         eventCity,
@@ -208,7 +213,7 @@ export default function CheckoutPage() {
               bookingId,
               eventDate,
             });
-            router.push(`/bookings/${bookingId}?success=1`);
+            router.push(`/checkout/success?bookingId=${bookingId}&vendorName=${encodeURIComponent(vendor.name)}&amount=${advance}`);
           },
           prefill: { contact: user?.phone },
           theme: { color: '#9333ea' },
@@ -216,7 +221,7 @@ export default function CheckoutPage() {
         rzp.open();
       } else {
         // Razorpay SDK not loaded — redirect to bookings with success
-        router.push(`/bookings/${bookingId}`);
+        router.push(`/checkout/success?bookingId=${bookingId}&vendorName=${encodeURIComponent(vendor.name)}&amount=${advance}`);
       }
     } catch (err: any) {
       setError(err?.response?.data?.error?.message ?? 'Something went wrong. Please try again.');
@@ -290,10 +295,16 @@ export default function CheckoutPage() {
                   key={pkg.id}
                   pkg={pkg}
                   selected={selectedPackage?.id === pkg.id}
-                  onSelect={() => setSelectedPackage(pkg)}
+                  onSelect={() => { setSelectedPackage(pkg); setFieldErrors((e) => ({ ...e, package: undefined })); }}
                 />
               ))}
             </div>
+            {fieldErrors.package && (
+              <p className="flex items-center gap-1.5 text-red-600 text-xs mt-2">
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                {fieldErrors.package}
+              </p>
+            )}
           </div>
 
           {/* ── Event details ── */}
@@ -308,10 +319,16 @@ export default function CheckoutPage() {
                 <input
                   type="date"
                   value={eventDate}
-                  onChange={(e) => setEventDate(e.target.value)}
+                  onChange={(e) => { setEventDate(e.target.value); setFieldErrors((prev) => ({ ...prev, eventDate: undefined })); }}
                   min={new Date().toISOString().split('T')[0]}
-                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                  className={`w-full px-3 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 ${fieldErrors.eventDate ? 'border-red-400 ring-1 ring-red-300' : 'border-gray-200'}`}
                 />
+                {fieldErrors.eventDate && (
+                  <p className="flex items-center gap-1.5 text-red-600 text-xs mt-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    {fieldErrors.eventDate}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
