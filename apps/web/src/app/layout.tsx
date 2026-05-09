@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import './globals.css';
 import { Providers } from './providers';
 import { BottomNav } from '@/components/layout/BottomNav';
+import { CookieConsent } from '@/components/layout/CookieConsent';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-heading' });
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <div id="main-content">{children}</div>
           <BottomNav />
+          <CookieConsent />
           <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         </Providers>
       </body>
