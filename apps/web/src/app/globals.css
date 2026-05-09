@@ -59,4 +59,37 @@
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Focus-visible ring for accessibility */
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white transition-shadow;
+  }
+
+  /* Slide-up animation for page transitions */
+  .animate-slide-up {
+    animation: slideUp 0.5s ease-out both;
+  }
+
+  /* Shimmer/skeleton loading animation */
+  .animate-shimmer {
+    background: linear-gradient(90deg, theme('colors.gray.200') 25%, theme('colors.gray.100') 50%, theme('colors.gray.200') 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

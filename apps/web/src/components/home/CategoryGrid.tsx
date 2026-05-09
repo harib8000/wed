@@ -1,4 +1,8 @@
+'use client';
+
 import Link from 'next/link';
+import { useRef } from 'react';
+import { motion, useInView } from 'framer-motion';
 import { Camera, Music, Utensils, Building2, Palette, Sparkles, Car, FileText, Star, ArrowRight, Flame, Video } from 'lucide-react';
 
 const CATEGORIES = [
@@ -14,7 +18,31 @@ const CATEGORIES = [
   { id: 'mehendi', label: 'Mehendi Artists', subtitle: 'Bridal · Arabic · Rajasthani · Fusion', icon: Sparkles, count: '300+', image: 'https://images.unsplash.com/photo-1583089892943-e02e5b017b6a?w=600&q=80', gradient: 'from-emerald-600/80 to-emerald-900/90', popular: false },
 ];
 
+const featuredVariants = {
+  hidden: { opacity: 0, y: 30, scale: 0.96 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { delay: i * 0.15, duration: 0.5, ease: 'easeOut' },
+  }),
+};
+
+const compactVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.07, duration: 0.4, ease: 'easeOut' },
+  }),
+};
+
 export function CategoryGrid() {
+  const featuredRef = useRef(null);
+  const compactRef = useRef(null);
+  const featuredInView = useInView(featuredRef, { once: true, margin: '-50px' });
+  const compactInView = useInView(compactRef, { once: true, margin: '-50px' });
+
   return (
     <section className="py-16 bg-white" id="categories">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -30,70 +58,88 @@ export function CategoryGrid() {
         </div>
 
         {/* Top 3 Featured Categories — Full Width Large Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
-          {CATEGORIES.filter(c => c.popular).map((cat) => {
+        <div ref={featuredRef} className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
+          {CATEGORIES.filter(c => c.popular).map((cat, i) => {
             const Icon = cat.icon;
             return (
-              <Link
+              <motion.div
                 key={cat.id}
-                href={`/vendors?category=${cat.id}`}
-                className="group relative h-64 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 hover:-translate-y-1"
+                custom={i}
+                initial="hidden"
+                animate={featuredInView ? 'visible' : 'hidden'}
+                variants={featuredVariants}
+                whileHover={{ scale: 1.03 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               >
-                <img
-                  src={cat.image}
-                  alt={cat.label}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-t ${cat.gradient}`} />
-                <div className="relative h-full flex flex-col justify-between p-6 text-white">
-                  <div className="flex items-start justify-between">
-                    <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                      <Icon size={24} />
-                    </div>
-                    <span className="bg-white/20 backdrop-blur-sm text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1">
-                      <Flame size={12} /> Popular
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold mb-1">{cat.label}</h3>
-                    <p className="text-white/80 text-sm mb-2">{cat.subtitle}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-white/60 text-xs">{cat.count} vendors available</span>
-                      <span className="flex items-center gap-1 text-sm font-semibold group-hover:gap-2 transition-all">
-                        Explore <ArrowRight size={16} />
+                <Link
+                  href={`/vendors?category=${cat.id}`}
+                  className="group relative h-64 rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-shadow duration-300 block"
+                >
+                  <img
+                    src={cat.image}
+                    alt={cat.label}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                  />
+                  <div className={`absolute inset-0 bg-gradient-to-t ${cat.gradient}`} />
+                  <div className="relative h-full flex flex-col justify-between p-6 text-white">
+                    <div className="flex items-start justify-between">
+                      <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                        <Icon size={24} />
+                      </div>
+                      <span className="bg-white/20 backdrop-blur-sm text-xs font-medium px-3 py-1 rounded-full flex items-center gap-1">
+                        <Flame size={12} /> Popular
                       </span>
                     </div>
+                    <div>
+                      <h3 className="text-xl font-bold mb-1">{cat.label}</h3>
+                      <p className="text-white/80 text-sm mb-2">{cat.subtitle}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/60 text-xs">{cat.count} vendors available</span>
+                        <span className="flex items-center gap-1 text-sm font-semibold group-hover:gap-2 transition-all">
+                          Explore <ArrowRight size={16} />
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              </motion.div>
             );
           })}
         </div>
 
         {/* Remaining Categories — Compact Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
-          {CATEGORIES.filter(c => !c.popular).map((cat) => {
+        <div ref={compactRef} className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 mb-8">
+          {CATEGORIES.filter(c => !c.popular).map((cat, i) => {
             const Icon = cat.icon;
             return (
-              <Link
+              <motion.div
                 key={cat.id}
-                href={`/vendors?category=${cat.id}`}
-                className="group relative h-40 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                custom={i}
+                initial="hidden"
+                animate={compactInView ? 'visible' : 'hidden'}
+                variants={compactVariants}
+                whileHover={{ scale: 1.05 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               >
-                <img
-                  src={cat.image}
-                  alt={cat.label}
-                  className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className={`absolute inset-0 bg-gradient-to-t ${cat.gradient}`} />
-                <div className="relative h-full flex flex-col justify-end p-3 text-white">
-                  <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center mb-2">
-                    <Icon size={16} />
+                <Link
+                  href={`/vendors?category=${cat.id}`}
+                  className="group relative h-40 rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300 block"
+                >
+                  <img
+                    src={cat.image}
+                    alt={cat.label}
+                    className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
+                  <div className={`absolute inset-0 bg-gradient-to-t ${cat.gradient}`} />
+                  <div className="relative h-full flex flex-col justify-end p-3 text-white">
+                    <div className="w-8 h-8 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center mb-2">
+                      <Icon size={16} />
+                    </div>
+                    <h3 className="text-sm font-bold leading-tight">{cat.label}</h3>
+                    <p className="text-white/60 text-[10px] mt-0.5">{cat.count} vendors</p>
                   </div>
-                  <h3 className="text-sm font-bold leading-tight">{cat.label}</h3>
-                  <p className="text-white/60 text-[10px] mt-0.5">{cat.count} vendors</p>
-                </div>
-              </Link>
+                </Link>
+              </motion.div>
             );
           })}
         </div>
