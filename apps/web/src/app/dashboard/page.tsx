@@ -1,8 +1,9 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Heart, CheckSquare, Bell, Search, Clock, Shield, ArrowRight, Star, MapPin, Building2, Camera, Utensils, Sparkles, Music, Palette, Car, FileText, Users, ChevronRight, TrendingUp, Flame, Award, Zap } from 'lucide-react';
+import { Calendar, Heart, CheckSquare, Bell, Search, Clock, Shield, ArrowRight, Star, MapPin, Building2, Camera, Utensils, Sparkles, Music, Palette, Car, FileText, Users, ChevronRight, TrendingUp, Flame, Award, Zap, Plus, X, Activity } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/lib/api';
 import { Navbar } from '@/components/layout/Navbar';
@@ -32,18 +33,50 @@ const TRENDING_VENDORS = [
   { id: 'v6', name: 'Beats & Celebrations', category: 'Music', city: 'Hyderabad', rating: 4.6, reviews: 94, price: '₹60K onwards', image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80', badge: 'Popular' },
 ];
 
-const UPCOMING_TASKS = [
+const DEFAULT_TASKS = [
   { id: 1, title: 'Book main venue', due: '2 weeks', priority: 'high' as const, done: false },
   { id: 2, title: 'Finalize catering menu', due: '1 month', priority: 'medium' as const, done: true },
   { id: 3, title: 'Book photographer', due: '3 weeks', priority: 'high' as const, done: false },
   { id: 4, title: 'Send invitations', due: '2 months', priority: 'low' as const, done: false },
 ];
 
+const RECENT_ACTIVITIES = [
+  { id: 1, text: 'Venue "Royal Grand Palace" confirmed your booking', time: '2 hours ago', icon: '🏛️' },
+  { id: 2, text: 'Escrow payment of ₹2,00,000 held for venue', time: '3 hours ago', icon: '💰' },
+  { id: 3, text: 'Catering menu finalized with Flavours Catering', time: '1 day ago', icon: '🍽️' },
+  { id: 4, text: 'New message from Srikanth Photography', time: '2 days ago', icon: '📸' },
+];
+
+const fadeIn = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading, setUser, setLoading } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [tasks, setTasks] = useState(DEFAULT_TASKS);
+  const [showAddTask, setShowAddTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [newTaskPriority, setNewTaskPriority] = useState<'high' | 'medium' | 'low'>('medium');
+
+  const nextIdRef = useRef(100);
+
+  const toggleTask = (id: number) => {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+  };
+
+  const addTask = () => {
+    if (!newTaskTitle.trim()) return;
+    const id = nextIdRef.current++;
+    setTasks((prev) => [...prev, { id, title: newTaskTitle.trim(), due: 'TBD', priority: newTaskPriority, done: false }]);
+    setNewTaskTitle('');
+    setNewTaskPriority('medium');
+    setShowAddTask(false);
+  };
+
+  const deleteTask = (id: number) => {
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+  };
 
   useEffect(() => {
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
@@ -67,7 +100,7 @@ export default function DashboardPage() {
       <div className="pt-16">
 
         {/* ─── Hero Welcome Banner ─────────────────────────────── */}
-        <div className="bg-gradient-to-r from-brand-700 via-purple-700 to-brand-800 text-white">
+        <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5 }} className="bg-gradient-to-r from-brand-700 via-purple-700 to-brand-800 text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
               <div>
@@ -112,12 +145,12 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           {/* ─── Category Cards (Main Feature) ────────────────── */}
-          <div className="mb-10">
+          <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5, delay: 0.1 }} className="mb-10">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-xl font-bold font-heading text-gray-900">What are you looking for?</h2>
@@ -185,10 +218,10 @@ export default function DashboardPage() {
                 );
               })}
             </div>
-          </div>
+          </motion.div>
 
           {/* ─── Trending Vendors ──────────────────────────────── */}
-          <div className="mb-10">
+          <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5, delay: 0.2 }} className="mb-10">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <div className="flex items-center gap-2 mb-1">
@@ -238,10 +271,10 @@ export default function DashboardPage() {
                 </Link>
               ))}
             </div>
-          </div>
+          </motion.div>
 
           {/* ─── Planning Tools Row ───────────────────────────── */}
-          <div className="mb-10">
+          <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5, delay: 0.3 }} className="mb-10">
             <h2 className="text-xl font-bold font-heading text-gray-900 mb-4">Your Planning Tools</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
@@ -262,10 +295,10 @@ export default function DashboardPage() {
                 );
               })}
             </div>
-          </div>
+          </motion.div>
 
           {/* ─── Tasks + Budget Row ────────────────────────────── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+          <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5, delay: 0.4 }} className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
             {/* Upcoming Tasks */}
             <div className="card p-6">
               <div className="flex items-center justify-between mb-4">
@@ -273,11 +306,15 @@ export default function DashboardPage() {
                 <Link href="/dashboard/checklist" className="text-sm text-brand-600 hover:underline">View all</Link>
               </div>
               <div className="space-y-3">
-                {UPCOMING_TASKS.map((task) => (
-                  <div key={task.id} className={`flex items-center gap-3 p-3 rounded-xl ${task.done ? 'opacity-50' : 'hover:bg-gray-50'} transition-colors`}>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${task.done ? 'bg-green-500 border-green-500' : task.priority === 'high' ? 'border-red-400' : 'border-gray-300'}`}>
+                {tasks.map((task) => (
+                  <div key={task.id} className={`group/task flex items-center gap-3 p-3 rounded-xl ${task.done ? 'opacity-50' : 'hover:bg-gray-50'} transition-colors`}>
+                    <button
+                      onClick={() => toggleTask(task.id)}
+                      aria-label={task.done ? `Mark "${task.title}" as not done` : `Mark "${task.title}" as done`}
+                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 cursor-pointer ${task.done ? 'bg-green-500 border-green-500' : task.priority === 'high' ? 'border-red-400' : 'border-gray-300'}`}
+                    >
                       {task.done && <span className="text-white text-xs">✓</span>}
-                    </div>
+                    </button>
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium ${task.done ? 'line-through text-gray-400' : 'text-gray-800'}`}>{task.title}</p>
                       <p className="text-xs text-gray-400">Due in {task.due}</p>
@@ -285,9 +322,57 @@ export default function DashboardPage() {
                     <span className={`badge text-xs ${task.priority === 'high' ? 'bg-red-100 text-red-600' : task.priority === 'medium' ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-500'}`}>
                       {task.priority}
                     </span>
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      aria-label={`Delete task "${task.title}"`}
+                      className="opacity-0 group-hover/task:opacity-100 transition-opacity p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                    >
+                      <X size={14} />
+                    </button>
                   </div>
                 ))}
               </div>
+
+              {/* Add Task Form */}
+              {showAddTask ? (
+                <div className="mt-4 p-3 rounded-xl border border-gray-200 bg-gray-50 space-y-2">
+                  <input
+                    type="text"
+                    value={newTaskTitle}
+                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addTask()}
+                    placeholder="Task title..."
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={newTaskPriority}
+                      onChange={(e) => setNewTaskPriority(e.target.value as 'high' | 'medium' | 'low')}
+                      aria-label="Task priority"
+                      className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    >
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                    <button onClick={addTask} className="px-3 py-1.5 text-xs font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors">
+                      Add
+                    </button>
+                    <button onClick={() => setShowAddTask(false)} aria-label="Cancel adding task" className="px-3 py-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAddTask(true)}
+                  aria-label="Add a new task"
+                  className="mt-4 flex items-center gap-1 text-sm text-brand-600 hover:text-brand-700 font-medium transition-colors"
+                >
+                  <Plus size={16} /> Add Task
+                </button>
+              )}
             </div>
 
             {/* Budget Overview */}
@@ -328,10 +413,31 @@ export default function DashboardPage() {
                 Add Expense
               </Link>
             </div>
-          </div>
+          </motion.div>
+
+          {/* ─── Recent Activity Feed ──────────────────────────── */}
+          <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5, delay: 0.45 }} className="mb-10">
+            <div className="card p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Activity size={18} className="text-brand-600" />
+                <h2 className="font-semibold text-gray-900">Recent Activity</h2>
+              </div>
+              <div className="space-y-3">
+                {RECENT_ACTIVITIES.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                    <span className="text-lg shrink-0">{activity.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-700">{activity.text}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{activity.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
 
           {/* ─── Escrow Protection Banner ──────────────────────── */}
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10">
+          <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5, delay: 0.5 }} className="bg-green-50 border border-green-200 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10">
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center shrink-0">
               <Shield size={22} className="text-green-600" />
             </div>
@@ -342,10 +448,10 @@ export default function DashboardPage() {
             <Link href="/dashboard/payments" className="btn-secondary text-xs py-2 px-4 border-green-200 text-green-700 whitespace-nowrap">
               View Details
             </Link>
-          </div>
+          </motion.div>
 
           {/* ─── How It Works Mini ─────────────────────────────── */}
-          <div className="mb-10">
+          <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5, delay: 0.6 }} className="mb-10">
             <h2 className="text-xl font-bold font-heading text-gray-900 mb-6">How Wedding OS Works</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
@@ -367,7 +473,7 @@ export default function DashboardPage() {
                 );
               })}
             </div>
-          </div>
+          </motion.div>
 
         </div>
       </div>
