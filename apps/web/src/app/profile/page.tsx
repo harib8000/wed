@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User, Phone, Mail, Calendar, MapPin, Edit3, Save, LogOut, Bell, Shield, ChevronRight, Heart, MessageSquare, CreditCard, CheckSquare, Star, Camera } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { useAuthStore } from '@/store/authStore';
@@ -45,6 +46,7 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<UserProfile>({ phone: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -85,21 +87,33 @@ export default function ProfilePage() {
     router.push('/');
   };
 
+  useEffect(() => {
+    return () => {
+      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
+
   const daysLeft = profile.weddingDate ? daysUntil(profile.weddingDate) : null;
   const initials = profile.name ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';
+
+  const fadeIn = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
 
   return (
     <>
       <Navbar />
       <main className="min-h-screen bg-gray-50 pb-24">
         {/* ── Hero Card ── */}
-        <div className="bg-gradient-to-br from-brand-600 via-brand-700 to-purple-800 text-white px-4 pt-8 pb-12">
+        <motion.div {...fadeIn} className="bg-gradient-to-br from-brand-600 via-brand-700 to-purple-800 text-white px-4 pt-8 pb-12">
           <div className="max-w-xl mx-auto">
             <div className="flex items-center gap-4">
               {/* Avatar */}
               <div className="relative">
-                <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold ring-4 ring-white/20">
-                  {initials}
+                <div className="w-20 h-20 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold ring-4 ring-white/20 overflow-hidden">
+                  {avatarPreview ? (
+                    <img src={avatarPreview} alt="Avatar preview" className="w-full h-full object-cover" />
+                  ) : (
+                    initials
+                  )}
                 </div>
                 {editMode && (
                   <>
@@ -111,12 +125,14 @@ export default function ProfilePage() {
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          toast.success('Photo selected! Upload will be available soon.');
+                          if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+                          setAvatarPreview(URL.createObjectURL(file));
                         }
                       }}
                     />
                     <button
                       onClick={() => fileInputRef.current?.click()}
+                      aria-label="Change profile photo"
                       className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-50 transition"
                     >
                       <Camera className="w-3.5 h-3.5 text-brand-600" />
@@ -139,6 +155,7 @@ export default function ProfilePage() {
 
               <button
                 onClick={() => { setEditMode(!editMode); if (editMode) setDraft(profile); }}
+                aria-label={editMode ? 'Cancel editing profile' : 'Edit profile'}
                 className="w-9 h-9 bg-white/15 hover:bg-white/25 rounded-xl flex items-center justify-center transition"
               >
                 <Edit3 className="w-4 h-4" />
@@ -161,9 +178,9 @@ export default function ProfilePage() {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
 
-        <div className="max-w-xl mx-auto px-4 -mt-6 space-y-4">
+        <motion.div {...fadeIn} transition={{ duration: 0.4, delay: 0.1 }} className="max-w-xl mx-auto px-4 -mt-6 space-y-4">
           {/* ── Edit Form ── */}
           {editMode ? (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
@@ -243,7 +260,7 @@ export default function ProfilePage() {
           {/* ── Menu ── */}
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50">
             {MENU_ITEMS.map(({ icon: Icon, label, desc, href }) => (
-              <Link key={label} href={href} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition first:rounded-t-2xl last:rounded-b-2xl">
+              <Link key={label} href={href} aria-label={label} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition first:rounded-t-2xl last:rounded-b-2xl">
                 <div className="w-9 h-9 bg-brand-50 rounded-xl flex items-center justify-center flex-shrink-0">
                   <Icon className="w-4 h-4 text-brand-600" />
                 </div>
@@ -259,6 +276,7 @@ export default function ProfilePage() {
           {/* ── Logout ── */}
           <button
             onClick={handleLogout}
+            aria-label="Log out of your account"
             className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-600 hover:bg-red-50 py-3.5 rounded-2xl text-sm font-semibold transition"
           >
             <LogOut className="w-4 h-4" />
@@ -266,7 +284,7 @@ export default function ProfilePage() {
           </button>
 
           <p className="text-center text-xs text-gray-400 pb-4">Wedding OS v1.0 · <Link href="/privacy" className="hover:text-brand-500">Privacy Policy</Link> · <Link href="/terms" className="hover:text-brand-500">Terms</Link></p>
-        </div>
+        </motion.div>
       </main>
       <Footer />
     </>
