@@ -32,7 +32,7 @@ export function BottomNav() {
               aria-label={`Navigate to ${item.label}`}
               aria-current={isActive ? 'page' : undefined}
               className={clsx(
-                'flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-lg transition-colors',
+                'flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-lg transition-colors focus-ring',
                 isActive
                   ? 'text-brand-600'
                   : 'text-gray-400 hover:text-gray-600'

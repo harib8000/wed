@@ -5,6 +5,7 @@ import './globals.css';
 import { Providers } from './providers';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { CookieConsent } from '@/components/layout/CookieConsent';
+import { NetworkStatus } from '@/components/layout/NetworkStatus';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-heading' });
@@ -25,10 +26,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
       <body className="font-sans bg-white text-gray-900 antialiased pb-16 md:pb-0">
         <Providers>
+          <NetworkStatus />
           <div id="main-content">{children}</div>
           <BottomNav />
           <CookieConsent />
-          <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+          <Toaster
+            position="top-right"
+            toastOptions={{ duration: 4000 }}
+            containerStyle={{ zIndex: 9999 }}
+          />
+          {/* Aria-live region for screen reader announcements */}
+          <div aria-live="polite" aria-atomic="true" className="sr-only" id="a11y-announcements" />
         </Providers>
       </body>
     </html>

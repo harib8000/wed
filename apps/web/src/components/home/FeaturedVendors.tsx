@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Star, MapPin, CheckCircle, Heart } from 'lucide-react';
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 // Mock featured vendors for display (would load from API in real implementation)
@@ -38,13 +39,30 @@ const FEATURED_VENDORS = [
   },
 ];
 
-function VendorCard({ vendor }: { vendor: typeof FEATURED_VENDORS[0] }) {
+const cardVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.1, duration: 0.45, ease: 'easeOut' },
+  }),
+};
+
+function VendorCard({ vendor, index }: { vendor: typeof FEATURED_VENDORS[0]; index: number }) {
   const [liked, setLiked] = useState(false);
   return (
-    <div className="card group hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+    <motion.div
+      custom={index}
+      variants={cardVariants}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, amount: 0.2 }}
+      whileHover={{ y: -6, transition: { duration: 0.2 } }}
+      className="card group hover:shadow-xl transition-shadow duration-300"
+    >
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
-        <img src={vendor.image} alt={vendor.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        <img src={vendor.image} alt={vendor.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
         <div className="absolute top-3 left-3">
           <span className="badge bg-white/90 text-gray-900 text-xs shadow-sm">{vendor.badge}</span>
         </div>
@@ -55,9 +73,9 @@ function VendorCard({ vendor }: { vendor: typeof FEATURED_VENDORS[0] }) {
             setLiked(next);
             toast.success(next ? 'Added to wishlist ❤️' : 'Removed from wishlist');
           }}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white transition-all active:scale-90 focus-ring"
         >
-          <Heart size={16} className={liked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+          <Heart size={16} className={`transition-colors ${liked ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
         </button>
         <div className="absolute bottom-3 left-3">
           <span className="badge bg-brand-600 text-white text-xs">{vendor.category}</span>
@@ -92,12 +110,12 @@ function VendorCard({ vendor }: { vendor: typeof FEATURED_VENDORS[0] }) {
             <span className="text-xs text-gray-400">Starting from</span>
             <p className="text-sm font-semibold text-brand-700">{vendor.price}</p>
           </div>
-          <Link href={`/vendors/${vendor.id}`} className="btn-primary text-xs py-2 px-4">
+          <Link href={`/vendors/${vendor.id}`} className="btn-primary text-xs py-2 px-4 focus-ring">
             View
           </Link>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -105,25 +123,31 @@ export function FeaturedVendors() {
   return (
     <section className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-12">
+        <motion.div
+          className="flex items-center justify-between mb-12"
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5 }}
+        >
           <div>
             <span className="badge bg-gold-100 text-gold-700 mb-3">Featured</span>
             <h2 className="section-heading">Top Verified Vendors</h2>
             <p className="text-gray-500 mt-2">Hand-picked, verified vendors loved by couples across Hyderabad.</p>
           </div>
-          <Link href="/vendors" className="hidden md:flex btn-secondary items-center gap-2">
+          <Link href="/vendors" className="hidden md:flex btn-secondary items-center gap-2 focus-ring">
             View All <CheckCircle size={16} />
           </Link>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {FEATURED_VENDORS.map((vendor) => (
-            <VendorCard key={vendor.id} vendor={vendor} />
+          {FEATURED_VENDORS.map((vendor, i) => (
+            <VendorCard key={vendor.id} vendor={vendor} index={i} />
           ))}
         </div>
 
         <div className="md:hidden text-center mt-8">
-          <Link href="/vendors" className="btn-secondary">View All Vendors →</Link>
+          <Link href="/vendors" className="btn-secondary focus-ring">View All Vendors →</Link>
         </div>
       </div>
     </section>
