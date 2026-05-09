@@ -69,7 +69,10 @@ class ApiClient {
   static Future<Response> getMe() => dio.get('/auth/me');
 
   static Future<void> registerFcmToken(String token) =>
-      dio.post('/users/me/device-token', data: {'token': token, 'platform': 'android'});
+      dio.post('/users/me/device-token', data: {
+        'token': token,
+        'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
+      });
 
   // ─── Vendors ────────────────────────────────────────────────────────────────
   static Future<Response> searchVendors(Map<String, dynamic> params) =>

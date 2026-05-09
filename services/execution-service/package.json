@@ -2,7 +2,7 @@
   "name": "@wedding-os/execution-service",
   "version": "1.0.0",
   "private": true,
-  "scripts": { "dev": "tsx --env-file=.env watch src/server.ts", "build": "tsc", "start": "node dist/server.js", "db:migrate": "prisma migrate dev", "db:generate": "prisma generate" },
+  "scripts": { "dev": "tsx --env-file=.env watch src/server.ts", "build": "tsc", "typecheck": "tsc --noEmit", "start": "node dist/server.js", "db:migrate": "prisma migrate dev", "db:generate": "prisma generate" },
   "dependencies": {
     "express": "^4.19.0", "@prisma/client": "^5.13.0", "ioredis": "^5.3.0",
     "pino": "^9.0.0", "pino-http": "^10.0.0", "pino-pretty": "^11.0.0",

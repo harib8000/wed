@@ -81,7 +81,7 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
             actions: [
-              IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () {}),
+              IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: () => context.push('/notifications')),
             ],
           ),
 

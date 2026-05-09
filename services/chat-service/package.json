@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "tsx --env-file=.env watch src/server.ts",
-    "build": "tsc",
+    "build": "tsc", "typecheck": "tsc --noEmit",
     "start": "node dist/server.js"
   },
   "dependencies": {

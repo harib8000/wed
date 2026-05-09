@@ -28,7 +28,8 @@ class BookingsNotifier extends StateNotifier<AsyncValue<List<Booking>>> {
     try {
       final res = await ApiClient.dio.post('/bookings', data: payload);
       final booking = Booking.fromJson(res.data['data']['booking'] as Map<String, dynamic>);
-      state.whenData((list) => state = AsyncValue.data([booking, ...list]));
+      final current = state.value ?? [];
+      state = AsyncValue.data([booking, ...current]);
       return booking;
     } catch (e) {
       return null;

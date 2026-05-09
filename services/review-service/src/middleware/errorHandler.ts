@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 
 export function errorHandler(err: any, req: Request, res: Response, next: NextFunction): void {
   const status = err.statusCode || err.status || 500;
