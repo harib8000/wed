@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { User, Phone, Mail, Calendar, MapPin, Edit3, Save, LogOut, Bell, Shield, ChevronRight, Heart, MessageSquare, CreditCard, CheckSquare, Star, Camera } from 'lucide-react';
@@ -26,9 +26,9 @@ const MENU_ITEMS = [
   { icon: CreditCard, label: 'Payments & Escrow', desc: 'Transaction history', href: '/bookings' },
   { icon: CheckSquare, label: 'Wedding Checklist', desc: 'Track your milestones', href: '/dashboard' },
   { icon: MessageSquare, label: 'Messages', desc: 'Vendor conversations', href: '/chat' },
-  { icon: Bell, label: 'Notifications', desc: 'Alerts & reminders', href: '#' },
-  { icon: Shield, label: 'Privacy & Security', desc: 'Account security settings', href: '#' },
-  { icon: Star, label: 'My Reviews', desc: 'Reviews you\'ve written', href: '#' },
+  { icon: Bell, label: 'Notifications', desc: 'Alerts & reminders', href: '/bookings' },
+  { icon: Shield, label: 'Privacy & Security', desc: 'Account security settings', href: '/privacy' },
+  { icon: Star, label: 'My Reviews', desc: 'Reviews you\'ve written', href: '/vendors' },
 ];
 
 function daysUntil(dateStr: string): number {
@@ -44,6 +44,7 @@ export default function ProfilePage() {
   const [editMode, setEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [draft, setDraft] = useState<UserProfile>({ phone: '' });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -101,9 +102,26 @@ export default function ProfilePage() {
                   {initials}
                 </div>
                 {editMode && (
-                  <button className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md">
-                    <Camera className="w-3.5 h-3.5 text-brand-600" />
-                  </button>
+                  <>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          toast.success('Photo selected! Upload will be available soon.');
+                        }
+                      }}
+                    />
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute -bottom-1.5 -right-1.5 w-7 h-7 bg-white rounded-full flex items-center justify-center shadow-md hover:bg-gray-50 transition"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-brand-600" />
+                    </button>
+                  </>
                 )}
               </div>
 
@@ -247,7 +265,7 @@ export default function ProfilePage() {
             Log Out
           </button>
 
-          <p className="text-center text-xs text-gray-400 pb-4">Wedding OS v1.0 · <Link href="#" className="hover:text-brand-500">Privacy Policy</Link> · <Link href="#" className="hover:text-brand-500">Terms</Link></p>
+          <p className="text-center text-xs text-gray-400 pb-4">Wedding OS v1.0 · <Link href="/privacy" className="hover:text-brand-500">Privacy Policy</Link> · <Link href="/terms" className="hover:text-brand-500">Terms</Link></p>
         </div>
       </main>
       <Footer />

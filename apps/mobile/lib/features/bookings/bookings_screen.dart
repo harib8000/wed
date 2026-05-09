@@ -115,7 +115,7 @@ class _BookingsList extends StatelessWidget {
     }
 
     return RefreshIndicator(
-      onRefresh: () async {},
+      onRefresh: () => ref.read(bookingsProvider.notifier).load(),
       child: ListView.separated(
         padding: const EdgeInsets.all(16),
         itemCount: bookings.length,

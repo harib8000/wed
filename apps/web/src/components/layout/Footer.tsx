@@ -1,6 +1,31 @@
 import Link from 'next/link';
 import { Heart, Instagram, Twitter, Facebook, Youtube } from 'lucide-react';
 
+const COUPLE_LINKS = [
+  { label: 'Find Vendors', href: '/vendors' },
+  { label: 'Wedding Planning', href: '/dashboard' },
+  { label: 'Budget Tracker', href: '/dashboard' },
+  { label: 'Checklist', href: '/dashboard' },
+  { label: 'Real Weddings', href: '/vendors' },
+];
+
+const VENDOR_LINKS = [
+  { label: 'Join as Vendor', href: '/login' },
+  { label: 'Vendor Dashboard', href: '/login' },
+  { label: 'Pricing Plans', href: '/vendors' },
+  { label: 'Success Stories', href: '/vendors' },
+  { label: 'Vendor Blog', href: '/vendors' },
+];
+
+const COMPANY_LINKS = [
+  { label: 'About Us', href: '/' },
+  { label: 'Careers', href: '/' },
+  { label: 'Press', href: '/' },
+  { label: 'Privacy Policy', href: '/privacy' },
+  { label: 'Terms of Service', href: '/terms' },
+  { label: 'Contact Us', href: '/' },
+];
+
 export function Footer() {
   return (
     <footer className="bg-gray-900 text-gray-300">
@@ -18,10 +43,15 @@ export function Footer() {
               India&apos;s first end-to-end wedding operating system. From first click to final applause.
             </p>
             <div className="flex items-center gap-3">
-              {[Instagram, Twitter, Facebook, Youtube].map((Icon, i) => (
-                <a key={i} href="#" className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-600 transition-colors">
+              {[
+                { Icon: Instagram, label: 'Instagram' },
+                { Icon: Twitter, label: 'Twitter' },
+                { Icon: Facebook, label: 'Facebook' },
+                { Icon: Youtube, label: 'YouTube' },
+              ].map(({ Icon, label }) => (
+                <span key={label} title={label} className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center hover:bg-brand-600 transition-colors cursor-pointer">
                   <Icon size={16} />
-                </a>
+                </span>
               ))}
             </div>
           </div>
@@ -30,8 +60,8 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">For Couples</h4>
             <ul className="space-y-2 text-sm">
-              {['Find Vendors', 'Wedding Planning', 'Budget Tracker', 'Checklist', 'Real Weddings'].map((item) => (
-                <li key={item}><a href="#" className="hover:text-white transition-colors">{item}</a></li>
+              {COUPLE_LINKS.map(({ label, href }) => (
+                <li key={label}><Link href={href} className="hover:text-white transition-colors">{label}</Link></li>
               ))}
             </ul>
           </div>
@@ -40,8 +70,8 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">For Vendors</h4>
             <ul className="space-y-2 text-sm">
-              {['Join as Vendor', 'Vendor Dashboard', 'Pricing Plans', 'Success Stories', 'Vendor Blog'].map((item) => (
-                <li key={item}><a href="#" className="hover:text-white transition-colors">{item}</a></li>
+              {VENDOR_LINKS.map(({ label, href }) => (
+                <li key={label}><Link href={href} className="hover:text-white transition-colors">{label}</Link></li>
               ))}
             </ul>
           </div>
@@ -50,8 +80,8 @@ export function Footer() {
           <div>
             <h4 className="font-semibold text-white mb-4">Company</h4>
             <ul className="space-y-2 text-sm">
-              {['About Us', 'Careers', 'Press', 'Privacy Policy', 'Terms of Service', 'Contact Us'].map((item) => (
-                <li key={item}><a href="#" className="hover:text-white transition-colors">{item}</a></li>
+              {COMPANY_LINKS.map(({ label, href }) => (
+                <li key={label}><Link href={href} className="hover:text-white transition-colors">{label}</Link></li>
               ))}
             </ul>
           </div>

@@ -149,6 +149,15 @@ export default function CheckoutPage() {
     );
   }, [params.vendorId]);
 
+  // Pre-select package from query params if provided
+  useEffect(() => {
+    const packageId = searchParams.get('packageId');
+    if (vendor && packageId) {
+      const pkg = vendor.packages.find((p) => p.id === packageId);
+      if (pkg) setSelectedPackage(pkg);
+    }
+  }, [vendor, searchParams]);
+
   const advance = selectedPackage ? Math.round(selectedPackage.priceFromPaise * 0.3) : 0;
   const platformFee = selectedPackage ? Math.round(selectedPackage.priceFromPaise * 0.10 * 1.18) : 0; // 10% + 18% GST
 
@@ -418,7 +427,7 @@ export default function CheckoutPage() {
           </button>
 
           <p className="text-center text-xs text-gray-400">
-            By continuing, you agree to our <Link href="#" className="text-brand-600">Terms of Service</Link> and <Link href="#" className="text-brand-600">Refund Policy</Link>
+            By continuing, you agree to our <Link href="/terms" className="text-brand-600">Terms of Service</Link> and <Link href="/terms" className="text-brand-600">Refund Policy</Link>
           </p>
         </div>
       </main>

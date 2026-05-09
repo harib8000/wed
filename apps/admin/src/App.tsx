@@ -3,9 +3,7 @@ import { Login } from './pages/Login';
 import { AdminLayout } from './layouts/AdminLayout';
 import { Dashboard } from './pages/Dashboard';
 import { Vendors } from './pages/Vendors';
-import { Bookings } from './pages/Bookings';
-import { Users } from './pages/Users';
-import { Payments } from './pages/Payments';
+import { Bookings, Users, Payments } from './pages/Bookings';
 import Cookies from 'js-cookie';
 
 function Protect({ children }: { children: React.ReactNode }) {

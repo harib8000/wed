@@ -16,7 +16,11 @@ class ProfileScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Profile'), actions: [
-        IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {}),
+        IconButton(icon: const Icon(Icons.settings_outlined), onPressed: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Settings coming soon!'), duration: Duration(seconds: 2)),
+          );
+        }),
       ]),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),

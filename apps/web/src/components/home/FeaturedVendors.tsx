@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Star, MapPin, CheckCircle, Heart } from 'lucide-react';
 import { useState } from 'react';
+import toast from 'react-hot-toast';
 
 // Mock featured vendors for display (would load from API in real implementation)
 const FEATURED_VENDORS = [
@@ -48,7 +49,11 @@ function VendorCard({ vendor }: { vendor: typeof FEATURED_VENDORS[0] }) {
           <span className="badge bg-white/90 text-gray-900 text-xs shadow-sm">{vendor.badge}</span>
         </div>
         <button
-          onClick={() => setLiked(!liked)}
+          onClick={() => {
+            const next = !liked;
+            setLiked(next);
+            toast.success(next ? 'Added to wishlist ❤️' : 'Removed from wishlist');
+          }}
           className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white transition-colors"
         >
           <Heart size={16} className={liked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />

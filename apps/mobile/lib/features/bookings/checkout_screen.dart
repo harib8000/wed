@@ -33,8 +33,8 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   bool _isSubmitting = false;
   String _error = '';
   final _dateCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController(text: 'Hyderabad');
-  final _guestCtrl = TextEditingController(text: '300');
+  final _cityCtrl = TextEditingController();
+  final _guestCtrl = TextEditingController();
   final _reqCtrl = TextEditingController();
 
   @override
@@ -48,8 +48,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   String _fmt(int p) => '₹${NumberFormat('#,##,###').format(p ~/ 100)}';
 
-  int get _advance => _selectedPackage != null ? (_selectedPackage!.priceFromPaise * 0.3).round() : 0;
-  int get _platformFee => _selectedPackage != null ? (_selectedPackage!.priceFromPaise * 0.118).round() : 0;
+  /// 30% advance payment required upfront
+  static const double _advanceRate = 0.3;
+  /// 10% platform fee + 18% GST on fee = 11.8% effective
+  static const double _platformFeeRate = 0.118;
+
+  int get _advance => _selectedPackage != null ? (_selectedPackage!.priceFromPaise * _advanceRate).round() : 0;
+  int get _platformFee => _selectedPackage != null ? (_selectedPackage!.priceFromPaise * _platformFeeRate).round() : 0;
 
   Future<void> _submit() async {
     if (_selectedPackage == null) {

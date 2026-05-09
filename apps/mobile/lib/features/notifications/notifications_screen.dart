@@ -64,18 +64,16 @@ class NotificationsNotifier extends StateNotifier<AsyncValue<List<AppNotificatio
 
   Future<void> markRead(String id) async {
     try { await ApiClient.markNotificationRead(id); } catch (_) {}
-    state.whenData((list) {
-      state = AsyncValue.data(
-        list.map((n) => n.id == id ? n.copyWith(isRead: true) : n).toList(),
-      );
-    });
+    final current = state.value ?? [];
+    state = AsyncValue.data(
+      current.map((n) => n.id == id ? n.copyWith(isRead: true) : n).toList(),
+    );
   }
 
   Future<void> markAllRead() async {
     try { await ApiClient.markAllNotificationsRead(); } catch (_) {}
-    state.whenData((list) {
-      state = AsyncValue.data(list.map((n) => n.copyWith(isRead: true)).toList());
-    });
+    final current = state.value ?? [];
+    state = AsyncValue.data(current.map((n) => n.copyWith(isRead: true)).toList());
   }
 }
 
