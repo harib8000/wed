@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Calendar, MapPin, Phone, CheckCircle2, Circle, Clock, Shield, AlertTriangle, ChevronRight, Building2, Camera, MessageSquare, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Phone, CheckCircle2, Circle, Clock, Shield, AlertTriangle, ChevronRight, Building2, Camera, MessageSquare, XCircle, Star } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuthStore } from '@/store/authStore';
 import { bookingApi, paymentApi } from '@/lib/api';
@@ -336,6 +336,15 @@ export default function BookingDetailPage() {
               <MessageSquare className="w-4 h-4 text-brand-500" />
               Message Vendor
             </Link>
+            {booking.status === 'COMPLETED' && (
+              <Link
+                href={`/reviews/write/${booking.id}`}
+                className="flex-1 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 hover:border-amber-300 py-3 rounded-xl text-sm font-medium text-amber-700 transition"
+              >
+                <Star className="w-4 h-4" />
+                Write Review
+              </Link>
+            )}
             {!['COMPLETED', 'CANCELLED'].includes(booking.status) && (
               <button
                 disabled={cancelling}
