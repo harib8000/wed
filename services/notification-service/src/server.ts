@@ -70,6 +70,18 @@ async function bootstrap() {
         await notificationService.handleEvent('review.created', event.payload);
       },
     },
+    {
+      type: 'vendor.kyc_approved',
+      handler: async (event) => {
+        await notificationService.handleEvent('vendor.kyc_approved', event.payload);
+      },
+    },
+    {
+      type: 'vendor.kyc_rejected',
+      handler: async (event) => {
+        await notificationService.handleEvent('vendor.kyc_rejected', event.payload);
+      },
+    },
   ]);
   logger.info('Subscribed to domain events');
 

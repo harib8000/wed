@@ -5,6 +5,7 @@ const e = z.object({
   DATABASE_URL: z.string().min(1),
   JWT_PUBLIC_KEY: z.string().optional(),
   JWT_PUBLIC_KEY_PATH: z.string().optional(),
+  REDIS_URL: z.string().default('redis://localhost:6379'),
   VENDOR_SERVICE_URL: z.string().default('http://vendor-service:4003'),
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000').transform((s) => s.split(',').map((o) => o.trim())),
 });

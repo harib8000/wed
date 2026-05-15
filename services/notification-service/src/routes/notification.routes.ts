@@ -15,6 +15,23 @@ notificationRouter.get('/', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── PATCH /notifications/:id/read
+notificationRouter.patch('/:id/read', authenticate, async (req, res, next) => {
+  try {
+    const notification = await notificationService.markAsRead(req.user!.id, req.params.id);
+    if (!notification) return res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Notification not found' }, meta: meta(req) });
+    res.json({ success: true, data: { notification }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── POST /notifications/read-all
+notificationRouter.post('/read-all', authenticate, async (req, res, next) => {
+  try {
+    const count = await notificationService.markAllAsRead(req.user!.id);
+    res.json({ success: true, data: { updatedCount: count }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
 // ── POST /internal/notify (called by other services) ─────────────────────────
 
 notificationRouter.post('/internal/notify', async (req, res, next) => {

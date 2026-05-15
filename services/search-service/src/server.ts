@@ -6,11 +6,43 @@ import rateLimit from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
 import { searchRouter } from './routes/search.routes';
 import { connectElasticsearch } from './config/elasticsearch';
+import { searchService } from './services/search.service';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { createEventBus } from '@wedding-os/shared-events';
 
 async function bootstrap() {
   await connectElasticsearch();
+
+  // ── Event Bus — reactive vendor indexing ──────────────────────────────────
+  const eventBus = createEventBus({
+    redisUrl: config.REDIS_URL,
+    serviceName: 'search-service',
+  });
+  await eventBus.connect();
+  logger.info('Event bus connected');
+
+  // Re-index vendor in ES when vendor data changes
+  await eventBus.subscribe('vendor.registered', async (event) => {
+    const payload = event.payload as any;
+    logger.info({ vendorId: payload.vendorId }, 'Indexing new vendor');
+    await searchService.indexVendor(payload);
+  });
+  await eventBus.subscribe('vendor.profile_updated', async (event) => {
+    const payload = event.payload as any;
+    logger.info({ vendorId: payload.vendorId }, 'Re-indexing updated vendor');
+    await searchService.indexVendor(payload);
+  });
+  await eventBus.subscribe('vendor.kyc_approved', async (event) => {
+    const payload = event.payload as any;
+    logger.info({ vendorId: payload.vendorId }, 'Indexing approved vendor');
+    await searchService.indexVendor(payload);
+  });
+  await eventBus.subscribe('vendor.kyc_rejected', async (event) => {
+    const payload = event.payload as any;
+    logger.info({ vendorId: payload.vendorId }, 'Removing suspended vendor from index');
+    await searchService.deleteVendor(payload.vendorId);
+  });
 
   const app = express();
   app.set('trust proxy', 1);
@@ -30,7 +62,10 @@ async function bootstrap() {
 
   const gracefulShutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutting down...');
-    server.close(() => process.exit(0));
+    server.close(async () => {
+      await eventBus.disconnect();
+      process.exit(0);
+    });
     setTimeout(() => process.exit(1), 30_000).unref();
   };
 

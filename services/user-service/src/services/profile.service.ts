@@ -1,5 +1,13 @@
 import { prisma } from '../config/database';
 import type { UpdateProfileInput, UpdateNotifPrefsInput } from '../types/user.types';
+import { getEventBus } from '@wedding-os/shared-events';
+
+function publishEvent(type: any, aggregateId: string, payload: any) {
+  try {
+    const bus = getEventBus();
+    bus.publish(type, aggregateId, 'user', payload).catch(() => { /* non-blocking */ });
+  } catch { /* Event bus not initialized */ }
+}
 
 export const profileService = {
   async getOrCreateProfile(userId: string) {
@@ -19,7 +27,7 @@ export const profileService = {
   },
 
   async updateProfile(userId: string, data: UpdateProfileInput) {
-    return prisma.userProfile.upsert({
+    const profile = await prisma.userProfile.upsert({
       where: { userId },
       update: {
         ...data,
@@ -33,6 +41,8 @@ export const profileService = {
         weddingDate: data.weddingDate ? new Date(data.weddingDate) : undefined,
       },
     });
+    publishEvent('vendor.profile_updated' as any, userId, { userId });
+    return profile;
   },
 
   async updateNotifPrefs(userId: string, prefs: UpdateNotifPrefsInput) {
@@ -81,7 +91,7 @@ export const profileService = {
 
   // Admin-only
   async reviewKyc(docId: string, status: 'APPROVED' | 'REJECTED', reviewedBy: string, note?: string) {
-    return prisma.kycDocument.update({
+    const doc = await prisma.kycDocument.update({
       where: { id: docId },
       data: {
         status,
@@ -90,5 +100,8 @@ export const profileService = {
         reviewedBy,
       },
     });
+    const eventType = status === 'APPROVED' ? 'vendor.kyc_approved' : 'vendor.kyc_rejected';
+    publishEvent(eventType as any, docId, { docId, status, reviewedBy });
+    return doc;
   },
 };

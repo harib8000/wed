@@ -3,14 +3,28 @@ import { createApp } from './app';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { createEventBus } from '@wedding-os/shared-events';
 
 async function bootstrap() {
   await connectDatabase();
+
+  // ── Event Bus ─────────────────────────────────────────────────────────────
+  const eventBus = createEventBus({
+    redisUrl: config.REDIS_URL,
+    serviceName: 'user-service',
+  });
+  await eventBus.connect();
+  logger.info('Event bus connected');
+
   const server = http.createServer(createApp());
   server.listen(config.PORT, () => logger.info({ port: config.PORT }, 'User service listening'));
 
   const shutdown = async () => {
-    server.close(async () => { await disconnectDatabase(); process.exit(0); });
+    server.close(async () => {
+      await eventBus.disconnect();
+      await disconnectDatabase();
+      process.exit(0);
+    });
     setTimeout(() => process.exit(1), 30_000).unref();
   };
   process.on('SIGTERM', shutdown);

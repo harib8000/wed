@@ -1,6 +1,16 @@
 import { prisma } from '../config/database';
 import { upsertVendorDocument, deleteVendorDocument } from '../config/elasticsearch';
 import type { Vendor, VendorPackage, Prisma } from '@prisma/client';
+import { getEventBus } from '@wedding-os/shared-events';
+
+function publishEvent(type: any, aggregateId: string, payload: any) {
+  try {
+    const bus = getEventBus();
+    bus.publish(type, aggregateId, 'vendor', payload).catch((err: any) =>
+      console.warn('[EventBus] publish failed:', type, err?.message)
+    );
+  } catch { /* Event bus not initialized */ }
+}
 
 function buildSlug(name: string, city: string): string {
   const base = `${name} ${city}`
@@ -61,6 +71,7 @@ export const vendorService = {
       },
     });
     await syncToEs(vendor);
+    publishEvent('vendor.registered', vendor.id, { vendorId: vendor.id, userId, businessName: data.businessName, category: data.category, city: data.city });
     return vendor;
   },
 
@@ -85,6 +96,7 @@ export const vendorService = {
       include: { packages: true, tags: true },
     });
     await syncToEs(vendor);
+    publishEvent('vendor.profile_updated', vendor.id, { vendorId: vendor.id });
     return vendor;
   },
 
@@ -183,6 +195,7 @@ export const vendorService = {
       include: { packages: true, tags: true },
     });
     await syncToEs(vendor);
+    publishEvent('vendor.kyc_approved', vendor.id, { vendorId: vendor.id, businessName: vendor.businessName });
     return vendor;
   },
 
@@ -193,6 +206,7 @@ export const vendorService = {
       include: { packages: true, tags: true },
     });
     await deleteVendorDocument(vendorId);
+    publishEvent('vendor.kyc_rejected', vendor.id, { vendorId, note });
     return vendor;
   },
 
