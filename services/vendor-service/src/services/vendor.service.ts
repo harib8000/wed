@@ -1,9 +1,9 @@
 import { prisma } from '../config/database';
 import { upsertVendorDocument, deleteVendorDocument } from '../config/elasticsearch';
 import type { Vendor, VendorPackage, Prisma } from '@prisma/client';
-import { getEventBus } from '@wedding-os/shared-events';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 
-function publishEvent(type: any, aggregateId: string, payload: any) {
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
     const bus = getEventBus();
     bus.publish(type, aggregateId, 'vendor', payload).catch((err: any) =>

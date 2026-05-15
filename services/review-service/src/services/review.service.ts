@@ -1,10 +1,10 @@
 import { prisma } from '../config/database';
 import axios from 'axios';
 import { config } from '../config';
-import { getEventBus } from '@wedding-os/shared-events';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { logger } from '../utils/logger';
 
-function publishEvent(type: any, aggregateId: string, payload: any) {
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
     const bus = getEventBus();
     bus.publish(type, aggregateId, 'review', payload).catch((err: any) =>

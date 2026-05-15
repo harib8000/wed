@@ -113,7 +113,7 @@ describe('profileService', () => {
       await profileService.updateProfile(USER_ID, { firstName: 'Priya' });
 
       expect(mockPublish).toHaveBeenCalledWith(
-        'vendor.profile_updated',
+        'user.profile_updated',
         USER_ID,
         'user',
         expect.objectContaining({ userId: USER_ID }),
@@ -217,7 +217,7 @@ describe('profileService', () => {
         }),
       });
       expect(mockPublish).toHaveBeenCalledWith(
-        'vendor.kyc_approved',
+        'user.kyc_approved',
         DOC_ID,
         'user',
         expect.objectContaining({ docId: DOC_ID, status: 'APPROVED' }),
@@ -239,7 +239,7 @@ describe('profileService', () => {
         }),
       });
       expect(mockPublish).toHaveBeenCalledWith(
-        'vendor.kyc_rejected',
+        'user.kyc_rejected',
         DOC_ID,
         'user',
         expect.objectContaining({ docId: DOC_ID, status: 'REJECTED' }),

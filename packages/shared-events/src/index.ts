@@ -39,7 +39,11 @@ export type DomainEventType =
   | 'event.issue_reported'
   | 'event.completed'
   // Review events
-  | 'review.created';
+  | 'review.created'
+  // User events
+  | 'user.profile_updated'
+  | 'user.kyc_approved'
+  | 'user.kyc_rejected';
 
 export interface DomainEvent<T = unknown> {
   id: string;

@@ -1,8 +1,8 @@
 import { prisma } from '../config/database';
 import type { UpdateProfileInput, UpdateNotifPrefsInput } from '../types/user.types';
-import { getEventBus } from '@wedding-os/shared-events';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 
-function publishEvent(type: any, aggregateId: string, payload: any) {
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
     const bus = getEventBus();
     bus.publish(type, aggregateId, 'user', payload).catch(() => { /* non-blocking */ });
@@ -41,7 +41,7 @@ export const profileService = {
         weddingDate: data.weddingDate ? new Date(data.weddingDate) : undefined,
       },
     });
-    publishEvent('vendor.profile_updated' as any, userId, { userId });
+    publishEvent('user.profile_updated', userId, { userId });
     return profile;
   },
 
@@ -100,8 +100,8 @@ export const profileService = {
         reviewedBy,
       },
     });
-    const eventType = status === 'APPROVED' ? 'vendor.kyc_approved' : 'vendor.kyc_rejected';
-    publishEvent(eventType as any, docId, { docId, status, reviewedBy });
+    const eventType: DomainEventType = status === 'APPROVED' ? 'user.kyc_approved' : 'user.kyc_rejected';
+    publishEvent(eventType, docId, { docId, status, reviewedBy });
     return doc;
   },
 };
