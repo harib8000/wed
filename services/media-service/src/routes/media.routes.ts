@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { uploadService, MediaType } from '../services/upload.service';
 import { config } from '../config';
 import { validate } from '../middleware/validate';
+import { UnauthorizedError, AppError } from '@wedding-os/shared-errors';
 
 // ── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -29,14 +30,14 @@ function getPublicKey(): string {
       try { cachedKey = fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch {}
     }
     if (!cachedKey && config.JWT_PUBLIC_KEY) cachedKey = config.JWT_PUBLIC_KEY;
-    if (!cachedKey) throw new Error('JWT public key not configured');
+    if (!cachedKey) throw new AppError('SYS_9001', 'JWT public key not configured', 500);
   }
   return cachedKey;
 }
 
 function getUser(req: Request) {
   const token = req.headers.authorization?.replace('Bearer ', '');
-  if (!token) throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
+  if (!token) throw new UnauthorizedError('No token provided');
   const payload = jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }) as { sub?: string; id?: string; role: string };
   return { id: payload.sub || payload.id || '', role: payload.role };
 }
@@ -50,9 +51,15 @@ router.post('/presign', validate(PresignSchema), (req: Request, res: Response) =
     const { mediaType, mimeType, fileName } = req.body;
     uploadService.getPresignedUploadUrl(user.id, mediaType, mimeType, fileName)
       .then((data) => res.json({ success: true, data }))
-      .catch((err) => res.status(err.statusCode || 500).json({ success: false, error: { message: err.message } }));
-  } catch (err: any) {
-    res.status(err.statusCode || 401).json({ success: false, error: { message: err.message } });
+      .catch((err: unknown) => {
+        const status = err instanceof AppError ? err.statusCode : 500;
+        const message = err instanceof Error ? err.message : 'Upload failed';
+        res.status(status).json({ success: false, error: { message } });
+      });
+  } catch (err: unknown) {
+    const status = err instanceof AppError ? err.statusCode : 401;
+    const message = err instanceof Error ? err.message : 'Unauthorized';
+    res.status(status).json({ success: false, error: { message } });
   }
 });
 
@@ -67,9 +74,14 @@ router.delete('/', validate(DeleteMediaSchema), (req: Request, res: Response) =>
     }
     uploadService.deleteMedia(key)
       .then(() => res.json({ success: true }))
-      .catch((err) => res.status(500).json({ success: false, error: { message: err.message } }));
-  } catch (err: any) {
-    res.status(err.statusCode || 401).json({ success: false, error: { message: err.message } });
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Delete failed';
+        res.status(500).json({ success: false, error: { message } });
+      });
+  } catch (err: unknown) {
+    const status = err instanceof AppError ? err.statusCode : 401;
+    const message = err instanceof Error ? err.message : 'Unauthorized';
+    res.status(status).json({ success: false, error: { message } });
   }
 });
 

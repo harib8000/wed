@@ -82,9 +82,8 @@ export function Navbar() {
                 <Link href="/vendors" aria-label="Search vendors" className={clsx('p-2 rounded-lg transition-colors focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Search size={20} />
                 </Link>
-                <Link href="/bookings" aria-label="Notifications" className={clsx('p-2 rounded-lg transition-colors relative focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
+                <Link href="/bookings" aria-label="My bookings" className={clsx('p-2 rounded-lg transition-colors relative focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Bell size={20} />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                 </Link>
                 <div className="flex items-center gap-2">
                   <Link href="/profile" aria-label="Your profile" className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors focus-ring">
