@@ -120,7 +120,8 @@ describe('uploadService.getPresignedUploadUrl', () => {
     const result = await uploadService.getPresignedUploadUrl('user-1', 'avatar', 'image/jpeg', 'a.jpg');
 
     expect((result as any).mock).toBe(true);
-    expect(result.uploadUrl).toContain('mock-upload');
+    expect(result.uploadUrl).toBe('http://localhost:4012/media/mock-upload/avatar/user-1/mock-uuid-1234.jpg');
+    expect(result.publicUrl).toBe('http://localhost:4012/media/files/avatar/user-1/mock-uuid-1234.jpg');
     expect(result.key).toBe('avatar/user-1/mock-uuid-1234.jpg');
 
     // Restore
