@@ -1,15 +1,30 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { notificationService } from '../services/notification.service';
 import { authenticate } from '../middleware/auth.middleware';
+import { validate } from '../middleware/validate';
+
+// ── Zod Schemas ─────────────────────────────────────────────────────────────
+
+export const GetNotificationsQuerySchema = z.object({
+  limit: z.coerce.number().min(1).max(100).default(20),
+});
+
+export const InternalNotifySchema = z.object({
+  event: z.string(),
+  payload: z.object({}).passthrough(),
+});
+
+// ── Routes ──────────────────────────────────────────────────────────────────
 
 export const notificationRouter = Router();
 const meta = (req: Request) => ({ requestId: req.headers['x-request-id'], timestamp: new Date().toISOString() });
 
 // ── GET /notifications (my in-app notifications) ──────────────────────────────
 
-notificationRouter.get('/', authenticate, async (req, res, next) => {
+notificationRouter.get('/', authenticate, validate(GetNotificationsQuerySchema, 'query'), async (req, res, next) => {
   try {
-    const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 20;
+    const { limit } = req.query as unknown as z.infer<typeof GetNotificationsQuerySchema>;
     const notifications = await notificationService.getUnread(req.user!.id, limit);
     res.json({ success: true, data: { notifications }, meta: meta(req) });
   } catch (err) { next(err); }
@@ -34,10 +49,9 @@ notificationRouter.post('/read-all', authenticate, async (req, res, next) => {
 
 // ── POST /internal/notify (called by other services) ─────────────────────────
 
-notificationRouter.post('/internal/notify', async (req, res, next) => {
+notificationRouter.post('/internal/notify', validate(InternalNotifySchema), async (req, res, next) => {
   try {
     const { event, payload } = req.body;
-    if (!event || !payload) return res.status(400).json({ error: 'event and payload required' });
     await notificationService.handleEvent(event, payload);
     res.json({ status: 'queued' });
   } catch (err) { next(err); }

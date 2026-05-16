@@ -1,8 +1,24 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
+import { z } from 'zod';
 import { uploadService, MediaType } from '../services/upload.service';
 import { config } from '../config';
+import { validate } from '../middleware/validate';
+
+// ── Zod Schemas ─────────────────────────────────────────────────────────────
+
+export const PresignSchema = z.object({
+  mediaType: z.enum(['avatar', 'portfolio', 'kyc', 'review', 'vendor_cover', 'chat']),
+  mimeType: z.string(),
+  fileName: z.string().min(1).max(255),
+});
+
+export const DeleteMediaSchema = z.object({
+  key: z.string().min(1),
+});
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
 
 const router = Router();
 
@@ -25,15 +41,13 @@ function getUser(req: Request) {
   return { id: payload.sub || payload.id || '', role: payload.role };
 }
 
+// ── Routes ──────────────────────────────────────────────────────────────────
+
 // POST /media/presign — get presigned upload URL
-router.post('/presign', (req: Request, res: Response) => {
+router.post('/presign', validate(PresignSchema), (req: Request, res: Response) => {
   try {
     const user = getUser(req);
     const { mediaType, mimeType, fileName } = req.body;
-    const validTypes: MediaType[] = ['avatar', 'portfolio', 'kyc', 'review', 'vendor_cover', 'chat'];
-    if (!validTypes.includes(mediaType)) {
-      res.status(400).json({ success: false, error: { message: 'Invalid media type' } }); return;
-    }
     uploadService.getPresignedUploadUrl(user.id, mediaType, mimeType, fileName)
       .then((data) => res.json({ success: true, data }))
       .catch((err) => res.status(err.statusCode || 500).json({ success: false, error: { message: err.message } }));
@@ -43,11 +57,10 @@ router.post('/presign', (req: Request, res: Response) => {
 });
 
 // DELETE /media — delete a media file by key
-router.delete('/', (req: Request, res: Response) => {
+router.delete('/', validate(DeleteMediaSchema), (req: Request, res: Response) => {
   try {
     const user = getUser(req);
     const { key } = req.body;
-    if (!key) { res.status(400).json({ success: false, error: { message: 'key required' } }); return; }
     // Security: only allow deleting own files
     if (!key.includes(user.id) && user.role !== 'admin') {
       res.status(403).json({ success: false, error: { message: 'Forbidden' } }); return;

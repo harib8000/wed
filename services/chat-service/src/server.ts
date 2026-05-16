@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
+import { z } from 'zod';
 import { connectMongo, disconnectMongo, Message, Conversation } from './config/database';
 import { registerChatHandlers } from './handlers/chat.handler';
 import { verifyToken } from './utils/jwt';
@@ -12,6 +13,18 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
 import { createEventBus } from '@wedding-os/shared-events';
+
+// ── Zod Schemas ─────────────────────────────────────────────────────────────
+
+export const GetMessagesQuerySchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+});
+
+export const CreateConversationSchema = z.object({
+  bookingId: z.string(),
+  customerId: z.string(),
+  vendorId: z.string(),
+});
 
 async function bootstrap() {
   await connectMongo();
@@ -43,7 +56,15 @@ async function bootstrap() {
     try {
       const user = verifyToken(token);
       const { bookingId } = req.params;
-      const page = parseInt(req.query.page as string) || 1;
+      const queryParsed = GetMessagesQuerySchema.safeParse(req.query);
+      if (!queryParsed.success) {
+        const errors = queryParsed.error.flatten().fieldErrors;
+        const firstField = Object.keys(errors)[0];
+        const firstMessage = errors[firstField]?.[0] ?? 'Validation failed';
+        res.status(400).json({ success: false, error: { code: 'VAL_2001', message: firstMessage, field: firstField, details: errors } });
+        return;
+      }
+      const page = queryParsed.data.page;
       const limit = 50;
 
       const conv = await Conversation.findOne({ bookingId });
@@ -66,10 +87,15 @@ async function bootstrap() {
     if (!token) { res.status(401).json({ success: false, error: { message: 'Unauthorized' } }); return; }
     try {
       const user = verifyToken(token);
-      const { bookingId, customerId, vendorId } = req.body;
-      if (!bookingId || !customerId || !vendorId) {
-        res.status(400).json({ success: false, error: { message: 'bookingId, customerId, vendorId required' } }); return;
+      const bodyParsed = CreateConversationSchema.safeParse(req.body);
+      if (!bodyParsed.success) {
+        const errors = bodyParsed.error.flatten().fieldErrors;
+        const firstField = Object.keys(errors)[0];
+        const firstMessage = errors[firstField]?.[0] ?? 'Validation failed';
+        res.status(400).json({ success: false, error: { code: 'VAL_2001', message: firstMessage, field: firstField, details: errors } });
+        return;
       }
+      const { bookingId, customerId, vendorId } = bodyParsed.data;
       let conv = await Conversation.findOne({ bookingId });
       if (!conv) {
         conv = await Conversation.create({ bookingId, customerId, vendorId });

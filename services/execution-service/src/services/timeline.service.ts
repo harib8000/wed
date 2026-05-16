@@ -1,4 +1,6 @@
 import { prisma } from '../config/database';
+import type { TaskCategory, TaskStatus } from '@prisma/client';
+import { NotFoundError } from '@wedding-os/shared-errors';
 
 // Default template tasks generated when a wedding is confirmed
 const DEFAULT_TEMPLATES = [
@@ -31,7 +33,7 @@ export const timelineService = {
           tasks: {
             create: DEFAULT_TEMPLATES.map((t) => ({
               title: t.title,
-              category: t.category as any,
+              category: t.category as TaskCategory,
               dueDaysBeforeWedding: t.dueDaysBeforeWedding,
               sortOrder: t.sortOrder,
               isSystemGenerated: true,
@@ -55,13 +57,13 @@ export const timelineService = {
     assignedVendorId?: string;
   }) {
     let tl = await prisma.weddingTimeline.findUnique({ where: { customerId } });
-    if (!tl) throw Object.assign(new Error('Timeline not found'), { statusCode: 404, code: 'RES_3001' });
+    if (!tl) throw new NotFoundError('Timeline');
 
     return prisma.timelineTask.create({
       data: {
         timelineId: tl.id,
         title: data.title,
-        category: (data.category as any) ?? 'OTHER',
+        category: (data.category as TaskCategory) ?? 'OTHER',
         description: data.description,
         dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
         linkedBookingId: data.linkedBookingId,
@@ -77,15 +79,15 @@ export const timelineService = {
     description?: string;
   }) {
     const tl = await prisma.weddingTimeline.findUnique({ where: { customerId } });
-    if (!tl) throw Object.assign(new Error('Timeline not found'), { statusCode: 404, code: 'RES_3001' });
+    if (!tl) throw new NotFoundError('Timeline');
 
     const task = await prisma.timelineTask.findFirst({ where: { id: taskId, timelineId: tl.id } });
-    if (!task) throw Object.assign(new Error('Task not found'), { statusCode: 404, code: 'RES_3001' });
+    if (!task) throw new NotFoundError('Task', taskId);
 
     return prisma.timelineTask.update({
       where: { id: taskId },
       data: {
-        ...(data.status && { status: data.status as any, completedAt: data.status === 'DONE' ? new Date() : undefined }),
+        ...(data.status && { status: data.status as TaskStatus, completedAt: data.status === 'DONE' ? new Date() : undefined }),
         ...(data.title && { title: data.title }),
         ...(data.dueDate && { dueDate: new Date(data.dueDate) }),
         ...(data.description !== undefined && { description: data.description }),
@@ -95,7 +97,7 @@ export const timelineService = {
 
   async deleteTask(customerId: string, taskId: string) {
     const tl = await prisma.weddingTimeline.findUnique({ where: { customerId } });
-    if (!tl) throw Object.assign(new Error('Timeline not found'), { statusCode: 404, code: 'RES_3001' });
+    if (!tl) throw new NotFoundError('Timeline');
     return prisma.timelineTask.deleteMany({ where: { id: taskId, timelineId: tl.id, isSystemGenerated: false } });
   },
 

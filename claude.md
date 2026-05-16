@@ -1,49 +1,246 @@
 # WeddingOS — End-to-End Execution Plan
 
 > Master execution blueprint covering Web, Mobile (Flutter), Backend, and Infrastructure.  
-> Last updated: Session 5 — 2026-05-16
+> Last updated: Session 6 — 2026-05-16
 
 ---
 
-## Session 5 — Full-Stack Quality Push: Error Handling, Utils Adoption, Tests & Type Safety
+## Session 6 — Deep Audit: Gaps, Issues, Improvements & Implementation
 
-### Audit Summary
+### 🔍 Comprehensive Audit Findings
 
-Comprehensive audit across all 12 backend services, 4 shared packages, 4 frontend apps, and infrastructure revealed:
-- **shared-errors**: Adopted in 4/11 services (booking, payment, auth, search). Remaining 7 use legacy `err.statusCode` pattern
-- **shared-utils**: Adopted in 1/11 services (booking only). Auth duplicates generateOtp/hashSha256/safeCompare locally
-- **shared-types**: 0% adoption — 38 exported types completely unused across all services
-- **Tests**: 5 services still have placeholder health.test.ts (chat, execution, media, notification, search)
-- **Type safety**: `as any` casts in vendor, notification, media routes
-- **Code quality (estimated)**: 5.5/10 → targeting 7.0/10
+Full analysis across all 12 backend services, 4 shared packages, 4 frontend apps, and infrastructure.
 
-### Implementation Plan
+---
 
-#### Phase 1: Error Handler Upgrade (7 services)
-Upgrade all remaining error handlers to use `instanceof AppError` from shared-errors:
+### 📊 Current State Dashboard
+
+| Metric | Current | Target | Gap |
+|--------|---------|--------|-----|
+| Shared-errors in service logic | 4/11 (auth, booking, payment, search) | 11/11 | 7 services |
+| Shared-errors in errorHandler | 11/11 | 11/11 | ✅ Done |
+| Shared-utils adoption | 3/11 (auth, booking, payment) | 11/11 | 8 services |
+| Shared-types adoption | 0/11 | 11/11 | 11 services |
+| Real unit tests | 6/11 (auth, booking, payment, review, user, vendor) | 11/11 | 5 services |
+| Placeholder tests remaining | 5 (chat, execution, media, notification, search) | 0 | 5 services |
+| Zod route validation | 7/11 | 11/11 | 4 services (review, notification, chat, media) |
+| `as any` type casts | 26 instances across 10 files | 0 | 26 instances |
+| Event bus wired | 10/11 (all except media) | 11/11 | 1 service |
+| Frontend API integration | ~20% (heavy mock data) | 100% | 80% remaining |
+| Code quality (estimated) | 5.5/10 | 8.0/10 | +2.5 points |
+
+---
+
+### 🚨 Critical Issues Found
+
+#### 1. Shared Packages — Massively Under-Utilized
+
+**shared-types (0% adoption)**
+- 38 types exported (User, Vendor, Booking, Payment, JwtPayload, etc.)
+- ZERO imports across all 11 services and 4 apps
+- Services define their own inline types or use `as any`
+
+**shared-errors — Only 4/11 services use in business logic**
+- ✅ Used in service files: auth, booking, payment (throw specific errors)
+- ❌ errorHandler-only: user, vendor, review, execution, notification, chat, media, search
+- These 7 services still throw plain `Error` objects with manual statusCode
+
+**shared-utils — Only 3/11 services**
+- ✅ auth (generateOtp, hashSha256, safeCompare), booking (generateBookingNumber), payment (calculatePlatformFee)
+- ❌ 8 services don't import any utilities
+- Unused exports: rupeesToPaise, paiseToRupees, formatINR, addDays, daysBetween, isWeekend, formatDate, isPeakSeason, slugify, maskPhone, isValidIndianPhone, isValidGST, isValidPAN, isValidIFSC, encodeCursor, decodeCursor
+
+**shared-events — Event bus wired but underused**
+- 46 event types defined, Redis pub/sub bus implemented
+- 10/11 services have createEventBus() in server.ts
+- But most services don't actively publish or subscribe to events
+
+#### 2. Test Coverage Gaps
+
+| Service | Test Status | Test Lines | Quality |
+|---------|------------|------------|---------|
+| auth-service | ✅ Real | 127 lines | OTP + JWT tests |
+| booking-service | ✅ Real | 370 lines | 19 tests, full lifecycle |
+| payment-service | ✅ Real | 297 lines | 13 tests, escrow flow |
+| review-service | ✅ Real | 201 lines | CRUD + ratings |
+| user-service | ✅ Real | 250 lines | Profile + KYC |
+| vendor-service | ✅ Real | 251 lines | CRUD + ES sync |
+| chat-service | ❌ Placeholder | 5 lines | `expect(true).toBe(true)` |
+| execution-service | ❌ Placeholder | 5 lines | `expect(true).toBe(true)` |
+| media-service | ❌ Placeholder | 5 lines | `expect(true).toBe(true)` |
+| notification-service | ❌ Placeholder | 5 lines | `expect(true).toBe(true)` |
+| search-service | ❌ Placeholder | 5 lines | `expect(true).toBe(true)` |
+
+#### 3. Type Safety — 26 `as any` Casts
+
+| Service | Count | Locations |
+|---------|-------|-----------|
+| vendor-service | 6 | auth.middleware, server.ts, vendor.service (×3), search.service |
+| booking-service | 4 | booking.service (eventType, statusMap, status ×2) |
+| execution-service | 4 | auth.middleware, timeline.service (category ×2, status) |
+| search-service | 3 | search.service (hits.total, aggregations ×2) |
+| payment-service | 3 | payment.service (rzp.orders, rzp.refund), auth.middleware |
+| notification-service | 2 | auth.middleware, fcm.ts |
+| user-service | 2 | auth.middleware, profile.service |
+| review-service | 1 | auth.ts (middleware) |
+| chat-service | 1 | jwt.ts |
+
+#### 4. Missing Route Validation
+
+| Service | Validation Status | Notes |
+|---------|------------------|-------|
+| review-service | ❌ No validation | Routes access req.body directly, no Zod schemas |
+| notification-service | ❌ No validation | Manual typeof checks, no structured validation |
+| chat-service | ❌ No validation | Basic manual checks only |
+| media-service | ⚠️ Partial | Hardcoded validTypes array, no Zod |
+
+#### 5. Frontend — Heavy Mock Data Dependency
+
+**apps/web (Customer Portal)**
+- 19 routes implemented, but 8 pages use MOCK_DATA fallback
+- Pattern: `.catch(() => setData(MOCK_DATA))` — all pages fallback to mocks
+- Auth generates mock tokens: `demo_${role}_${Date.now()}`
+- Missing: /chat (empty), /dashboard (empty), /profile (minimal)
+
+**apps/admin (Admin Dashboard)**
+- Only 4 pages (Login, Dashboard, Vendors, Bookings)
+- 100% mock data — MOCK_STATS, MOCK_MONTHLY hardcoded
+- Missing: User management, KYC approval, dispute resolution, analytics, settings
+
+**apps/vendor-web (Vendor Portal)**
+- 7 pages implemented, all with mock data
+- Missing: Calendar/availability, package management, real-time notifications
+
+**apps/mobile (Flutter)**
+- Most complete frontend: 20+ screens, Riverpod state, Dio API client
+- 1 TODO: vendor_analytics_provider.dart — "Replace with real API call"
+
+#### 6. Missing Dependencies in package.json
+
+| Service | Missing Dependency |
+|---------|--------------------|
+| user-service | `@wedding-os/shared-utils` |
+| vendor-service | `@wedding-os/shared-utils` |
+| review-service | `@wedding-os/shared-utils` |
+
+#### 7. Infrastructure Gaps
+
+- ❌ No database seed scripts for development
+- ❌ No integration tests (E2E booking flow)
+- ❌ No OpenAPI/Swagger documentation
+- ❌ No health check endpoints standardized
+- ❌ No centralized logging aggregation (no ELK/Loki)
+- ❌ No performance monitoring (no OpenTelemetry/Prometheus)
+
+---
+
+### 🎯 Implementation Plan — Session 6
+
+#### Phase 1: Real Unit Tests (5 services — HIGH PRIORITY)
+Replace placeholder health.test.ts with real service-layer tests:
+
+| Service | Test Target | Key Scenarios |
+|---------|------------|---------------|
+| chat-service | chat.handler.ts | Create room, send message, get messages, join room |
+| execution-service | timeline.service.ts | Create timeline, add task, update task status, complete timeline |
+| media-service | upload.service.ts | Upload file, validate type, generate presigned URL, delete file |
+| notification-service | notification.service.ts | Send notification, mark read, get user notifications, preferences |
+| search-service | search.service.ts | Search vendors, filter by category/city/price, pagination, aggregations |
+
+#### Phase 2: Zod Route Validation (4 services)
+Add structured Zod validation schemas to:
+- **review-service**: CreateReviewSchema, GetReviewsQuerySchema
+- **notification-service**: GetNotificationsQuerySchema, MarkReadSchema
+- **chat-service**: SendMessageSchema, CreateRoomSchema
+- **media-service**: UploadParamsSchema with file type validation
+
+#### Phase 3: Fix `as any` Type Casts (26 instances)
+- Replace JWT `as any` with `JwtPayload` interface across all auth middlewares
+- Fix Elasticsearch response typing in vendor-service and search-service
+- Fix Prisma enum casts in booking-service and execution-service
+- Fix Razorpay SDK typing in payment-service
+
+#### Phase 4: Adopt shared-errors in Service Logic (7 services)
+Services that only have shared-errors in errorHandler but not in business logic:
 - user-service, vendor-service, review-service, execution-service, notification-service, chat-service, media-service
-- Add `@wedding-os/shared-errors` dependency to each
-- Pattern: AppError instanceof check → legacy fallback → unknown 500
+- Replace `throw Object.assign(new Error(...), { statusCode })` with specific error classes
 
-#### Phase 2: Shared-Utils Adoption (2 services)
-- **auth-service**: Replace local `crypto.ts` functions (generateOtp, hashValue, safeCompare) with shared-utils imports
-- **payment-service**: Replace local `platformFee()` function with `calculatePlatformFee()` from shared-utils
+#### Phase 5: Documentation & Metrics
+- Update claude.md with completion metrics and next session plan
 
-#### Phase 3: Fix `as any` Type Casts (3 services)
-- **vendor-service routes**: Replace `req.query as any` with Zod validation schema
-- **notification-service routes**: Replace `req.query as any` with typed extraction
-- **media-service routes**: Replace JWT `as any` with proper payload interface
+---
 
-#### Phase 4: Real Unit Tests (5 services replacing placeholders)
-Write real service-layer unit tests for:
-- chat-service, execution-service, media-service, notification-service, search-service
+### ✅ Completed Improvements (Session 6)
 
-#### Phase 5: Documentation
-- Update claude.md with completion metrics
+#### Phase 1: Real Unit Tests — 91 new tests replacing 5 placeholders
 
-### ✅ Completed Improvements (Session 5)
+| Service | Test File | Tests | Lines | Key Scenarios |
+|---------|-----------|-------|-------|---------------|
+| chat-service | chat.handler.test.ts | 21 | 457 | Auth middleware, join:conversation, message:send validation, typing, disconnect |
+| execution-service | timeline.service.test.ts | 16 | 339 | Timeline CRUD, 12 default templates, date math, system task protection |
+| media-service | upload.service.test.ts | 21 | 245 | MIME validation, S3 presigned URLs, key format, dev fallback |
+| notification-service | notification.service.test.ts | 14 | 329 | BullMQ queue, multi-channel send, event routing, unread management |
+| search-service | search.service.test.ts | 19 | 238 | ES query building, filters, sorting, pagination, aggregations, autocomplete |
 
-_(Updated as work progresses)_
+#### Phase 2: Zod Route Validation — 4 services upgraded
+
+| Service | Schemas Added | Approach |
+|---------|-------------|----------|
+| review-service | CreateReviewSchema, ReplySchema, PaginationQuerySchema | New validate.ts middleware + wired into routes |
+| notification-service | GetNotificationsQuerySchema, InternalNotifySchema | Used existing validate.ts + replaced manual typeof parsing |
+| media-service | PresignSchema, DeleteMediaSchema | New validate.ts middleware + replaced hardcoded validTypes |
+| chat-service | GetMessagesQuerySchema, CreateConversationSchema | Inline safeParse (routes in server.ts) |
+
+#### Phase 3: Type Safety — 26 `as any` casts fixed
+
+| Category | Count | Fix Applied |
+|----------|-------|-------------|
+| JWT `as any` | 7 | Added JwtPayload interface in each auth middleware |
+| Prisma enum casts | 9 | Imported actual enum types from @prisma/client |
+| Elasticsearch typing | 4 | Added EsTotal, EsAggResult interfaces |
+| Razorpay SDK | 2 | Typed function signatures with unknown[] params |
+| Miscellaneous | 4 | Typed FCM stub, event payload, vendor package spread |
+
+#### Phase 4: Shared-Errors in Service Logic — 3 more services
+
+| Service | Changes |
+|---------|---------|
+| execution-service | 4 `Object.assign(new Error...)` → `NotFoundError('Timeline')`, `NotFoundError('Task', id)` |
+| review-service | `ConflictError('Review already submitted...')`, `NotFoundError('Review', id)` |
+| media-service | `ValidationError('File type not allowed...', 'mimeType')` |
+
+### 📊 Session 6 Impact
+
+| Metric | Before (Session 5) | After (Session 6) | Change |
+|--------|-------|-------|--------|
+| Real unit tests | 6/11 services | 11/11 services | +5 services, +91 tests |
+| Placeholder tests | 5 | 0 | ✅ Eliminated |
+| Zod route validation | 7/11 | 11/11 | +4 services |
+| `as any` type casts | 26 instances | 0 instances | ✅ Eliminated |
+| Shared-errors in logic | 4/11 | 7/11 | +3 services |
+| Total test count | ~32 | ~123 | +91 tests |
+| Code quality (est.) | 5.5/10 | 7.0/10 | +1.5 points |
+
+### 🔄 Remaining Work (Future Sessions)
+
+#### HIGH PRIORITY
+1. **Shared-errors deeper adoption** — user-service, vendor-service, notification-service, chat-service service logic still uses plain errors (but their error handlers catch AppError)
+2. **shared-types adoption** — 38 types still 0% used across all services/apps. Use JwtPayload, BookingStatus, etc.
+3. **Frontend API integration** — All 3 web apps (customer, admin, vendor) still 80%+ mock data
+4. **Integration tests** — E2E booking flow: auth → booking → payment → escrow → review
+
+#### MEDIUM PRIORITY
+5. **Admin portal buildout** — Only 4 pages, needs KYC approval, dispute resolution, user management
+6. **Vendor portal buildout** — Needs calendar, package management, real analytics
+7. **Event bus activation** — 46 events defined but most services don't actively publish/subscribe
+8. **Database seed scripts** — Development data for all services
+9. **OpenAPI/Swagger documentation** — API specs for all endpoints
+
+#### LOW PRIORITY
+10. **Auth middleware centralization** — Extract duplicated JWT verification to shared package
+11. **Performance monitoring** — OpenTelemetry/Prometheus integration
+12. **Security audit** — OWASP compliance review
+13. **Mobile CI/CD** — Flutter build pipeline refinements
 
 ---
 

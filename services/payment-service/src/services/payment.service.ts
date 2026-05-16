@@ -29,7 +29,7 @@ export const paymentService = {
     if (existing && existing.status !== 'FAILED') return existing;
 
     const rzp = getRazorpayClient();
-    const order = await (rzp.orders.create as any)({
+    const order = await (rzp.orders.create as (...args: unknown[]) => Promise<Record<string, unknown>>)({
       amount: amountPaise,
       currency: 'INR',
       receipt: `WOS-${bookingId.slice(0, 8)}`,
@@ -192,7 +192,7 @@ export const paymentService = {
     const rzp = getRazorpayClient();
     let razorpayRefundId: string | undefined;
     try {
-      const refund = await (rzp.payments.refund as any)(payment.razorpayPaymentId!, {
+      const refund = await (rzp.payments.refund as (...args: unknown[]) => Promise<Record<string, unknown>>)(payment.razorpayPaymentId!, {
         amount: payment.amountPaise,
         speed: 'normal',
         notes: { reason },

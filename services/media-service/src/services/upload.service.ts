@@ -2,6 +2,7 @@ import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } fro
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { v4 as uuidv4 } from 'uuid';
 import { config } from '../config';
+import { ValidationError } from '@wedding-os/shared-errors';
 
 const s3 = new S3Client({
   region: config.AWS_REGION,
@@ -25,7 +26,7 @@ export const uploadService = {
   async getPresignedUploadUrl(userId: string, mediaType: MediaType, mimeType: string, fileName: string) {
     const allowed = ALLOWED_MIMES[mediaType];
     if (!allowed.includes(mimeType as AllowedMime)) {
-      throw Object.assign(new Error(`File type ${mimeType} not allowed for ${mediaType}`), { statusCode: 400 });
+      throw new ValidationError(`File type ${mimeType} not allowed for ${mediaType}`, 'mimeType');
     }
 
     const ext = fileName.split('.').pop()?.toLowerCase() || 'jpg';

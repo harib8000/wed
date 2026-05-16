@@ -3,6 +3,15 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import { config } from '../config';
 
+interface JwtPayload {
+  sub?: string;
+  id?: string;
+  role: string;
+  phone: string;
+  iat?: number;
+  exp?: number;
+}
+
 export interface AuthRequest extends Request {
   user?: { id: string; role: string; phone: string };
 }
@@ -26,7 +35,7 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   const token = header.slice(7);
   try {
     if (!cachedKey) cachedKey = loadPublicKey();
-    const payload = jwt.verify(token, cachedKey, { algorithms: ['RS256'] }) as any;
+    const payload = jwt.verify(token, cachedKey, { algorithms: ['RS256'] }) as JwtPayload;
     req.user = { id: payload.sub || payload.id, role: payload.role, phone: payload.phone };
     next();
   } catch {

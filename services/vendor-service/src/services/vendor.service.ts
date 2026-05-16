@@ -1,6 +1,6 @@
 import { prisma } from '../config/database';
 import { upsertVendorDocument, deleteVendorDocument } from '../config/elasticsearch';
-import type { Vendor, VendorPackage, Prisma } from '@prisma/client';
+import type { Vendor, VendorPackage, Prisma, VendorCategory } from '@prisma/client';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { logger } from '../utils/logger';
 
@@ -65,7 +65,7 @@ export const vendorService = {
         userId,
         businessName: data.businessName,
         slug,
-        category: data.category as any,
+        category: data.category as VendorCategory,
         city: data.city,
         state: data.state,
         pincode: data.pincode,
@@ -113,13 +113,14 @@ export const vendorService = {
     exclusions?: string[];
     deliverables?: string[];
   }) {
+    const { id: _id, ...pkgFields } = packageData;
     const pkg = packageData.id
       ? await prisma.vendorPackage.update({
           where: { id: packageData.id },
-          data: { ...(packageData as any), vendorId },
+          data: { ...pkgFields, vendorId },
         })
       : await prisma.vendorPackage.create({
-          data: { ...(packageData as any), vendorId },
+          data: { ...pkgFields, vendorId } as Prisma.VendorPackageUncheckedCreateInput,
         });
 
     // Re-sync to ES

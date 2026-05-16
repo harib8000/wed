@@ -2,6 +2,15 @@ import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import { config } from '../config';
 
+interface JwtPayload {
+  sub?: string;
+  id?: string;
+  role: string;
+  phone: string;
+  iat?: number;
+  exp?: number;
+}
+
 let cachedKey: string | null = null;
 
 export function verifyToken(token: string): { id: string; role: string; phone: string } {
@@ -12,6 +21,6 @@ export function verifyToken(token: string): { id: string; role: string; phone: s
     if (!cachedKey && config.JWT_PUBLIC_KEY) cachedKey = config.JWT_PUBLIC_KEY;
     if (!cachedKey) throw new Error('JWT public key not configured');
   }
-  const payload = jwt.verify(token, cachedKey, { algorithms: ['RS256'] }) as any;
+  const payload = jwt.verify(token, cachedKey, { algorithms: ['RS256'] }) as JwtPayload;
   return { id: payload.sub || payload.id, role: payload.role, phone: payload.phone };
 }

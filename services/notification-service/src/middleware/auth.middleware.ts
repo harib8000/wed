@@ -4,6 +4,15 @@ import { readFileSync } from 'fs';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 
+interface JwtPayload {
+  sub?: string;
+  userId?: string;
+  role: string;
+  phone: string;
+  iat?: number;
+  exp?: number;
+}
+
 // ── Resolve public key ────────────────────────────────────────────────────────
 
 function getPublicKey(): string {
@@ -40,7 +49,7 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction) =
       ? (['RS256'] as jwt.Algorithm[])
       : (['HS256'] as jwt.Algorithm[]);
 
-    const payload = jwt.verify(token, publicKey, { algorithms }) as any;
+    const payload = jwt.verify(token, publicKey, { algorithms }) as JwtPayload;
     req.user = { id: payload.sub ?? payload.userId, role: payload.role, phone: payload.phone };
     next();
   } catch (err: any) {
