@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, MapPin, Star, Heart, X, SlidersHorizontal, Loader2 } from 'lucide-react';
@@ -176,7 +176,7 @@ function VendorCard({ vendor, index }: { vendor: typeof MOCK_VENDORS[0]; index: 
 }
 
 /* ─── Page ─── */
-export default function VendorsPage() {
+function VendorsPageInner() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
   const queryParam = searchParams.get('q');
@@ -431,4 +431,8 @@ export default function VendorsPage() {
       <Footer />
     </div>
   );
+}
+
+export default function VendorsPage() {
+  return <Suspense><VendorsPageInner /></Suspense>;
 }

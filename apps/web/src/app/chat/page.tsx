@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -204,7 +204,7 @@ function ConversationItem({
 /*  Main component                                                     */
 /* ------------------------------------------------------------------ */
 
-export default function ChatPage() {
+function ChatPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, isLoading: authLoading } = useAuthStore();
@@ -573,4 +573,8 @@ export default function ChatPage() {
       </main>
     </>
   );
+}
+
+export default function ChatPage() {
+  return <Suspense><ChatPageInner /></Suspense>;
 }

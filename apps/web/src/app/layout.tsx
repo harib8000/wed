@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { Inter, Playfair_Display } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import './globals.css';
 import { Providers } from './providers';
@@ -7,9 +6,6 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { CookieConsent } from '@/components/layout/CookieConsent';
 import { NetworkStatus } from '@/components/layout/NetworkStatus';
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
-const playfair = Playfair_Display({ subsets: ['latin'], variable: '--font-heading' });
 
 export const metadata: Metadata = {
   title: 'Wedding OS — India\'s Event Planning Platform',
@@ -24,8 +20,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${playfair.variable}`}>
-      <body className="font-sans bg-white text-gray-900 antialiased pb-16 md:pb-0">
+    <html lang="en">
+      <body className="font-sans bg-white text-gray-900 antialiased pb-16 md:pb-0" style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}>
         <Providers>
           <NetworkStatus />
           <ErrorBoundary>
