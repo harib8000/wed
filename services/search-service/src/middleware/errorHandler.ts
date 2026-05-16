@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { AppError } from '@wedding-os/shared-errors';
 
 export const errorHandler = (
   err: unknown,
@@ -8,6 +9,15 @@ export const errorHandler = (
 ): void => {
   const requestId = req.headers['x-request-id'] as string;
   const timestamp = new Date().toISOString();
+
+  if (err instanceof AppError) {
+    res.status(err.statusCode).json({
+      success: false,
+      error: { code: err.code, message: err.message, field: err.field, details: err.details },
+      meta: { requestId, timestamp },
+    });
+    return;
+  }
 
   if (err && typeof err === 'object' && 'statusCode' in err && 'code' in err) {
     const appErr = err as { statusCode: number; code: string; message: string; field?: string };

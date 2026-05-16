@@ -33,7 +33,8 @@
     "helmet": "^7.1.0",
     "cors": "^2.8.5",
     "cookie-parser": "^1.4.6",
-    "@wedding-os/shared-events": "workspace:*"
+    "@wedding-os/shared-events": "workspace:*",
+    "@wedding-os/shared-errors": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
