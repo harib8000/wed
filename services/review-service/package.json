@@ -26,6 +26,7 @@
     "helmet": "^7.1.0",
     "cors": "^2.8.5",
     "@wedding-os/shared-events": "workspace:*",
+    "@wedding-os/shared-errors": "workspace:*",
     "axios": "^1.6.0"
   },
   "devDependencies": {

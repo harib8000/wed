@@ -25,7 +25,8 @@
     "helmet": "^7.1.0",
     "cors": "^2.8.5",
     "express-rate-limit": "^7.2.0",
-    "sharp": "^0.33.0"
+    "sharp": "^0.33.0",
+    "@wedding-os/shared-errors": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

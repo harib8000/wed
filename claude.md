@@ -1,7 +1,49 @@
 # WeddingOS — End-to-End Execution Plan
 
 > Master execution blueprint covering Web, Mobile (Flutter), Backend, and Infrastructure.  
-> Last updated: Session 4 — 2026-05-16
+> Last updated: Session 5 — 2026-05-16
+
+---
+
+## Session 5 — Full-Stack Quality Push: Error Handling, Utils Adoption, Tests & Type Safety
+
+### Audit Summary
+
+Comprehensive audit across all 12 backend services, 4 shared packages, 4 frontend apps, and infrastructure revealed:
+- **shared-errors**: Adopted in 4/11 services (booking, payment, auth, search). Remaining 7 use legacy `err.statusCode` pattern
+- **shared-utils**: Adopted in 1/11 services (booking only). Auth duplicates generateOtp/hashSha256/safeCompare locally
+- **shared-types**: 0% adoption — 38 exported types completely unused across all services
+- **Tests**: 5 services still have placeholder health.test.ts (chat, execution, media, notification, search)
+- **Type safety**: `as any` casts in vendor, notification, media routes
+- **Code quality (estimated)**: 5.5/10 → targeting 7.0/10
+
+### Implementation Plan
+
+#### Phase 1: Error Handler Upgrade (7 services)
+Upgrade all remaining error handlers to use `instanceof AppError` from shared-errors:
+- user-service, vendor-service, review-service, execution-service, notification-service, chat-service, media-service
+- Add `@wedding-os/shared-errors` dependency to each
+- Pattern: AppError instanceof check → legacy fallback → unknown 500
+
+#### Phase 2: Shared-Utils Adoption (2 services)
+- **auth-service**: Replace local `crypto.ts` functions (generateOtp, hashValue, safeCompare) with shared-utils imports
+- **payment-service**: Replace local `platformFee()` function with `calculatePlatformFee()` from shared-utils
+
+#### Phase 3: Fix `as any` Type Casts (3 services)
+- **vendor-service routes**: Replace `req.query as any` with Zod validation schema
+- **notification-service routes**: Replace `req.query as any` with typed extraction
+- **media-service routes**: Replace JWT `as any` with proper payload interface
+
+#### Phase 4: Real Unit Tests (5 services replacing placeholders)
+Write real service-layer unit tests for:
+- chat-service, execution-service, media-service, notification-service, search-service
+
+#### Phase 5: Documentation
+- Update claude.md with completion metrics
+
+### ✅ Completed Improvements (Session 5)
+
+_(Updated as work progresses)_
 
 ---
 

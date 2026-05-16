@@ -31,7 +31,8 @@
     "@aws-sdk/s3-request-presigner": "^3.590.0",
     "slug": "^9.1.0",
     "bullmq": "^5.7.0",
-    "@wedding-os/shared-events": "workspace:*"
+    "@wedding-os/shared-events": "workspace:*",
+    "@wedding-os/shared-errors": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
