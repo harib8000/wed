@@ -35,7 +35,9 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction) =
       : (['HS256'] as jwt.Algorithm[]);
 
     const payload = jwt.verify(token, publicKey, { algorithms }) as { sub?: string; userId?: string; role: string; phone: string };
-    req.user = { id: payload.sub ?? payload.userId!, role: payload.role, phone: payload.phone };
+    const userId = payload.sub ?? payload.userId;
+    if (!userId) return next(new TokenInvalidError());
+    req.user = { id: userId, role: payload.role, phone: payload.phone };
     next();
   } catch (err: any) {
     if (err.name === 'TokenExpiredError') {
