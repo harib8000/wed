@@ -1,7 +1,92 @@
 # WeddingOS — End-to-End Execution Plan
 
 > Master execution blueprint covering Web, Mobile (Flutter), Backend, and Infrastructure.  
-> Last updated: Session 6 — 2026-05-16
+> Last updated: Session 7 — 2026-05-16
+
+---
+
+## Session 7 — Bug Fixes, Improvements & Platform Evolution
+
+### 🔍 Audit Findings (Session 7)
+
+Comprehensive audit across all backend services and the customer web app revealed:
+- 7 plain `Error` throws in backend services that should use `@wedding-os/shared-errors`
+- 2 `as any` casts remaining in media-service routes
+- 2 silent catches without logging in review-service
+- 1 `as any` cast in frontend profile page
+- Hardcoded fake notification badge in Navbar
+- Missing ErrorBoundary for runtime crash recovery
+- Missing "Write a Review" CTA on vendor detail page
+- Platform metadata still wedding-only (not event-inclusive)
+
+### ✅ Completed Improvements (Session 7)
+
+#### Backend Fixes
+
+| Service | File | Fix |
+|---------|------|-----|
+| auth-service | user.service.ts | 3× `throw new Error()` → `UnauthorizedError` from shared-errors |
+| media-service | media.routes.ts | 2× plain Error → `AppError`/`UnauthorizedError`, 2× `as any` → `unknown` + instanceof |
+| review-service | auth.ts | 1× plain Error → `AppError('SYS_9001', ...)` |
+| review-service | review.service.ts | 2× silent catches → added `logger.warn()` with context |
+| chat-service | jwt.ts | 1× plain Error → `AppError('SYS_9001', ...)` |
+
+#### Frontend Fixes
+
+| Area | Fix |
+|------|-----|
+| profile/page.tsx | `(draft as any)[key]` → `draft[key as keyof UserProfile]` |
+| Navbar.tsx | Removed hardcoded fake red notification badge |
+| layout.tsx | Added `ErrorBoundary` wrapping main content for crash recovery |
+| layout.tsx | Updated metadata: title, description, keywords, OG for event platform scope |
+| vendors/[id]/page.tsx | Added "Write a Review" CTA in reviews section |
+| not-found.tsx | Updated text from "wedding" → "event" for inclusivity |
+
+#### Platform Evolution (Session 6 → 7)
+
+| Feature | Before | After |
+|---------|--------|-------|
+| HeroSection | Wedding-only messaging | Multi-event: weddings, dhoti ceremonies, saree functions, etc. |
+| Event type selector | ❌ None | ✅ 10 event types in hero + vendor listing filter |
+| Availability calendar | ❌ None | ✅ Monthly calendar with morning/evening/full day slots |
+| Booking panel | ❌ None | ✅ Event type, guest count, price summary, escrow badge |
+| Review writing | ❌ Stub only | ✅ 5-star rating, tags, photo upload, success animation |
+| Error boundary | ❌ None | ✅ Catches render errors with retry/home navigation |
+| Vendor search filters | Category + city only | + Event type filter row |
+
+### 📊 Session 7 Impact
+
+| Metric | Before (Session 6) | After (Session 7) | Change |
+|--------|-------|-------|--------|
+| Plain Error throws | 7 instances | 0 instances | ✅ Eliminated |
+| `as any` (backend) | 0 | 0 | ✅ Maintained |
+| `as any` (frontend) | 1+ instance | 0 instances | ✅ Fixed |
+| Silent catches | 2 instances | 0 instances | ✅ Added logging |
+| ErrorBoundary | ❌ None | ✅ Global | +1 safety net |
+| New components | — | +3 (Calendar, BookingPanel, ErrorBoundary) | +3 |
+| Event types supported | Wedding only | 10 event types | +9 types |
+| Shared-errors in logic | 7/11 | 10/11 | +3 services |
+
+### 🔄 Remaining Work (Future Sessions)
+
+#### HIGH PRIORITY
+1. **shared-types adoption** — 38 types still 0% used across all services/apps
+2. **Frontend API integration** — All 3 web apps still use mock data (backend offline fallback)
+3. **Integration tests** — E2E booking flow: auth → booking → payment → escrow → review
+4. **Shared-errors in vendor-service** — Last service without shared-errors in service logic
+
+#### MEDIUM PRIORITY
+5. **Admin portal buildout** — Only 4 pages, needs KYC approval, dispute resolution, user management
+6. **Vendor portal buildout** — Needs calendar, package management, real analytics
+7. **Event bus activation** — 46 events defined but most services don't actively publish/subscribe
+8. **Database seed scripts** — Development data for all services
+9. **OpenAPI/Swagger documentation** — API specs for all endpoints
+
+#### LOW PRIORITY
+10. **Auth middleware centralization** — Extract duplicated JWT verification to shared package
+11. **Performance monitoring** — OpenTelemetry/Prometheus integration
+12. **Security audit** — OWASP compliance review
+13. **Mobile CI/CD** — Flutter build pipeline refinements
 
 ---
 
