@@ -1,4 +1,6 @@
 import { esClient } from '../config/elasticsearch';
+import { ValidationError } from '@wedding-os/shared-errors';
+import { logger } from '../utils/logger';
 
 interface EsTotal { value: number; relation: string; }
 interface EsAggBucket { key: string; doc_count: number; }
@@ -18,6 +20,9 @@ export const searchService = {
     featured?: boolean;
   }) {
     const { query, category, city, minPrice, maxPrice, minRating, sortBy = 'rating', page = 1, limit = 20, featured } = params;
+
+    if (limit < 1 || limit > 100) throw new ValidationError('Limit must be between 1 and 100', 'limit');
+    if (page < 1) throw new ValidationError('Page must be at least 1', 'page');
 
     const must: any[] = [{ term: { verificationStatus: 'verified' } }];
     const filter: any[] = [];
@@ -79,6 +84,7 @@ export const searchService = {
         },
       };
     } catch (err) {
+      logger.warn({ err }, 'Elasticsearch search failed, returning empty results');
       // Elasticsearch not available - return empty
       return { vendors: [], total: 0, page, limit, totalPages: 0, aggregations: { categories: [], cities: [], priceStats: {} } };
     }
@@ -87,13 +93,13 @@ export const searchService = {
   async indexVendor(vendor: any): Promise<void> {
     try {
       await esClient.index({ index: 'vendors', id: vendor.id, document: { ...vendor, updatedAt: new Date().toISOString() } });
-    } catch (err) { /* non-fatal */ }
+    } catch (err) { logger.warn({ err, vendorId: vendor.id }, 'Failed to index vendor (non-fatal)'); }
   },
 
   async deleteVendor(vendorId: string): Promise<void> {
     try {
       await esClient.delete({ index: 'vendors', id: vendorId });
-    } catch (err) { /* non-fatal */ }
+    } catch (err) { logger.warn({ err, vendorId }, 'Failed to delete vendor from index (non-fatal)'); }
   },
 
   async autocomplete(query: string): Promise<string[]> {
@@ -105,6 +111,6 @@ export const searchService = {
         _source: ['businessName'],
       });
       return result.hits.hits.map((h) => (h._source as Record<string, string>).businessName);
-    } catch { return []; }
+    } catch (err) { logger.warn({ err, query }, 'Autocomplete failed'); return []; }
   },
 };

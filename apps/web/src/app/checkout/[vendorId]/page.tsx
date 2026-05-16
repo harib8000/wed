@@ -196,16 +196,16 @@ function CheckoutPageInner() {
       const { razorpayOrderId, razorpayKeyId } = orderRes.data.data;
 
       // 3. Open Razorpay checkout
-      const Razorpay = (window as any).Razorpay;
-      if (Razorpay) {
-        const rzp = new Razorpay({
+      const RazorpayConstructor = (window as unknown as { Razorpay?: new (options: Record<string, unknown>) => { open: () => void } }).Razorpay;
+      if (RazorpayConstructor) {
+        const rzp = new RazorpayConstructor({
           key: razorpayKeyId,
           amount: advance,
           currency: 'INR',
           order_id: razorpayOrderId,
           name: 'Wedding OS',
           description: `Advance for ${vendor.name}`,
-          handler: async (response: any) => {
+          handler: async (response: { razorpay_payment_id: string; razorpay_signature: string }) => {
             await paymentApi.verify({
               razorpayOrderId,
               razorpayPaymentId: response.razorpay_payment_id,
@@ -223,8 +223,10 @@ function CheckoutPageInner() {
         // Razorpay SDK not loaded — redirect to bookings with success
         router.push(`/checkout/success?bookingId=${bookingId}&vendorName=${encodeURIComponent(vendor.name)}&amount=${advance}`);
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.error?.message ?? 'Something went wrong. Please try again.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
+      const axiosMessage = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
+      setError(axiosMessage ?? message);
     } finally {
       setIsSubmitting(false);
     }

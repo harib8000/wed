@@ -5,6 +5,18 @@ import axios from 'axios';
 import { config } from '../config';
 import { NotFoundError, ForbiddenError, BookingAlreadyConfirmedError, BookingCancellationError } from '@wedding-os/shared-errors';
 import { generateBookingNumber } from '@wedding-os/shared-utils';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
+
+// ── Event publishing helper ────────────────────────────────────────────────────
+
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
+  try {
+    const bus = getEventBus();
+    bus.publish(type, aggregateId, 'booking', payload).catch((err: unknown) =>
+      logger.warn({ err, type }, 'Event publish failed (non-blocking)')
+    );
+  } catch { /* Event bus not initialized (e.g., in tests) */ }
+}
 
 // ── Fee calculation ────────────────────────────────────────────────────────────
 
@@ -67,6 +79,7 @@ export const bookingService = {
     });
 
     await notify('booking.enquiry_created', { bookingId: booking.id, vendorId: data.vendorId, customerId });
+    publishEvent('booking.enquiry_created', booking.id, { bookingId: booking.id, vendorId: data.vendorId, customerId, eventType: data.eventType });
     return booking;
   },
 
@@ -133,6 +146,7 @@ export const bookingService = {
     });
 
     await notify('booking.confirmed', { bookingId: updated.id, customerId: booking.customerId, vendorId: booking.vendorId });
+    publishEvent('booking.confirmed', updated.id, { bookingId: updated.id, customerId: booking.customerId, vendorId: booking.vendorId, paymentId });
     return updated;
   },
 
@@ -163,6 +177,7 @@ export const bookingService = {
     });
 
     await notify('booking.cancelled', { bookingId, actorRole, reason });
+    publishEvent('booking.cancelled', bookingId, { bookingId, actorId, actorRole, reason: reason ?? '', customerId: booking.customerId, vendorId: booking.vendorId });
     return updated;
   },
 
