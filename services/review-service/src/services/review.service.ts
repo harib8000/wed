@@ -3,6 +3,7 @@ import axios from 'axios';
 import { config } from '../config';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { logger } from '../utils/logger';
+import { NotFoundError, ConflictError } from '@wedding-os/shared-errors';
 
 function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
@@ -39,7 +40,7 @@ export const reviewService = {
     punctualityRating?: number;
   }) {
     const existing = await prisma.review.findUnique({ where: { bookingId: data.bookingId } });
-    if (existing) throw Object.assign(new Error('Review already submitted for this booking'), { statusCode: 409, code: 'RES_3002' });
+    if (existing) throw new ConflictError('Review already submitted for this booking');
 
     const review = await prisma.review.create({
       data: {
@@ -79,7 +80,7 @@ export const reviewService = {
 
   async replyToReview(vendorId: string, reviewId: string, reply: string) {
     const review = await prisma.review.findFirst({ where: { id: reviewId, vendorId } });
-    if (!review) throw Object.assign(new Error('Review not found'), { statusCode: 404, code: 'RES_3001' });
+    if (!review) throw new NotFoundError('Review', reviewId);
     return prisma.review.update({ where: { id: reviewId }, data: { vendorReply: reply, vendorRepliedAt: new Date() } });
   },
 

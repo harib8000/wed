@@ -172,7 +172,75 @@ Services that only have shared-errors in errorHandler but not in business logic:
 
 ### ✅ Completed Improvements (Session 6)
 
-_(Updated as work progresses)_
+#### Phase 1: Real Unit Tests — 91 new tests replacing 5 placeholders
+
+| Service | Test File | Tests | Lines | Key Scenarios |
+|---------|-----------|-------|-------|---------------|
+| chat-service | chat.handler.test.ts | 21 | 457 | Auth middleware, join:conversation, message:send validation, typing, disconnect |
+| execution-service | timeline.service.test.ts | 16 | 339 | Timeline CRUD, 12 default templates, date math, system task protection |
+| media-service | upload.service.test.ts | 21 | 245 | MIME validation, S3 presigned URLs, key format, dev fallback |
+| notification-service | notification.service.test.ts | 14 | 329 | BullMQ queue, multi-channel send, event routing, unread management |
+| search-service | search.service.test.ts | 19 | 238 | ES query building, filters, sorting, pagination, aggregations, autocomplete |
+
+#### Phase 2: Zod Route Validation — 4 services upgraded
+
+| Service | Schemas Added | Approach |
+|---------|-------------|----------|
+| review-service | CreateReviewSchema, ReplySchema, PaginationQuerySchema | New validate.ts middleware + wired into routes |
+| notification-service | GetNotificationsQuerySchema, InternalNotifySchema | Used existing validate.ts + replaced manual typeof parsing |
+| media-service | PresignSchema, DeleteMediaSchema | New validate.ts middleware + replaced hardcoded validTypes |
+| chat-service | GetMessagesQuerySchema, CreateConversationSchema | Inline safeParse (routes in server.ts) |
+
+#### Phase 3: Type Safety — 26 `as any` casts fixed
+
+| Category | Count | Fix Applied |
+|----------|-------|-------------|
+| JWT `as any` | 7 | Added JwtPayload interface in each auth middleware |
+| Prisma enum casts | 9 | Imported actual enum types from @prisma/client |
+| Elasticsearch typing | 4 | Added EsTotal, EsAggResult interfaces |
+| Razorpay SDK | 2 | Typed function signatures with unknown[] params |
+| Miscellaneous | 4 | Typed FCM stub, event payload, vendor package spread |
+
+#### Phase 4: Shared-Errors in Service Logic — 3 more services
+
+| Service | Changes |
+|---------|---------|
+| execution-service | 4 `Object.assign(new Error...)` → `NotFoundError('Timeline')`, `NotFoundError('Task', id)` |
+| review-service | `ConflictError('Review already submitted...')`, `NotFoundError('Review', id)` |
+| media-service | `ValidationError('File type not allowed...', 'mimeType')` |
+
+### 📊 Session 6 Impact
+
+| Metric | Before (Session 5) | After (Session 6) | Change |
+|--------|-------|-------|--------|
+| Real unit tests | 6/11 services | 11/11 services | +5 services, +91 tests |
+| Placeholder tests | 5 | 0 | ✅ Eliminated |
+| Zod route validation | 7/11 | 11/11 | +4 services |
+| `as any` type casts | 26 instances | 0 instances | ✅ Eliminated |
+| Shared-errors in logic | 4/11 | 7/11 | +3 services |
+| Total test count | ~32 | ~123 | +91 tests |
+| Code quality (est.) | 5.5/10 | 7.0/10 | +1.5 points |
+
+### 🔄 Remaining Work (Future Sessions)
+
+#### HIGH PRIORITY
+1. **Shared-errors deeper adoption** — user-service, vendor-service, notification-service, chat-service service logic still uses plain errors (but their error handlers catch AppError)
+2. **shared-types adoption** — 38 types still 0% used across all services/apps. Use JwtPayload, BookingStatus, etc.
+3. **Frontend API integration** — All 3 web apps (customer, admin, vendor) still 80%+ mock data
+4. **Integration tests** — E2E booking flow: auth → booking → payment → escrow → review
+
+#### MEDIUM PRIORITY
+5. **Admin portal buildout** — Only 4 pages, needs KYC approval, dispute resolution, user management
+6. **Vendor portal buildout** — Needs calendar, package management, real analytics
+7. **Event bus activation** — 46 events defined but most services don't actively publish/subscribe
+8. **Database seed scripts** — Development data for all services
+9. **OpenAPI/Swagger documentation** — API specs for all endpoints
+
+#### LOW PRIORITY
+10. **Auth middleware centralization** — Extract duplicated JWT verification to shared package
+11. **Performance monitoring** — OpenTelemetry/Prometheus integration
+12. **Security audit** — OWASP compliance review
+13. **Mobile CI/CD** — Flutter build pipeline refinements
 
 ---
 
