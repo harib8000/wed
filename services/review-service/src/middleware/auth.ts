@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import { config } from '../config';
+import { AppError } from '@wedding-os/shared-errors';
 
 interface JwtPayload {
   sub?: string;
@@ -21,7 +22,7 @@ function loadPublicKey(): string {
     try { return fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch {}
   }
   if (config.JWT_PUBLIC_KEY) return config.JWT_PUBLIC_KEY;
-  throw new Error('JWT_PUBLIC_KEY or JWT_PUBLIC_KEY_PATH must be configured');
+  throw new AppError('SYS_9001', 'JWT_PUBLIC_KEY or JWT_PUBLIC_KEY_PATH must be configured', 500);
 }
 
 let cachedKey: string | null = null;

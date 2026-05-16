@@ -44,7 +44,7 @@ export default function NotFound() {
           </h2>
           <p className="text-gray-500 mb-8 max-w-md mx-auto">
             Looks like this page went on its honeymoon! 🌴 Don&apos;t worry, let&apos;s get you back
-            to planning your perfect wedding.
+            to planning your perfect event.
           </p>
         </motion.div>
 

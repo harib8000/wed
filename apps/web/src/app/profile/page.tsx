@@ -198,8 +198,8 @@ export default function ProfilePage() {
                   </label>
                   <input
                     type={type}
-                    value={(draft as any)[key] ?? ''}
-                    onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                    value={draft[key as keyof UserProfile] ?? ''}
+                    onChange={(e) => setDraft({ ...draft, [key]: key === 'budget' ? Number(e.target.value) : e.target.value })}
                     placeholder={placeholder}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                   />

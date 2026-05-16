@@ -11,7 +11,9 @@ function publishEvent(type: DomainEventType, aggregateId: string, payload: Recor
     bus.publish(type, aggregateId, 'review', payload).catch((err: any) =>
       logger.warn({ err, type }, 'Event publish failed (non-blocking)')
     );
-  } catch { /* Event bus not initialized (e.g., in tests) */ }
+  } catch {
+    logger.warn('Event bus not initialized (e.g., in tests) — skipping publish');
+  }
 }
 
 async function recalcVendorRating(vendorId: string) {
@@ -24,7 +26,9 @@ async function recalcVendorRating(vendorId: string) {
   axios.patch(`${config.VENDOR_SERVICE_URL}/vendors/${vendorId}/rating-stats`, {
     avgRating: stats._avg.rating ?? 0,
     reviewCount: stats._count.rating,
-  }).catch(() => { /* non-fatal */ });
+  }).catch(() => {
+    logger.warn({ vendorId }, 'Failed to update vendor rating stats (non-fatal)');
+  });
 }
 
 export const reviewService = {

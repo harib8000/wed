@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -66,7 +67,7 @@ function formatAmount(paise: string | null) {
   return `₹${(num / 100).toLocaleString('en-IN')}`;
 }
 
-export default function CheckoutSuccessPage() {
+function CheckoutSuccessPageInner() {
   const searchParams = useSearchParams();
   const bookingId = searchParams.get('bookingId');
   const vendorName = searchParams.get('vendorName');
@@ -222,4 +223,8 @@ export default function CheckoutSuccessPage() {
       </main>
     </>
   );
+}
+
+export default function CheckoutSuccessPage() {
+  return <Suspense><CheckoutSuccessPageInner /></Suspense>;
 }

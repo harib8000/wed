@@ -67,7 +67,7 @@ export function HowItWorks() {
           <span className="badge bg-brand-100 text-brand-700 mb-3">Simple Process</span>
           <h2 className="section-heading mb-4">How Wedding OS Works</h2>
           <p className="text-gray-600 max-w-xl mx-auto">
-            From discovery to execution — your entire wedding journey in 4 simple steps.
+            From discovery to execution — your entire event journey in 4 simple steps. Works for weddings, dhoti ceremonies, saree functions &amp; all celebrations.
           </p>
         </motion.div>
 

@@ -5,11 +5,13 @@ import { Search, MapPin, Calendar, ArrowRight, Star, Shield, Clock } from 'lucid
 import { motion } from 'framer-motion';
 
 const CATEGORIES = ['Venue', 'Photography', 'Catering', 'Decor', 'Makeup', 'Music', 'Mehendi', 'Videography'];
+const EVENT_TYPES = ['Wedding', 'Engagement', 'Dhoti Ceremony', 'Saree Function', 'Birthday', 'Reception', 'Housewarming', 'Baby Shower', 'Anniversary', 'Corporate Event'];
 
 export function HeroSection() {
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [city, setCity] = useState('Hyderabad');
+  const [eventType, setEventType] = useState('');
   const [scrollY, setScrollY] = useState(0);
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -32,6 +34,7 @@ export function HeroSection() {
     const params = new URLSearchParams();
     if (query) params.set('q', query);
     if (city) params.set('city', city);
+    if (eventType) params.set('eventType', eventType);
     router.push(`/vendors?${params.toString()}`);
   };
 
@@ -64,7 +67,7 @@ export function HeroSection() {
           className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-full px-4 py-2 mb-6 text-white/90 text-sm"
         >
           <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span>India&apos;s #1 Wedding Planning Platform</span>
+          <span>India&apos;s #1 Event Planning Platform</span>
         </motion.div>
 
         <motion.h1
@@ -73,9 +76,9 @@ export function HeroSection() {
           transition={{ duration: 0.7, delay: 0.3 }}
           className="font-heading text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-6 leading-tight"
         >
-          Your Perfect Wedding
+          Your Perfect Event
           <span className="block text-transparent bg-clip-text bg-gradient-to-r from-gold-300 to-gold-500">
-            Starts Here
+            Plan it Effortlessly
           </span>
         </motion.h1>
 
@@ -85,7 +88,7 @@ export function HeroSection() {
           transition={{ duration: 0.6, delay: 0.5 }}
           className="text-lg sm:text-xl text-white/80 max-w-2xl mx-auto mb-10 leading-relaxed"
         >
-          Discover verified vendors, book with escrow protection, and coordinate your wedding day in real-time — all in one platform.
+          From weddings and engagements to dhoti ceremonies, saree functions, birthdays, and more — discover verified vendors, book with escrow protection, and coordinate your special day in real-time.
         </motion.p>
 
         {/* Search Box */}
@@ -127,6 +130,29 @@ export function HeroSection() {
           </div>
         </motion.form>
 
+        {/* Event Type Selector */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.7 }}
+          className="flex flex-wrap justify-center gap-2 mb-6"
+        >
+          {EVENT_TYPES.map((type) => (
+            <button
+              key={type}
+              onClick={() => setEventType(eventType === type ? '' : type)}
+              aria-label={`Select ${type} event type`}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                eventType === type
+                  ? 'bg-gold-400 text-gray-900 shadow-lg shadow-gold-400/30'
+                  : 'bg-white/10 backdrop-blur-sm border border-white/20 text-white/90 hover:bg-white/20'
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </motion.div>
+
         {/* Quick Category Tags */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -159,7 +185,7 @@ export function HeroSection() {
           </div>
           <div className="flex items-center gap-2">
             <Star size={16} className="text-gold-400" />
-            <span>10,000+ Verified Vendors</span>
+            <span>50,000+ Happy Events</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock size={16} className="text-blue-400" />

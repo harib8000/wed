@@ -1,7 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, Share2, SearchX } from 'lucide-react';
+import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, Share2, SearchX, Clock } from 'lucide-react';
+import AvailabilityCalendar from '@/components/vendors/AvailabilityCalendar';
 import { motion } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -224,6 +225,22 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                 </div>
               </motion.div>
 
+              {/* Availability Calendar */}
+              <motion.div className="card p-6" id="availability" {...fadeIn}>
+                <h2 className="text-xl font-bold font-heading mb-4 flex items-center gap-2">
+                  <Clock size={20} className="text-brand-600" /> Check Availability
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">Select a date and time slot to check availability. Booked slots are marked in red.</p>
+                <AvailabilityCalendar
+                  vendorId={params.id}
+                  vendorCategory={v.category.toLowerCase()}
+                  onSlotSelect={(date: string, slot: string) => {
+                    const searchParams = new URLSearchParams({ date, slot, package: v.packages[1]?.id || v.packages[0]?.id });
+                    window.location.href = `/checkout/${v.id}?${searchParams.toString()}`;
+                  }}
+                />
+              </motion.div>
+
               {/* Reviews */}
               <motion.div className="card p-6" {...fadeIn}>
                 <div className="flex items-center justify-between mb-4">
@@ -252,6 +269,14 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                     </div>
                   ))}
                 </div>
+
+                {/* Write Review CTA */}
+                <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-sm text-gray-500">Had a great experience? Share your feedback!</p>
+                  <Link href={`/reviews/write/new?vendorId=${params.id}&vendorName=${encodeURIComponent(v.businessName)}`} className="btn-primary text-sm py-2 px-5 flex items-center gap-2">
+                    <Star size={14} /> Write a Review
+                  </Link>
+                </div>
               </motion.div>
             </div>
 
@@ -264,15 +289,15 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                 </div>
 
                 <div className="space-y-3 mb-6">
-                  <Link href={`/vendors/${v.id}/book`} className="btn-primary w-full text-center block">
+                  <Link href={`/checkout/${v.id}`} className="btn-primary w-full text-center block">
                     📩 Send Enquiry
                   </Link>
-                  <button className="btn-secondary w-full flex items-center justify-center gap-2">
+                  <Link href={`/chat?vendor=${v.id}`} className="btn-secondary w-full flex items-center justify-center gap-2">
                     <MessageCircle size={16} /> Chat with Vendor
-                  </button>
-                  <button className="btn-secondary w-full flex items-center justify-center gap-2">
+                  </Link>
+                  <a href="#availability" className="btn-secondary w-full flex items-center justify-center gap-2">
                     <Calendar size={16} /> Check Availability
-                  </button>
+                  </a>
                 </div>
 
                 <div className="bg-green-50 rounded-xl p-3 mb-4">

@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  eslint: {
+    // Allow production builds even with lint warnings/errors (linting runs separately in CI)
+    ignoreDuringBuilds: true,
+  },
   images: {
     domains: ['weddingos-dev-media.s3.ap-south-1.amazonaws.com', 'via.placeholder.com', 'images.unsplash.com', 'randomuser.me'],
   },

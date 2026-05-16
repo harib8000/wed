@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Search, MapPin, Star, Heart, X, SlidersHorizontal, Loader2 } from 'lucide-react';
@@ -9,6 +9,7 @@ import { Footer } from '@/components/layout/Footer';
 
 const CATEGORIES = ['All', 'Venue', 'Photography', 'Catering', 'Decor', 'Makeup', 'Music', 'Mehendi', 'Videography', 'Transport'];
 const CITIES = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Jaipur'];
+const EVENT_TYPES = ['All Events', 'Wedding', 'Engagement', 'Dhoti Ceremony', 'Saree Function', 'Birthday', 'Reception', 'Housewarming', 'Baby Shower', 'Anniversary', 'Corporate Event'];
 const SORT_OPTIONS = [
   { value: 'rating', label: 'Top Rated' },
   { value: 'reviews', label: 'Most Reviewed' },
@@ -175,7 +176,7 @@ function VendorCard({ vendor, index }: { vendor: typeof MOCK_VENDORS[0]; index: 
 }
 
 /* ─── Page ─── */
-export default function VendorsPage() {
+function VendorsPageInner() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category');
   const queryParam = searchParams.get('q');
@@ -185,6 +186,7 @@ export default function VendorsPage() {
     categoryParam ? CATEGORIES.find(c => c.toLowerCase() === categoryParam.toLowerCase()) || 'All' : 'All'
   );
   const [selectedCity, setSelectedCity] = useState('Hyderabad');
+  const [selectedEventType, setSelectedEventType] = useState(searchParams.get('eventType') || 'All Events');
   const [sortBy, setSortBy] = useState('rating');
   const [isLoading, setIsLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -208,7 +210,7 @@ export default function VendorsPage() {
   // Reset visible count when filters change
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [search, selectedCategory, selectedCity, sortBy]);
+  }, [search, selectedCategory, selectedCity, selectedEventType, sortBy]);
 
   const filtered = useMemo(() => {
     return MOCK_VENDORS.filter((v) => {
@@ -226,9 +228,10 @@ export default function VendorsPage() {
     if (selectedCategory !== 'All') count++;
     if (search) count++;
     if (selectedCity !== 'Hyderabad') count++;
+    if (selectedEventType !== 'All Events') count++;
     if (sortBy !== 'rating') count++;
     return count;
-  }, [selectedCategory, search, selectedCity, sortBy]);
+  }, [selectedCategory, search, selectedCity, selectedEventType, sortBy]);
 
   const handleLoadMore = useCallback(() => {
     setIsLoadingMore(true);
@@ -243,6 +246,7 @@ export default function VendorsPage() {
     setSearch('');
     setSelectedCategory('All');
     setSelectedCity('Hyderabad');
+    setSelectedEventType('All Events');
     setSortBy('rating');
   }, []);
 
@@ -316,7 +320,7 @@ export default function VendorsPage() {
           </div>
 
           {/* Category tabs */}
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-2">
             <div className="flex gap-2 overflow-x-auto scrollbar-hide">
               {CATEGORIES.map((cat) => (
                 <button
@@ -329,6 +333,28 @@ export default function VendorsPage() {
                   }`}
                 >
                   {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Event type filter */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-3">
+            <p className="text-xs text-gray-400 mb-1.5 font-medium uppercase tracking-wide">Event Type</p>
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+              {EVENT_TYPES.map((et) => (
+                <button
+                  key={et}
+                  onClick={() => setSelectedEventType(et)}
+                  aria-label={`Filter by ${et}`}
+                  aria-pressed={selectedEventType === et}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                    selectedEventType === et
+                      ? 'bg-gold-500 text-white border-gold-500'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-gold-300 hover:bg-gold-50'
+                  }`}
+                >
+                  {et}
                 </button>
               ))}
             </div>
@@ -405,4 +431,8 @@ export default function VendorsPage() {
       <Footer />
     </div>
   );
+}
+
+export default function VendorsPage() {
+  return <Suspense><VendorsPageInner /></Suspense>;
 }

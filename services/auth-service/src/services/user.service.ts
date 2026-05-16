@@ -2,6 +2,7 @@ import { prisma } from '../config/database';
 import { getRedisClient } from '../config/redis';
 import { jwtService } from './jwt.service';
 import { hashSha256 as hashValue } from '@wedding-os/shared-utils';
+import { UnauthorizedError } from '@wedding-os/shared-errors';
 import { randomUUID } from 'crypto';
 
 const generateTokenId = (): string => randomUUID();
@@ -85,15 +86,15 @@ export class UserService {
     });
 
     if (!storedToken || storedToken.revokedAt) {
-      throw new Error('INVALID_REFRESH_TOKEN');
+      throw new UnauthorizedError('Invalid or revoked refresh token');
     }
 
     if (new Date() > storedToken.expiresAt) {
-      throw new Error('REFRESH_TOKEN_EXPIRED');
+      throw new UnauthorizedError('Refresh token has expired');
     }
 
     if (storedToken.userId !== payload.sub) {
-      throw new Error('TOKEN_MISMATCH');
+      throw new UnauthorizedError('Token does not match user');
     }
 
     // 3. Revoke old token

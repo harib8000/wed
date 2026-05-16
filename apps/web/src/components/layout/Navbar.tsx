@@ -55,11 +55,12 @@ export function Navbar() {
               { label: 'Venues', href: '/vendors?category=venue' },
               { label: 'Photography', href: '/vendors?category=photography' },
               { label: 'Catering', href: '/vendors?category=catering' },
-              { label: 'All Vendors', href: '/vendors' },
+              { label: 'All Services', href: '/vendors' },
+              { label: 'My Bookings', href: '/bookings' },
             ] : [
               { label: 'Find Vendors', href: '/vendors' },
               { label: 'How it Works', href: '/#how-it-works' },
-              { label: 'Pricing', href: '/pricing' },
+              { label: 'Categories', href: '/#categories' },
             ]).map((item) => (
               <Link
                 key={item.href}
@@ -81,9 +82,8 @@ export function Navbar() {
                 <Link href="/vendors" aria-label="Search vendors" className={clsx('p-2 rounded-lg transition-colors focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Search size={20} />
                 </Link>
-                <Link href="/bookings" aria-label="Notifications" className={clsx('p-2 rounded-lg transition-colors relative focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
+                <Link href="/bookings" aria-label="My bookings" className={clsx('p-2 rounded-lg transition-colors relative focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Bell size={20} />
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                 </Link>
                 <div className="flex items-center gap-2">
                   <Link href="/profile" aria-label="Your profile" className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors focus-ring">
@@ -127,12 +127,13 @@ export function Navbar() {
             <>
               <Link href="/bookings" className="block py-2 text-gray-700 font-medium">My Bookings</Link>
               <Link href="/wishlist" className="block py-2 text-gray-700 font-medium">Wishlist</Link>
+              <Link href="/chat" className="block py-2 text-gray-700 font-medium">Messages</Link>
               <Link href="/profile" className="block py-2 text-gray-700 font-medium">Profile</Link>
             </>
           ) : (
             <>
               <Link href="/#how-it-works" className="block py-2 text-gray-700 font-medium">How it Works</Link>
-              <Link href="/vendors" className="block py-2 text-gray-700 font-medium">Pricing</Link>
+              <Link href="/#categories" className="block py-2 text-gray-700 font-medium">Categories</Link>
             </>
           )}
           <div className="pt-2 border-t border-gray-100">

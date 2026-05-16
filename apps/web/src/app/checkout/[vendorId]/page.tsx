@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -117,7 +117,7 @@ function PackageCard({ pkg, selected, onSelect }: { pkg: Package; selected: bool
 }
 
 // ─── Page ──────────────────────────────────────────────────
-export default function CheckoutPage() {
+function CheckoutPageInner() {
   const params = useParams<{ vendorId: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -451,3 +451,5 @@ export default function CheckoutPage() {
     </>
   );
 }
+
+export default function CheckoutPage() { return <Suspense><CheckoutPageInner /></Suspense>; }
