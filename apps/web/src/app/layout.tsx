@@ -6,6 +6,7 @@ import { BottomNav } from '@/components/layout/BottomNav';
 import { CookieConsent } from '@/components/layout/CookieConsent';
 import { NetworkStatus } from '@/components/layout/NetworkStatus';
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
+import { ScrollToTop } from '@/components/layout/ScrollToTop';
 
 export const metadata: Metadata = {
   title: 'Wedding OS — India\'s Event Planning Platform',
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div id="main-content">{children}</div>
           </ErrorBoundary>
           <BottomNav />
+          <ScrollToTop />
           <CookieConsent />
           <Toaster
             position="top-right"
