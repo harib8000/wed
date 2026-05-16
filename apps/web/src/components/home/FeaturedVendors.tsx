@@ -133,7 +133,7 @@ export function FeaturedVendors() {
           <div>
             <span className="badge bg-gold-100 text-gold-700 mb-3">Featured</span>
             <h2 className="section-heading">Top Verified Vendors</h2>
-            <p className="text-gray-500 mt-2">Hand-picked, verified vendors loved by couples across Hyderabad.</p>
+            <p className="text-gray-500 mt-2">Hand-picked, verified vendors loved by customers across India.</p>
           </div>
           <Link href="/vendors" className="hidden md:flex btn-secondary items-center gap-2 focus-ring">
             View All <CheckCircle size={16} />

@@ -55,11 +55,12 @@ export function Navbar() {
               { label: 'Venues', href: '/vendors?category=venue' },
               { label: 'Photography', href: '/vendors?category=photography' },
               { label: 'Catering', href: '/vendors?category=catering' },
-              { label: 'All Vendors', href: '/vendors' },
+              { label: 'All Services', href: '/vendors' },
+              { label: 'My Bookings', href: '/bookings' },
             ] : [
               { label: 'Find Vendors', href: '/vendors' },
               { label: 'How it Works', href: '/#how-it-works' },
-              { label: 'Pricing', href: '/pricing' },
+              { label: 'Categories', href: '/#categories' },
             ]).map((item) => (
               <Link
                 key={item.href}
@@ -127,12 +128,13 @@ export function Navbar() {
             <>
               <Link href="/bookings" className="block py-2 text-gray-700 font-medium">My Bookings</Link>
               <Link href="/wishlist" className="block py-2 text-gray-700 font-medium">Wishlist</Link>
+              <Link href="/chat" className="block py-2 text-gray-700 font-medium">Messages</Link>
               <Link href="/profile" className="block py-2 text-gray-700 font-medium">Profile</Link>
             </>
           ) : (
             <>
               <Link href="/#how-it-works" className="block py-2 text-gray-700 font-medium">How it Works</Link>
-              <Link href="/vendors" className="block py-2 text-gray-700 font-medium">Pricing</Link>
+              <Link href="/#categories" className="block py-2 text-gray-700 font-medium">Categories</Link>
             </>
           )}
           <div className="pt-2 border-t border-gray-100">

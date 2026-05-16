@@ -25,7 +25,7 @@ const ROLE_OPTIONS: RoleOption[] = [
   {
     role: 'customer',
     label: 'Couple / Customer',
-    description: 'Planning your dream wedding? Browse vendors, compare packages, book services with escrow protection.',
+    description: 'Planning your dream event? Browse vendors, compare packages, book services with escrow protection.',
     href: '/login/couple',
     icon: Heart,
     color: 'text-pink-600',
@@ -36,7 +36,7 @@ const ROLE_OPTIONS: RoleOption[] = [
   {
     role: 'vendor',
     label: 'Vendor / Service Provider',
-    description: 'Grow your wedding business. Manage bookings, packages, payouts & connect with couples.',
+    description: 'Grow your event services business. Manage bookings, packages, payouts & connect with customers.',
     href: '/login/vendor',
     icon: Store,
     color: 'text-brand-600',
@@ -155,7 +155,7 @@ export default function LoginPage() {
             </div>
             <span className="font-heading font-bold text-2xl text-gray-900">Wedding OS</span>
           </Link>
-          <p className="text-gray-500 mt-1 text-sm">India&apos;s Wedding Operating System</p>
+          <p className="text-gray-500 mt-1 text-sm">India&apos;s Event Planning Platform</p>
         </div>
 
         {/* Role Selection Card */}

@@ -53,7 +53,7 @@ export function CategoryGrid() {
           </span>
           <h2 className="section-heading mb-3">What Are You Looking For?</h2>
           <p className="text-gray-500 max-w-xl mx-auto">
-            Tap any category to browse verified vendors with real portfolios, transparent pricing, and verified reviews.
+            Browse verified vendors for weddings, engagements, dhoti ceremonies, saree functions &amp; more. Real portfolios, transparent pricing, and verified reviews.
           </p>
         </div>
 
