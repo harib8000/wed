@@ -4,6 +4,7 @@ import { escrowReleaseQueue } from '../config/queue';
 import { verifyPaymentSignature } from '../utils/signature';
 import { logger } from '../utils/logger';
 import { config } from '../config';
+import { NotFoundError, PaymentVerificationError, ConflictError } from '@wedding-os/shared-errors';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 
@@ -64,17 +65,17 @@ export const paymentService = {
     const valid = verifyPaymentSignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
     if (!valid) {
       logger.warn({ razorpayOrderId }, 'Invalid payment signature');
-      throw Object.assign(new Error('Payment signature verification failed'), { statusCode: 400, code: 'PAY_5001' });
+      throw new PaymentVerificationError();
     }
 
     const payment = await prisma.payment.findUnique({ where: { razorpayOrderId } });
-    if (!payment) throw Object.assign(new Error('Payment not found'), { statusCode: 404, code: 'RES_3001' });
+    if (!payment) throw new NotFoundError('Payment', razorpayOrderId);
     if (payment.status === 'CAPTURED') {
       // Already processed — idempotent response
       return prisma.payment.findUnique({ where: { id: payment.id }, include: { escrowHold: true } });
     }
     if (payment.status !== 'CREATED' && payment.status !== 'PENDING') {
-      throw Object.assign(new Error('Payment cannot be captured in current state'), { statusCode: 409, code: 'PAY_5003' });
+      throw new ConflictError('Payment cannot be captured in current state');
     }
 
     const { platformFeePaise, gstOnFeePaise, vendorPayoutPaise } = platformFee(payment.amountPaise);
@@ -173,8 +174,8 @@ export const paymentService = {
 
   async refund(paymentId: string, reason: string, adminNote?: string) {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId }, include: { escrowHold: true } });
-    if (!payment) throw Object.assign(new Error('Payment not found'), { statusCode: 404, code: 'RES_3001' });
-    if (payment.status !== 'CAPTURED') throw Object.assign(new Error('Payment not captured'), { statusCode: 409, code: 'PAY_5003' });
+    if (!payment) throw new NotFoundError('Payment', paymentId);
+    if (payment.status !== 'CAPTURED') throw new ConflictError('Payment has not been captured yet');
 
     // Cancel scheduled escrow release job
     if (payment.escrowHold) {

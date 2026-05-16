@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { readFileSync } from 'fs';
 import { config } from '../config';
-import { logger } from '../utils/logger';
+import { UnauthorizedError, ForbiddenError, TokenExpiredError, TokenInvalidError } from '@wedding-os/shared-errors';
 
 // ── Resolve public key ────────────────────────────────────────────────────────
 
@@ -21,16 +21,10 @@ declare global {
   }
 }
 
-class AuthError extends Error {
-  constructor(public statusCode: number, public code: string, message: string) {
-    super(message);
-  }
-}
-
 export const authenticate = (req: Request, _res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
-    return next(new AuthError(401, 'AUTH_1007', 'Authentication required'));
+    return next(new UnauthorizedError('Authentication required'));
   }
 
   const token = authHeader.slice(7);
@@ -45,17 +39,17 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction) =
     next();
   } catch (err: any) {
     if (err.name === 'TokenExpiredError') {
-      next(new AuthError(401, 'AUTH_1005', 'Token expired'));
+      next(new TokenExpiredError());
     } else {
-      next(new AuthError(401, 'AUTH_1006', 'Invalid token'));
+      next(new TokenInvalidError());
     }
   }
 };
 
 export const requireRole = (...roles: string[]) =>
   (req: Request, _res: Response, next: NextFunction) => {
-    if (!req.user) return next(new AuthError(401, 'AUTH_1007', 'Authentication required'));
+    if (!req.user) return next(new UnauthorizedError('Authentication required'));
     if (!roles.includes(req.user.role))
-      return next(new AuthError(403, 'AUTH_1008', `Requires role: ${roles.join(' or ')}`));
+      return next(new ForbiddenError(`Requires role: ${roles.join(' or ')}`));
     next();
   };
