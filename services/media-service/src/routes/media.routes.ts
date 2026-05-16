@@ -27,7 +27,7 @@ let cachedKey: string | null = null;
 function getPublicKey(): string {
   if (!cachedKey) {
     if (config.JWT_PUBLIC_KEY_PATH) {
-      try { cachedKey = fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch (e) { /* Key file not found, will fall back to env var */ }
+      try { cachedKey = fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch { /* Key file not found, will fall back to env var */ }
     }
     if (!cachedKey && config.JWT_PUBLIC_KEY) cachedKey = config.JWT_PUBLIC_KEY;
     if (!cachedKey) throw new AppError('SYS_9001', 'JWT public key not configured', 500);
