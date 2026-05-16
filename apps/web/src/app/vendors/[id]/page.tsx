@@ -269,6 +269,14 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                     </div>
                   ))}
                 </div>
+
+                {/* Write Review CTA */}
+                <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <p className="text-sm text-gray-500">Had a great experience? Share your feedback!</p>
+                  <Link href={`/reviews/write/new?vendorId=${params.id}&vendorName=${encodeURIComponent(v.businessName)}`} className="btn-primary text-sm py-2 px-5 flex items-center gap-2">
+                    <Star size={14} /> Write a Review
+                  </Link>
+                </div>
               </motion.div>
             </div>
 
