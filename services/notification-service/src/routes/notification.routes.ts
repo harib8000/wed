@@ -9,9 +9,26 @@ const meta = (req: Request) => ({ requestId: req.headers['x-request-id'], timest
 
 notificationRouter.get('/', authenticate, async (req, res, next) => {
   try {
-    const { limit } = req.query as any;
-    const notifications = await notificationService.getUnread(req.user!.id, parseInt(limit ?? '20'));
+    const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 20;
+    const notifications = await notificationService.getUnread(req.user!.id, limit);
     res.json({ success: true, data: { notifications }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── PATCH /notifications/:id/read
+notificationRouter.patch('/:id/read', authenticate, async (req, res, next) => {
+  try {
+    const notification = await notificationService.markAsRead(req.user!.id, req.params.id);
+    if (!notification) return res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Notification not found' }, meta: meta(req) });
+    res.json({ success: true, data: { notification }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── POST /notifications/read-all
+notificationRouter.post('/read-all', authenticate, async (req, res, next) => {
+  try {
+    const count = await notificationService.markAllAsRead(req.user!.id);
+    res.json({ success: true, data: { updatedCount: count }, meta: meta(req) });
   } catch (err) { next(err); }
 });
 

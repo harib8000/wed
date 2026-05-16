@@ -4,6 +4,7 @@ import { connectDatabase, disconnectDatabase } from './config/database';
 import { getRedisClient, disconnectRedis } from './config/redis';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { createEventBus } from '@wedding-os/shared-events';
 
 const PORT = config.PORT;
 
@@ -11,6 +12,14 @@ async function bootstrap() {
   // Connect to Postgres & Redis
   await connectDatabase();
   getRedisClient(); // initialise connection eagerly
+
+  // ── Event Bus ─────────────────────────────────────────────────────────────
+  const eventBus = createEventBus({
+    redisUrl: config.REDIS_URL,
+    serviceName: 'auth-service',
+  });
+  await eventBus.connect();
+  logger.info('Event bus connected');
 
   const app = createApp();
   const server = http.createServer(app);
@@ -25,6 +34,7 @@ async function bootstrap() {
 
     server.close(async () => {
       try {
+        await eventBus.disconnect();
         await disconnectDatabase();
         await disconnectRedis();
         logger.info('Cleanup complete, exiting.');

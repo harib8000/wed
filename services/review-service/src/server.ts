@@ -3,9 +3,19 @@ import { createApp } from './app';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { createEventBus } from '@wedding-os/shared-events';
 
 async function bootstrap() {
   await connectDatabase();
+
+  // ── Event Bus ─────────────────────────────────────────────────────────────
+  const eventBus = createEventBus({
+    redisUrl: config.REDIS_URL,
+    serviceName: 'review-service',
+  });
+  await eventBus.connect();
+  logger.info('Event bus connected');
+
   const app = createApp();
   const server = http.createServer(app);
 
@@ -16,6 +26,7 @@ async function bootstrap() {
   const gracefulShutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutting down...');
     server.close(async () => {
+      await eventBus.disconnect();
       await disconnectDatabase();
       process.exit(0);
     });

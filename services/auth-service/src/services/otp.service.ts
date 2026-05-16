@@ -1,8 +1,9 @@
 import { getRedisClient } from '../config/redis';
 import { config } from '../config';
-import { generateOtp, hashValue, safeCompare } from '../utils/crypto';
+import { generateOtp, hashSha256 as hashValue, safeCompare } from '@wedding-os/shared-utils';
 import { logger } from '../utils/logger';
 import axios from 'axios';
+import { AccountLockedError, RateLimitedError, OtpExpiredError, OtpInvalidError, AppError } from '@wedding-os/shared-errors';
 
 const OTP_PREFIX = 'otp:';
 const RATE_LIMIT_PREFIX = 'otp_rate:';
@@ -19,7 +20,7 @@ export class OtpService {
     const isLocked = await redis.exists(lockKey);
     if (isLocked) {
       const ttl = await redis.ttl(lockKey);
-      throw { code: 'LOCKED', ttlSeconds: ttl };
+      throw new AccountLockedError(Math.ceil(ttl / 60));
     }
 
     // 2. Check rate limit (3 requests per 10 minutes)
@@ -30,7 +31,7 @@ export class OtpService {
     }
     if (rateCount > config.OTP_RATE_LIMIT_MAX) {
       const ttl = await redis.ttl(rateKey);
-      throw { code: 'RATE_LIMITED', ttlSeconds: ttl };
+      throw new RateLimitedError(ttl);
     }
 
     // 3. Generate OTP
@@ -59,14 +60,14 @@ export class OtpService {
     const isLocked = await redis.exists(lockKey);
     if (isLocked) {
       const ttl = await redis.ttl(lockKey);
-      throw { code: 'LOCKED', ttlSeconds: ttl };
+      throw new AccountLockedError(Math.ceil(ttl / 60));
     }
 
     // 2. Retrieve stored hash
     const otpKey = `${OTP_PREFIX}${phone}`;
     const storedHash = await redis.get(otpKey);
     if (!storedHash) {
-      throw { code: 'OTP_EXPIRED' };
+      throw new OtpExpiredError();
     }
 
     // 3. Compare
@@ -85,10 +86,10 @@ export class OtpService {
         // Lock the account
         await redis.setex(lockKey, config.OTP_LOCKOUT_DURATION_MINUTES * 60, '1');
         await redis.del(failKey);
-        throw { code: 'LOCKED', ttlSeconds: config.OTP_LOCKOUT_DURATION_MINUTES * 60 };
+        throw new AccountLockedError(config.OTP_LOCKOUT_DURATION_MINUTES);
       }
 
-      throw { code: 'INVALID_OTP', attemptsLeft: config.OTP_LOCKOUT_MAX_ATTEMPTS - failCount };
+      throw new OtpInvalidError();
     }
 
     // 4. Valid — clean up
@@ -117,7 +118,7 @@ export class OtpService {
       logger.info({ phone }, 'OTP SMS sent');
     } catch (err) {
       logger.error({ err, phone }, 'Failed to send OTP SMS');
-      throw { code: 'SMS_FAILED' };
+      throw new AppError('SYS_9001', 'Failed to send OTP SMS', 500, true);
     }
   }
 }

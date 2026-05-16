@@ -1,6 +1,17 @@
 import { prisma } from '../config/database';
 import axios from 'axios';
 import { config } from '../config';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
+import { logger } from '../utils/logger';
+
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
+  try {
+    const bus = getEventBus();
+    bus.publish(type, aggregateId, 'review', payload).catch((err: any) =>
+      logger.warn({ err, type }, 'Event publish failed (non-blocking)')
+    );
+  } catch { /* Event bus not initialized (e.g., in tests) */ }
+}
 
 async function recalcVendorRating(vendorId: string) {
   const stats = await prisma.review.aggregate({
@@ -39,6 +50,13 @@ export const reviewService = {
     });
 
     await recalcVendorRating(data.vendorId);
+    publishEvent('review.created', review.id, {
+      reviewId: review.id,
+      customerId,
+      vendorId: data.vendorId,
+      bookingId: data.bookingId,
+      rating: data.rating,
+    });
     return review;
   },
 

@@ -21,8 +21,8 @@ function getPublicKey(): string {
 function getUser(req: Request) {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) throw Object.assign(new Error('Unauthorized'), { statusCode: 401 });
-  const payload = jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }) as any;
-  return { id: payload.sub || payload.id, role: payload.role };
+  const payload = jwt.verify(token, getPublicKey(), { algorithms: ['RS256'] }) as { sub?: string; id?: string; role: string };
+  return { id: payload.sub || payload.id || '', role: payload.role };
 }
 
 // POST /media/presign — get presigned upload URL

@@ -5,6 +5,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
 import { mediaRouter } from './routes/media.routes';
+import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
 
@@ -19,6 +20,7 @@ async function bootstrap() {
 
   app.get('/media/health', (_, res) => res.json({ status: 'ok', service: 'media-service', timestamp: new Date().toISOString() }));
   app.use('/media', mediaRouter);
+  app.use(errorHandler);
 
   const server = http.createServer(app);
   server.listen(config.PORT, () => {

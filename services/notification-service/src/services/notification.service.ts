@@ -59,6 +59,25 @@ export const notificationService = {
     }
   },
 
+  async markAsRead(userId: string, notificationId: string) {
+    const notification = await prisma.notificationLog.findFirst({
+      where: { id: notificationId, userId, channel: 'IN_APP' },
+    });
+    if (!notification) return null;
+    return prisma.notificationLog.update({
+      where: { id: notificationId },
+      data: { readAt: new Date() },
+    });
+  },
+
+  async markAllAsRead(userId: string) {
+    const result = await prisma.notificationLog.updateMany({
+      where: { userId, channel: 'IN_APP', readAt: null },
+      data: { readAt: new Date() },
+    });
+    return result.count;
+  },
+
   async getUnread(userId: string, limit = 20) {
     return prisma.notificationLog.findMany({
       where: { userId, channel: 'IN_APP', status: { in: ['SENT', 'QUEUED'] } },
