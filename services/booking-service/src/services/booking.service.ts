@@ -110,7 +110,7 @@ export const bookingService = {
           events: { create: { eventType: 'QUOTE_SENT', actorId: vendorId, actorRole: 'vendor', payload: { quotedAmountPaise: data.quotedAmountPaise } } },
         },
       });
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
         throw new ConflictError('Booking was modified concurrently. Please retry.');
       }
@@ -136,7 +136,7 @@ export const bookingService = {
           events: { create: { eventType: 'QUOTE_ACCEPTED', actorId: customerId, actorRole: 'customer', payload: {} } },
         },
       });
-    } catch (err) {
+    } catch (err: unknown) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
         throw new ConflictError('Booking was modified concurrently. Please retry.');
       }

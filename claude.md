@@ -62,6 +62,118 @@ Acting as a user traversing every layer of the platform — customer web app, ve
 
 ### ✅ Implemented Fixes (Session 10)
 
+#### Fix 1: Dockerfile Port Mismatches (8 services — CRITICAL)
+
+All 8 services had EXPOSE and HEALTHCHECK ports that didn't match their actual config port defaults. Containers would fail to route traffic and health checks would always fail.
+
+| Service | Was (EXPOSE) | Fixed To | Config Default |
+|---------|-------------|----------|----------------|
+| booking-service | 4002 | 4004 | 4004 |
+| payment-service | 4004 | 4005 | 4005 |
+| execution-service | 4007 | 4006 | 4006 |
+| notification-service | 4005 | 4008 | 4008 |
+| review-service | 4006 | 4009 | 4009 |
+| chat-service | 4008 | 4010 | 4010 |
+| search-service | 4009 | 4011 | 4011 |
+| media-service | 4010 | 4012 | 4012 |
+
+#### Fix 2: Booking Service Optimistic Lock Crash (CRITICAL)
+
+| File | Fix |
+|------|-----|
+| `services/booking-service/src/services/booking.service.ts` | Added Prisma P2025 error catch on optimistic-lock updates (sendQuote, acceptQuote). Concurrent modification now throws `ConflictError` instead of crashing with unhandled P2025 |
+
+#### Fix 3: Chat Service Race Condition (CRITICAL)
+
+| File | Fix |
+|------|-----|
+| `services/chat-service/src/server.ts` | Replaced non-atomic `findOne()` + `create()` with `findOneAndUpdate()` + upsert to prevent duplicate conversations from concurrent requests |
+
+#### Fix 4: Checkout Success Suspense Fallback (CRITICAL)
+
+| File | Fix |
+|------|-----|
+| `apps/web/src/app/checkout/success/page.tsx` | Added loading spinner fallback to `<Suspense>` — prevents blank page flash during hydration |
+
+#### Fix 5: Checkout Page ErrorBoundary (HIGH)
+
+| File | Fix |
+|------|-----|
+| `apps/web/src/app/checkout/[vendorId]/page.tsx` | Wrapped in `<ErrorBoundary>` with `<Suspense fallback>` — catches runtime errors gracefully instead of killing the page |
+
+#### Fix 6: MongoDB Healthcheck (HIGH)
+
+| File | Fix |
+|------|-----|
+| `docker-compose.dev.yml` | Added `mongosh` healthcheck with auth credentials |
+| `docker-compose.infra.yml` | Added matching healthcheck |
+
+#### Fix 7: Media Service File Auth Fix (HIGH)
+
+| File | Fix |
+|------|-----|
+| `services/media-service/src/routes/media.routes.ts` | Changed `key.includes(user.id)` to `key.startsWith(userId + '/')` path-segment match — prevents user123 from deleting user12's files |
+
+#### Fix 8: CI --passWithNoTests Removed (HIGH)
+
+| File | Fix |
+|------|-----|
+| `.github/workflows/ci.yml:99` | Removed `--passWithNoTests` flag — CI now fails if a service has zero tests |
+
+#### Fix 9: Profile Page Memory Leak (HIGH)
+
+| File | Fix |
+|------|-----|
+| `apps/web/src/app/profile/page.tsx` | Used `useRef` to track latest avatar blob URL, revoke only on unmount — prevents double-revoke on re-render |
+
+### 📊 Session 10 Impact
+
+| Metric | Before (Session 9) | After (Session 10) | Change |
+|--------|-------|-------|--------|
+| Dockerfile port mismatches | 8 services | 0 | ✅ All fixed |
+| Optimistic lock crash risk | 2 methods | 0 | ✅ ConflictError handler |
+| Chat race condition | 1 non-atomic op | 0 | ✅ Atomic upsert |
+| Missing Suspense fallbacks | 2 pages | 0 | ✅ All have loading spinners |
+| Missing ErrorBoundaries | 1 checkout flow | 0 | ✅ Wrapped |
+| MongoDB healthcheck | Missing | ✅ Both compose files | ✅ Added |
+| Media file auth bypass | Possible | Blocked | ✅ Path-segment match |
+| CI --passWithNoTests | Enabled | Removed | ✅ Tests enforced |
+| Blob URL memory leak | 1 page | 0 | ✅ useRef cleanup |
+| Total bugs fixed | — | **9 critical/high** | ✅ |
+
+### 🔄 Remaining Work (Future Sessions)
+
+#### 🔴 HIGH PRIORITY (Session 11)
+1. **Redis password inconsistency** — docker-compose.infra.yml has no password, dev.yml has `redis_dev_password`
+2. **Missing Prisma generate in CI** — user-service, execution-service, media-service, search-service not generated
+3. **Search/notification internal endpoints no auth** — POST /search/vendors/index and POST /internal/notify are public
+4. **Vendor ES sync not awaited** — stale search results from fire-and-forget sync
+5. **Payment refund idempotency** — duplicate refunds possible on retry
+6. **Vendor-web no role check** — admin can access vendor portal
+7. **Admin 401 no token refresh** — user loses work on token expiry
+
+#### 🟡 MEDIUM PRIORITY (Sessions 12-13)
+8. **Notification worker no reconnect** — BullMQ worker dies silently on Redis disconnect
+9. **Review leaks customerId** — privacy issue in public vendor reviews
+10. **Vendor slug collision** — 5 random chars too short for uniqueness at scale
+11. **Execution service no rate limiting** — DoS risk on task creation
+12. **Missing EscrowHold.bookingId index** — performance degradation at scale
+13. **Missing VendorPackage @@unique** — duplicate package names per vendor allowed
+14. **N+1 queries in review service** — 3 separate DB calls instead of batch
+15. **shared-types adoption** — 38 types exported, 0 imported anywhere
+16. **Frontend API integration** — all 3 web apps still use MOCK_DATA
+17. **AI-service CI/CD integration** — Python service not in build matrix
+
+#### 🟢 LOW PRIORITY (Sessions 14+)
+18. **Kong auth plugin** — no JWT verification at gateway level
+19. **Kong logging plugin** — no request/response visibility
+20. **Mobile logout redirect** — GoRouter doesn't redirect on logout
+21. **Firebase init silent failure** — no error logging in debug mode
+22. **Auth cookie path issue** — refresh token cookie scope mismatch
+23. **OpenAPI/Swagger documentation** — 50+ endpoints undocumented
+24. **E2E browser tests** — no Cypress/Playwright setup
+25. **Integration tests** — no cross-service test coverage
+
 ---
 
 ## Session 9 — Deep Codebase Audit, Gap Analysis & Implementation

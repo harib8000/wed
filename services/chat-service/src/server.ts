@@ -99,7 +99,7 @@ async function bootstrap() {
       // Use findOneAndUpdate with upsert to prevent race condition (concurrent findOne+create)
       const conv = await Conversation.findOneAndUpdate(
         { bookingId },
-        { $setOnInsert: { bookingId, customerId, vendorId } },
+        { $setOnInsert: { customerId, vendorId } },
         { upsert: true, new: true, setDefaultsOnInsert: true },
       );
       res.json({ success: true, data: { conversation: conv } });
