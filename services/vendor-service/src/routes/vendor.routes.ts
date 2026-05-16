@@ -69,14 +69,16 @@ const SearchQuerySchema = z.object({
 
 vendorRouter.get('/search', validate(SearchQuerySchema, 'query'), async (req, res, next) => {
   try {
-    const result = await searchService.search(req.query as any);
+    const validated = SearchQuerySchema.parse(req.query);
+    const result = await searchService.search(validated);
     res.json({ success: true, data: result, meta: meta(req) });
   } catch (err) { next(err); }
 });
 
 vendorRouter.get('/suggest', async (req, res, next) => {
   try {
-    const { q = '', city } = req.query as any;
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const city = typeof req.query.city === 'string' ? req.query.city : undefined;
     const results = await searchService.suggest(q, city);
     res.json({ success: true, data: { suggestions: results }, meta: meta(req) });
   } catch (err) { next(err); }

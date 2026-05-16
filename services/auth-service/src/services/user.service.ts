@@ -1,7 +1,10 @@
 import { prisma } from '../config/database';
 import { getRedisClient } from '../config/redis';
 import { jwtService } from './jwt.service';
-import { hashValue, generateTokenId } from '../utils/crypto';
+import { hashSha256 as hashValue } from '@wedding-os/shared-utils';
+import { randomUUID } from 'crypto';
+
+const generateTokenId = (): string => randomUUID();
 import type { User } from '@prisma/client';
 
 const BLACKLIST_PREFIX = 'token_blacklist:';

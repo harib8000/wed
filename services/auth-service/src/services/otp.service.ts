@@ -1,6 +1,6 @@
 import { getRedisClient } from '../config/redis';
 import { config } from '../config';
-import { generateOtp, hashValue, safeCompare } from '../utils/crypto';
+import { generateOtp, hashSha256 as hashValue, safeCompare } from '@wedding-os/shared-utils';
 import { logger } from '../utils/logger';
 import axios from 'axios';
 import { AccountLockedError, RateLimitedError, OtpExpiredError, OtpInvalidError, AppError } from '@wedding-os/shared-errors';

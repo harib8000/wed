@@ -9,8 +9,8 @@ const meta = (req: Request) => ({ requestId: req.headers['x-request-id'], timest
 
 notificationRouter.get('/', authenticate, async (req, res, next) => {
   try {
-    const { limit } = req.query as any;
-    const notifications = await notificationService.getUnread(req.user!.id, parseInt(limit ?? '20'));
+    const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 10) : 20;
+    const notifications = await notificationService.getUnread(req.user!.id, limit);
     res.json({ success: true, data: { notifications }, meta: meta(req) });
   } catch (err) { next(err); }
 });

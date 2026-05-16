@@ -5,13 +5,13 @@ import { verifyPaymentSignature } from '../utils/signature';
 import { logger } from '../utils/logger';
 import { config } from '../config';
 import { NotFoundError, PaymentVerificationError, ConflictError } from '@wedding-os/shared-errors';
+import { calculatePlatformFee } from '@wedding-os/shared-utils';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
 
 function platformFee(amountPaise: number) {
-  const fee = Math.round(amountPaise * config.PLATFORM_FEE_PERCENT / 100);
-  const gst = Math.round(fee * 0.18);
-  return { platformFeePaise: fee, gstOnFeePaise: gst, vendorPayoutPaise: amountPaise - fee - gst };
+  const result = calculatePlatformFee(amountPaise, config.PLATFORM_FEE_PERCENT / 100);
+  return { platformFeePaise: result.platformFee, gstOnFeePaise: result.gstOnFee, vendorPayoutPaise: result.vendorPayout };
 }
 
 async function notifyBookingService(bookingId: string, paymentId: string) {

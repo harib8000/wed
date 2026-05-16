@@ -29,7 +29,8 @@
     "bullmq": "^5.7.0",
     "axios": "^1.6.0",
     "razorpay": "^2.9.0",
-    "@wedding-os/shared-errors": "workspace:*"
+    "@wedding-os/shared-errors": "workspace:*",
+    "@wedding-os/shared-utils": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
