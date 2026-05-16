@@ -106,7 +106,8 @@ export default function WriteReviewPage() {
       toast.error('Please select an overall rating');
       return;
     }
-    if (!body.trim() || body.trim().length < 10) {
+    const trimmedBody = body.trim();
+    if (!trimmedBody || trimmedBody.length < 10) {
       toast.error('Please write at least 10 characters in your review');
       return;
     }
@@ -118,7 +119,7 @@ export default function WriteReviewPage() {
         vendorId: booking.vendorId,
         rating: overallRating,
         title: title.trim() || undefined,
-        body: body.trim(),
+        body: trimmedBody,
       };
       subRatings.forEach((r) => {
         if (r.value > 0) payload[r.key] = r.value;

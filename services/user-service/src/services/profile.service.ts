@@ -1,12 +1,15 @@
 import { prisma } from '../config/database';
 import type { UpdateProfileInput, UpdateNotifPrefsInput } from '../types/user.types';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
+import { logger } from '../utils/logger';
 
 function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
     const bus = getEventBus();
-    bus.publish(type, aggregateId, 'user', payload).catch(() => { /* non-blocking */ });
-  } catch { /* Event bus not initialized */ }
+    bus.publish(type, aggregateId, 'user', payload).catch((err: any) =>
+      logger.warn({ err, type }, 'Event publish failed (non-blocking)')
+    );
+  } catch { /* Event bus not initialized (e.g., in tests) */ }
 }
 
 export const profileService = {

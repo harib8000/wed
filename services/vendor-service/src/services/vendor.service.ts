@@ -2,14 +2,15 @@ import { prisma } from '../config/database';
 import { upsertVendorDocument, deleteVendorDocument } from '../config/elasticsearch';
 import type { Vendor, VendorPackage, Prisma } from '@prisma/client';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
+import { logger } from '../utils/logger';
 
 function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
     const bus = getEventBus();
     bus.publish(type, aggregateId, 'vendor', payload).catch((err: any) =>
-      console.warn('[EventBus] publish failed:', type, err?.message)
+      logger.warn({ err, type }, 'Event publish failed (non-blocking)')
     );
-  } catch { /* Event bus not initialized */ }
+  } catch { /* Event bus not initialized (e.g., in tests) */ }
 }
 
 function buildSlug(name: string, city: string): string {

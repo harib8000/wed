@@ -1,7 +1,62 @@
 # WeddingOS — End-to-End Execution Plan
 
 > Master execution blueprint covering Web, Mobile (Flutter), Backend, and Infrastructure.  
-> Last updated: Session 1
+> Last updated: Session 3 — 2026-05-15
+
+## Session 3 — Issues, Gaps & Improvements Audit
+
+### Audit Summary
+
+Full codebase audit performed across all 12 backend services, 4 shared packages, 3 frontend apps, CI/CD, and infrastructure.
+
+### ✅ Completed Improvements (Session 3)
+
+#### Phase 1: Missing tsconfig.json
+- Created `tsconfig.json` for: chat-service, media-service, review-service, search-service
+- Created `tsconfig.json` for all 4 shared packages (shared-errors, shared-events, shared-types, shared-utils)
+
+#### Phase 2: Missing Jest + Test Infrastructure
+- Created `jest.config.js` for: booking-service, chat-service, execution-service, media-service, notification-service, payment-service, search-service
+- Created `tests/unit/health.test.ts` placeholder tests for all 7 services
+- Added jest/ts-jest devDependencies where missing
+
+#### Phase 3: Missing Error Handler Middleware
+- Created `src/middleware/errorHandler.ts` for: chat-service, media-service, search-service
+- Wired error handler into server.ts for: chat-service, media-service, search-service
+
+#### Phase 4: Missing npm Scripts
+- Added `test` and `lint` scripts to: chat-service, execution-service, media-service, notification-service, search-service
+- Added `lint` script to: review-service
+
+#### Phase 5: Event Bus Wiring (10 of 11 Node services now connected)
+- Wired event bus into: auth-service, chat-service, execution-service
+- Added `@wedding-os/shared-events` dependency to all 3
+- execution-service now subscribes to `booking.confirmed` and `booking.completed`
+
+#### Phase 6: Kong API Gateway Configuration
+- Created `infrastructure/kong/kong.yml` with declarative routing for all 12 services
+- Global plugins: rate-limiting, CORS, request-size-limiting
+
+### 🔄 Remaining Work (Future Sessions)
+
+#### HIGH PRIORITY
+1. **Real unit tests** — Replace placeholder health.test.ts with actual service logic tests for: booking, chat, execution, media, notification, payment, search
+2. **Integration tests** — End-to-end booking flow test (auth → booking → payment → escrow)
+3. **shared-errors adoption** — Import and use AppError classes in all services instead of manual error objects
+4. **shared-types adoption** — Use shared type interfaces in service code
+5. **shared-utils adoption** — Use shared utility functions (generateBookingNumber, calculatePlatformFee, etc.)
+6. **API documentation** — OpenAPI/Swagger specs for all service endpoints
+
+#### MEDIUM PRIORITY
+7. **ESLint + Prettier** — Root-level configuration for consistent code style
+8. **Database seed scripts** — Development data for all services
+9. **Event bus coverage** — media-service (currently stateless, no event bus needed)
+10. **AI service integration** — Python service lacks Node ecosystem integration
+
+#### LOW PRIORITY
+11. **Performance monitoring** — APM integration
+12. **Security audit** — OWASP compliance review
+13. **Mobile CI/CD** — Flutter build pipeline refinements
 
 ---
 

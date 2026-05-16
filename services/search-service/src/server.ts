@@ -25,24 +25,32 @@ async function bootstrap() {
 
   // Re-index vendor in ES when vendor data changes
   await eventBus.subscribe('vendor.registered', async (event) => {
-    const payload = event.payload as any;
-    logger.info({ vendorId: payload.vendorId }, 'Indexing new vendor');
+    const payload = event.payload as Record<string, unknown>;
+    const vendorId = payload?.vendorId as string | undefined;
+    if (!vendorId) { logger.warn({ payload }, 'vendor.registered missing vendorId'); return; }
+    logger.info({ vendorId }, 'Indexing new vendor');
     await searchService.indexVendor(payload);
   });
   await eventBus.subscribe('vendor.profile_updated', async (event) => {
-    const payload = event.payload as any;
-    logger.info({ vendorId: payload.vendorId }, 'Re-indexing updated vendor');
+    const payload = event.payload as Record<string, unknown>;
+    const vendorId = payload?.vendorId as string | undefined;
+    if (!vendorId) { logger.warn({ payload }, 'vendor.profile_updated missing vendorId'); return; }
+    logger.info({ vendorId }, 'Re-indexing updated vendor');
     await searchService.indexVendor(payload);
   });
   await eventBus.subscribe('vendor.kyc_approved', async (event) => {
-    const payload = event.payload as any;
-    logger.info({ vendorId: payload.vendorId }, 'Indexing approved vendor');
+    const payload = event.payload as Record<string, unknown>;
+    const vendorId = payload?.vendorId as string | undefined;
+    if (!vendorId) { logger.warn({ payload }, 'vendor.kyc_approved missing vendorId'); return; }
+    logger.info({ vendorId }, 'Indexing approved vendor');
     await searchService.indexVendor(payload);
   });
   await eventBus.subscribe('vendor.kyc_rejected', async (event) => {
-    const payload = event.payload as any;
-    logger.info({ vendorId: payload.vendorId }, 'Removing suspended vendor from index');
-    await searchService.deleteVendor(payload.vendorId);
+    const payload = event.payload as Record<string, unknown>;
+    const vendorId = payload?.vendorId as string | undefined;
+    if (!vendorId) { logger.warn({ payload }, 'vendor.kyc_rejected missing vendorId'); return; }
+    logger.info({ vendorId }, 'Removing suspended vendor from index');
+    await searchService.deleteVendor(vendorId);
   });
 
   const app = express();

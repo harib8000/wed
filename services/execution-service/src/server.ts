@@ -39,12 +39,18 @@ async function bootstrap() {
 
   // Subscribe to booking events for automatic timeline creation
   await eventBus.subscribe('booking.confirmed', async (event) => {
-    const { bookingId, customerId, vendorId } = event.payload as any;
+    const payload = event.payload as Record<string, unknown>;
+    const bookingId = payload?.bookingId as string | undefined;
+    const customerId = payload?.customerId as string | undefined;
+    const vendorId = payload?.vendorId as string | undefined;
+    if (!bookingId) { logger.warn({ payload }, 'booking.confirmed missing bookingId'); return; }
     logger.info({ bookingId, customerId, vendorId }, 'Received booking.confirmed — ready for timeline creation');
   });
 
   await eventBus.subscribe('booking.completed', async (event) => {
-    const { bookingId } = event.payload as any;
+    const payload = event.payload as Record<string, unknown>;
+    const bookingId = payload?.bookingId as string | undefined;
+    if (!bookingId) { logger.warn({ payload }, 'booking.completed missing bookingId'); return; }
     logger.info({ bookingId }, 'Received booking.completed');
   });
 
