@@ -96,10 +96,12 @@ async function bootstrap() {
         return;
       }
       const { bookingId, customerId, vendorId } = bodyParsed.data;
-      let conv = await Conversation.findOne({ bookingId });
-      if (!conv) {
-        conv = await Conversation.create({ bookingId, customerId, vendorId });
-      }
+      // Use findOneAndUpdate with upsert to prevent race condition (concurrent findOne+create)
+      const conv = await Conversation.findOneAndUpdate(
+        { bookingId },
+        { $setOnInsert: { bookingId, customerId, vendorId } },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
       res.json({ success: true, data: { conversation: conv } });
     } catch (err: unknown) {
       const status = err instanceof Error && 'status' in err ? (err as { status: number }).status : 500;

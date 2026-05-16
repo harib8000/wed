@@ -47,6 +47,8 @@ export default function ProfilePage() {
   const [draft, setDraft] = useState<UserProfile>({ phone: '' });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const avatarPreviewRef = useRef<string | null>(null);
+  avatarPreviewRef.current = avatarPreview;
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -89,9 +91,9 @@ export default function ProfilePage() {
 
   useEffect(() => {
     return () => {
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+      if (avatarPreviewRef.current) URL.revokeObjectURL(avatarPreviewRef.current);
     };
-  }, [avatarPreview]);
+  }, []);
 
   const daysLeft = profile.weddingDate ? daysUntil(profile.weddingDate) : null;
   const initials = profile.name ? profile.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '??';

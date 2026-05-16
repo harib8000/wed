@@ -45,9 +45,9 @@ COPY --from=builder /app/services/execution-service/prisma ./services/execution-
 USER appuser
 WORKDIR /app/services/execution-service
 
-EXPOSE 4007
+EXPOSE 4006
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4007/execution/health || exit 1
+  CMD wget -qO- http://localhost:4006/execution/health || exit 1
 
 CMD ["node", "dist/server.js"]

@@ -68,8 +68,8 @@ router.delete('/', validate(DeleteMediaSchema), (req: Request, res: Response) =>
   try {
     const user = getUser(req);
     const { key } = req.body;
-    // Security: only allow deleting own files
-    if (!key.includes(user.id) && user.role !== 'admin') {
+    // Security: only allow deleting own files — use path-segment match to prevent user123 from deleting user12's files
+    if (!key.startsWith(`${user.id}/`) && !key.includes(`/${user.id}/`) && user.role !== 'admin') {
       res.status(403).json({ success: false, error: { message: 'Forbidden' } }); return;
     }
     uploadService.deleteMedia(key)

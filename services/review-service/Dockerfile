@@ -45,9 +45,9 @@ COPY --from=builder /app/services/review-service/prisma ./services/review-servic
 USER appuser
 WORKDIR /app/services/review-service
 
-EXPOSE 4006
+EXPOSE 4009
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4006/review/health || exit 1
+  CMD wget -qO- http://localhost:4009/review/health || exit 1
 
 CMD ["node", "dist/server.js"]

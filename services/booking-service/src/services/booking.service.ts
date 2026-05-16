@@ -3,9 +3,10 @@ import type { BookingStatus, EventType } from '@prisma/client';
 import { logger } from '../utils/logger';
 import axios from 'axios';
 import { config } from '../config';
-import { NotFoundError, ForbiddenError, BookingAlreadyConfirmedError, BookingCancellationError } from '@wedding-os/shared-errors';
+import { NotFoundError, ForbiddenError, BookingAlreadyConfirmedError, BookingCancellationError, ConflictError } from '@wedding-os/shared-errors';
 import { generateBookingNumber } from '@wedding-os/shared-utils';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
+import { Prisma } from '@prisma/client';
 
 // ── Event publishing helper ────────────────────────────────────────────────────
 
@@ -92,21 +93,29 @@ export const bookingService = {
 
     const { platformFeePaise, gstOnFeePaise, advancePaise, finalAmountPaise } = calculateFees(data.quotedAmountPaise);
 
-    const updated = await prisma.booking.update({
-      where: { id: bookingId, version: booking.version }, // optimistic lock
-      data: {
-        status: 'QUOTE_SENT',
-        quotedAmountPaise: data.quotedAmountPaise,
-        advanceAmountPaise: advancePaise,
-        finalAmountPaise,
-        platformFeePaise,
-        gstOnFeePaise,
-        vendorQuoteNote: data.note,
-        quoteSentAt: new Date(),
-        version: { increment: 1 },
-        events: { create: { eventType: 'QUOTE_SENT', actorId: vendorId, actorRole: 'vendor', payload: { quotedAmountPaise: data.quotedAmountPaise } } },
-      },
-    });
+    let updated;
+    try {
+      updated = await prisma.booking.update({
+        where: { id: bookingId, version: booking.version }, // optimistic lock
+        data: {
+          status: 'QUOTE_SENT',
+          quotedAmountPaise: data.quotedAmountPaise,
+          advanceAmountPaise: advancePaise,
+          finalAmountPaise,
+          platformFeePaise,
+          gstOnFeePaise,
+          vendorQuoteNote: data.note,
+          quoteSentAt: new Date(),
+          version: { increment: 1 },
+          events: { create: { eventType: 'QUOTE_SENT', actorId: vendorId, actorRole: 'vendor', payload: { quotedAmountPaise: data.quotedAmountPaise } } },
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new ConflictError('Booking was modified concurrently. Please retry.');
+      }
+      throw err;
+    }
 
     await notify('booking.quote_sent', { bookingId: updated.id, customerId: booking.customerId, quotedAmountPaise: data.quotedAmountPaise });
     return updated;
@@ -116,15 +125,23 @@ export const bookingService = {
     const booking = await prisma.booking.findFirst({ where: { id: bookingId, customerId, status: 'QUOTE_SENT' } });
     if (!booking) throw new NotFoundError('Booking', bookingId);
 
-    const updated = await prisma.booking.update({
-      where: { id: bookingId, version: booking.version },
-      data: {
-        status: 'ADVANCE_PENDING',
-        quoteAcceptedAt: new Date(),
-        version: { increment: 1 },
-        events: { create: { eventType: 'QUOTE_ACCEPTED', actorId: customerId, actorRole: 'customer', payload: {} } },
-      },
-    });
+    let updated;
+    try {
+      updated = await prisma.booking.update({
+        where: { id: bookingId, version: booking.version },
+        data: {
+          status: 'ADVANCE_PENDING',
+          quoteAcceptedAt: new Date(),
+          version: { increment: 1 },
+          events: { create: { eventType: 'QUOTE_ACCEPTED', actorId: customerId, actorRole: 'customer', payload: {} } },
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new ConflictError('Booking was modified concurrently. Please retry.');
+      }
+      throw err;
+    }
 
     await notify('booking.quote_accepted', { bookingId: updated.id, vendorId: booking.vendorId, advanceAmountPaise: booking.advanceAmountPaise });
     return updated;

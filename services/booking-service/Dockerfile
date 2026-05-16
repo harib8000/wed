@@ -45,9 +45,9 @@ COPY --from=builder /app/services/booking-service/prisma ./services/booking-serv
 USER appuser
 WORKDIR /app/services/booking-service
 
-EXPOSE 4002
+EXPOSE 4004
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4002/booking/health || exit 1
+  CMD wget -qO- http://localhost:4004/booking/health || exit 1
 
 CMD ["node", "dist/server.js"]

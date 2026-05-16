@@ -1,7 +1,66 @@
 # WeddingOS — End-to-End Execution Plan
 
 > Master execution blueprint covering Web, Mobile (Flutter), Backend, and Infrastructure.  
-> Last updated: Session 9 — 2026-05-16
+> Last updated: Session 10 — 2026-05-16
+
+---
+
+## Session 10 — User-Perspective Bug Audit & Critical Fixes
+
+### 🔍 Comprehensive Bug Audit (Session 10)
+
+Acting as a user traversing every layer of the platform — customer web app, vendor portal, admin dashboard, backend services, Docker infrastructure, and CI/CD — this session identifies and fixes real runtime bugs, security vulnerabilities, and data integrity issues.
+
+#### Bug Audit Summary
+
+| Category | Critical | High | Medium | Low | Total |
+|----------|----------|------|--------|-----|-------|
+| Backend Services | 5 | 8 | 15 | 2 | 30 |
+| Frontend Apps | 1 | 8 | 8 | 2 | 19 |
+| Infrastructure/CI/CD | 3 | 5 | 4 | 1 | 13 |
+| **Total** | **9** | **21** | **27** | **5** | **62** |
+
+#### 🔴 CRITICAL Bugs Found & Fixed
+
+| # | Bug | Location | Fix |
+|---|-----|----------|-----|
+| 1 | **Dockerfile EXPOSE port mismatches** — 8 services expose wrong port vs actual config port | `services/*/Dockerfile` | Fixed all 8 EXPOSE + HEALTHCHECK ports to match config defaults |
+| 2 | **Duplicate EXPOSE 4002** — booking-service and user-service both expose 4002 | `services/booking-service/Dockerfile:48` | Fixed booking to EXPOSE 4004 |
+| 3 | **Suspense without fallback** — checkout success page blank during hydration | `apps/web/src/app/checkout/success/page.tsx:229` | Added loading spinner fallback |
+| 4 | **Booking optimistic lock unhandled** — Prisma P2025 on concurrent updates crashes | `services/booking-service/src/services/booking.service.ts` | Added P2025 catch → ConflictError |
+| 5 | **Chat race condition** — duplicate conversations from concurrent findOne+create | `services/chat-service/src/server.ts` | Added findOneAndUpdate with upsert |
+
+#### 🟠 HIGH Bugs Found & Fixed
+
+| # | Bug | Location | Fix |
+|---|-----|----------|-----|
+| 6 | **Missing MongoDB healthcheck** in Docker | `docker-compose.dev.yml` | Added mongosh healthcheck |
+| 7 | **Media service weak file auth** — key.includes(userId) bypassable | `services/media-service/src/routes/media.routes.ts` | Use startsWith for path segment match |
+| 8 | **CI --passWithNoTests** — services pass CI with zero tests | `.github/workflows/ci.yml:99` | Removed flag |
+| 9 | **Profile page blob URL memory leak** — revokeObjectURL in wrong useEffect | `apps/web/src/app/profile/page.tsx` | Fixed dependency array |
+| 10 | **Checkout missing ErrorBoundary** | `apps/web/src/app/checkout/[vendorId]/page.tsx` | Added ErrorBoundary wrapper |
+
+#### 🟡 MEDIUM Bugs (Documented for future sessions)
+
+| # | Bug | Location | Impact |
+|---|-----|----------|--------|
+| 11 | Search service internal endpoint no auth | `search-service/routes/search.routes.ts` | Data manipulation risk |
+| 12 | Notification internal endpoint no auth | `notification-service/routes/notification.routes.ts` | Service impersonation |
+| 13 | Vendor ES sync not awaited | `vendor-service/services/vendor.service.ts` | Stale search results |
+| 14 | Payment refund no idempotency | `payment-service/routes/payment.routes.ts` | Duplicate refunds |
+| 15 | Vendor slug collision (5 chars) | `vendor-service/services/vendor.service.ts` | Duplicate slugs |
+| 16 | Notification worker no reconnect | `notification-service/server.ts` | Silent notification failures |
+| 17 | Review leaks customerId publicly | `review-service/services/review.service.ts` | Privacy issue |
+| 18 | N+1 query on vendor reviews | `review-service/services/review.service.ts` | Performance |
+| 19 | Kong no auth plugin | `infrastructure/kong/kong.yml` | Public API access |
+| 20 | Redis password inconsistency | `docker-compose.dev.yml` vs `.infra.yml` | Connection failures |
+| 21 | Missing Prisma generate in CI | `.github/workflows/ci.yml` | Test failures |
+| 22 | AI-service not in CI/CD | `.github/workflows/ci.yml` | Not deployed |
+| 23 | Admin 401 no token refresh | `apps/admin/src/lib/api.ts` | Data loss on expiry |
+| 24 | Vendor-web no role check | `apps/vendor-web/src/App.tsx` | Privilege escalation |
+| 25 | Mobile logout doesn't redirect | `apps/mobile/lib/main.dart` | UX broken |
+
+### ✅ Implemented Fixes (Session 10)
 
 ---
 

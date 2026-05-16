@@ -45,9 +45,9 @@ COPY --from=builder /app/services/search-service/node_modules ./services/search-
 USER appuser
 WORKDIR /app/services/search-service
 
-EXPOSE 4009
+EXPOSE 4011
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4009/search/health || exit 1
+  CMD wget -qO- http://localhost:4011/search/health || exit 1
 
 CMD ["node", "dist/server.js"]
