@@ -46,6 +46,7 @@ const QUICK_TAGS = [
 const MAX_PHOTOS = 5;
 const MIN_REVIEW_CHARS = 20;
 const MAX_REVIEW_CHARS = 1000;
+const DEFAULT_ANIMATION_HEIGHT = 900;
 
 /* ------------------------------------------------------------------ */
 /*  Mock booking for fallback                                          */
@@ -131,7 +132,7 @@ function ConfettiBurst() {
             key={i}
             initial={{ y: -20, x: 0, opacity: 1, rotate: 0 }}
             animate={{
-              y: typeof window !== 'undefined' ? window.innerHeight + 50 : 900,
+              y: typeof window !== 'undefined' ? window.innerHeight + 50 : DEFAULT_ANIMATION_HEIGHT,
               x: (Math.random() - 0.5) * 300,
               opacity: 0,
               rotate: rotation + 360,
@@ -220,7 +221,7 @@ export default function WriteReviewPage() {
         toast.error(`Only ${remaining} more photo${remaining > 1 ? 's' : ''} can be added`);
       }
       const newPreviews: PhotoPreview[] = toAdd.map((file) => ({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         file,
         url: URL.createObjectURL(file),
       }));
@@ -231,7 +232,10 @@ export default function WriteReviewPage() {
   const removePhoto = useCallback((id: string) => {
     setPhotos((prev) => {
       const photo = prev.find((p) => p.id === id);
-      if (photo) URL.revokeObjectURL(photo.url);
+      if (photo) {
+        // Delay revocation so the DOM update completes before the blob URL is invalidated
+        setTimeout(() => URL.revokeObjectURL(photo.url), 100);
+      }
       return prev.filter((p) => p.id !== id);
     });
   }, []);
@@ -591,7 +595,7 @@ export default function WriteReviewPage() {
               {/* Thumbnails */}
               {photos.length > 0 && (
                 <div className="flex flex-wrap gap-3 mb-4">
-                  {photos.map((photo) => (
+                  {photos.map((photo, index) => (
                     <motion.div
                       key={photo.id}
                       initial={{ opacity: 0, scale: 0.8 }}
@@ -603,7 +607,7 @@ export default function WriteReviewPage() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={photo.url}
-                          alt="Review photo"
+                          alt={`Review photo ${index + 1}`}
                           className="w-full h-full object-cover"
                         />
                       </div>
