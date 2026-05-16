@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { bookingService } from '../services/booking.service';
 import { authenticate, requireRole } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
+import { NotFoundError, ForbiddenError } from '@wedding-os/shared-errors';
 import { z } from 'zod';
 
 export const bookingRouter = Router();
@@ -40,7 +41,7 @@ bookingRouter.post('/', authenticate, requireRole('customer', 'admin'), validate
 
 bookingRouter.get('/', authenticate, async (req, res, next) => {
   try {
-    const { status } = req.query as any;
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     let bookings;
     if (req.user!.role === 'vendor') {
       bookings = await bookingService.getVendorBookings(req.user!.id, status);
@@ -56,10 +57,10 @@ bookingRouter.get('/', authenticate, async (req, res, next) => {
 bookingRouter.get('/:id', authenticate, async (req, res, next) => {
   try {
     const booking = await bookingService.getBooking(req.params.id);
-    if (!booking) return res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Booking not found' }, meta: meta(req) });
+    if (!booking) throw new NotFoundError('Booking', req.params.id);
     // Verify access
     if (req.user!.role !== 'admin' && booking.customerId !== req.user!.id && booking.vendorId !== req.user!.id)
-      return res.status(403).json({ success: false, error: { code: 'AUTH_1008', message: 'Forbidden' }, meta: meta(req) });
+      throw new ForbiddenError();
     res.json({ success: true, data: { booking }, meta: meta(req) });
   } catch (err) { next(err); }
 });

@@ -2,14 +2,8 @@ import { prisma } from '../config/database';
 import { logger } from '../utils/logger';
 import axios from 'axios';
 import { config } from '../config';
-
-// ── Book number generator ─────────────────────────────────────────────────────
-
-function generateBookingNumber(): string {
-  const ts = Date.now().toString(36).toUpperCase();
-  const rand = Math.random().toString(36).slice(2, 6).toUpperCase();
-  return `WOS-${ts}-${rand}`;
-}
+import { NotFoundError, ForbiddenError, BookingAlreadyConfirmedError, BookingCancellationError } from '@wedding-os/shared-errors';
+import { generateBookingNumber } from '@wedding-os/shared-utils';
 
 // ── Fee calculation ────────────────────────────────────────────────────────────
 
@@ -80,7 +74,7 @@ export const bookingService = {
     note?: string;
   }) {
     const booking = await prisma.booking.findFirst({ where: { id: bookingId, vendorId, status: 'ENQUIRY' } });
-    if (!booking) throw Object.assign(new Error('Booking not found or not in ENQUIRY state'), { statusCode: 404, code: 'RES_3001' });
+    if (!booking) throw new NotFoundError('Booking', bookingId);
 
     const { platformFeePaise, gstOnFeePaise, advancePaise, finalAmountPaise } = calculateFees(data.quotedAmountPaise);
 
@@ -106,7 +100,7 @@ export const bookingService = {
 
   async acceptQuote(customerId: string, bookingId: string) {
     const booking = await prisma.booking.findFirst({ where: { id: bookingId, customerId, status: 'QUOTE_SENT' } });
-    if (!booking) throw Object.assign(new Error('Booking not found or not in QUOTE_SENT state'), { statusCode: 404, code: 'RES_3001' });
+    if (!booking) throw new NotFoundError('Booking', bookingId);
 
     const updated = await prisma.booking.update({
       where: { id: bookingId, version: booking.version },
@@ -125,7 +119,7 @@ export const bookingService = {
   async confirmBooking(bookingId: string, paymentId: string) {
     // Called by payment-service after advance captured
     const booking = await prisma.booking.findFirst({ where: { id: bookingId, status: 'ADVANCE_PENDING' } });
-    if (!booking) throw Object.assign(new Error('Booking not in ADVANCE_PENDING'), { statusCode: 409, code: 'BOOK_4002' });
+    if (!booking) throw new BookingAlreadyConfirmedError();
 
     const updated = await prisma.booking.update({
       where: { id: bookingId },
@@ -143,17 +137,17 @@ export const bookingService = {
 
   async cancel(actorId: string, actorRole: 'customer' | 'vendor', bookingId: string, reason?: string) {
     const booking = await prisma.booking.findFirst({ where: { id: bookingId } });
-    if (!booking) throw Object.assign(new Error('Booking not found'), { statusCode: 404, code: 'RES_3001' });
+    if (!booking) throw new NotFoundError('Booking', bookingId);
 
     // Validate actor owns this booking
     if (actorRole === 'customer' && booking.customerId !== actorId)
-      throw Object.assign(new Error('Unauthorized'), { statusCode: 403, code: 'AUTH_1008' });
+      throw new ForbiddenError();
     if (actorRole === 'vendor' && booking.vendorId !== actorId)
-      throw Object.assign(new Error('Unauthorized'), { statusCode: 403, code: 'AUTH_1008' });
+      throw new ForbiddenError();
 
     const cancellableStatuses = ['ENQUIRY', 'QUOTE_SENT', 'QUOTE_ACCEPTED', 'ADVANCE_PENDING', 'CONFIRMED'];
     if (!cancellableStatuses.includes(booking.status))
-      throw Object.assign(new Error('Booking cannot be cancelled in current state'), { statusCode: 409, code: 'BOOK_4003' });
+      throw new BookingCancellationError('Booking cannot be cancelled in current state');
 
     const statusMap = { customer: 'CANCELLED_BY_CUSTOMER', vendor: 'CANCELLED_BY_VENDOR' } as const;
     const updated = await prisma.booking.update({

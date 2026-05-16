@@ -27,7 +27,9 @@
     "cors": "^2.8.5",
     "cookie-parser": "^1.4.6",
     "bullmq": "^5.7.0",
-    "axios": "^1.6.0"
+    "axios": "^1.6.0",
+    "@wedding-os/shared-errors": "workspace:*",
+    "@wedding-os/shared-utils": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
