@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import type { BookingStatus, EventType } from '@prisma/client';
 import { logger } from '../utils/logger';
 import axios from 'axios';
 import { config } from '../config';
@@ -49,7 +50,7 @@ export const bookingService = {
         packageId: data.packageId,
         status: 'ENQUIRY',
         eventDate: new Date(data.eventDate),
-        eventType: data.eventType as any,
+        eventType: data.eventType as EventType,
         eventCity: data.eventCity,
         requirements: data.requirements,
         guestCount: data.guestCount,
@@ -149,11 +150,11 @@ export const bookingService = {
     if (!cancellableStatuses.includes(booking.status))
       throw new BookingCancellationError('Booking cannot be cancelled in current state');
 
-    const statusMap = { customer: 'CANCELLED_BY_CUSTOMER', vendor: 'CANCELLED_BY_VENDOR' } as const;
+    const statusMap: Record<string, BookingStatus> = { customer: 'CANCELLED_BY_CUSTOMER' as BookingStatus, vendor: 'CANCELLED_BY_VENDOR' as BookingStatus };
     const updated = await prisma.booking.update({
       where: { id: bookingId },
       data: {
-        status: statusMap[actorRole] as any,
+        status: statusMap[actorRole],
         cancellationReason: reason,
         cancelledAt: new Date(),
         version: { increment: 1 },
@@ -167,7 +168,7 @@ export const bookingService = {
 
   async getCustomerBookings(customerId: string, status?: string) {
     return prisma.booking.findMany({
-      where: { customerId, ...(status && { status: status as any }) },
+      where: { customerId, ...(status && { status: status as BookingStatus }) },
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
@@ -175,7 +176,7 @@ export const bookingService = {
 
   async getVendorBookings(vendorId: string, status?: string) {
     return prisma.booking.findMany({
-      where: { vendorId, ...(status && { status: status as any }) },
+      where: { vendorId, ...(status && { status: status as BookingStatus }) },
       orderBy: { eventDate: 'asc' },
       take: 50,
     });

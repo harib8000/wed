@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import type { DocumentType } from '@prisma/client';
 import type { UpdateProfileInput, UpdateNotifPrefsInput } from '../types/user.types';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { logger } from '../utils/logger';
@@ -85,7 +86,7 @@ export const profileService = {
     return prisma.kycDocument.create({
       data: {
         profileId: profile.id,
-        docType: docType as any,
+        docType: docType as DocumentType,
         s3Key,
         status: 'PENDING',
       },

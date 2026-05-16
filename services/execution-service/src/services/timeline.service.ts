@@ -1,4 +1,5 @@
 import { prisma } from '../config/database';
+import type { TaskCategory, TaskStatus } from '@prisma/client';
 
 // Default template tasks generated when a wedding is confirmed
 const DEFAULT_TEMPLATES = [
@@ -31,7 +32,7 @@ export const timelineService = {
           tasks: {
             create: DEFAULT_TEMPLATES.map((t) => ({
               title: t.title,
-              category: t.category as any,
+              category: t.category as TaskCategory,
               dueDaysBeforeWedding: t.dueDaysBeforeWedding,
               sortOrder: t.sortOrder,
               isSystemGenerated: true,
@@ -61,7 +62,7 @@ export const timelineService = {
       data: {
         timelineId: tl.id,
         title: data.title,
-        category: (data.category as any) ?? 'OTHER',
+        category: (data.category as TaskCategory) ?? 'OTHER',
         description: data.description,
         dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
         linkedBookingId: data.linkedBookingId,
@@ -85,7 +86,7 @@ export const timelineService = {
     return prisma.timelineTask.update({
       where: { id: taskId },
       data: {
-        ...(data.status && { status: data.status as any, completedAt: data.status === 'DONE' ? new Date() : undefined }),
+        ...(data.status && { status: data.status as TaskStatus, completedAt: data.status === 'DONE' ? new Date() : undefined }),
         ...(data.title && { title: data.title }),
         ...(data.dueDate && { dueDate: new Date(data.dueDate) }),
         ...(data.description !== undefined && { description: data.description }),

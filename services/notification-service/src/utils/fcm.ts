@@ -42,7 +42,7 @@ export async function sendMulticastPush(tokens: string[], title: string, body: s
   const app = getFirebaseApp();
   if (!app) {
     logger.info({ title, tokenCount: tokens.length }, '[FCM stub] Multicast push');
-    return { responses: tokens.map(() => ({ success: true, messageId: 'stub' } as any)), successCount: tokens.length, failureCount: 0 };
+    return { responses: tokens.map(() => ({ success: true, messageId: 'stub' } as admin.messaging.SendResponse)), successCount: tokens.length, failureCount: 0 };
   }
 
   const message: admin.messaging.MulticastMessage = {

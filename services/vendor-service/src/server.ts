@@ -18,7 +18,7 @@ async function bootstrap() {
 
   // Subscribe to review events to update vendor rating stats
   await eventBus.subscribe('review.created', async (event) => {
-    const { vendorId, rating } = event.payload as any;
+    const { vendorId, rating } = event.payload as { vendorId: string; rating: number };
     logger.info({ vendorId, rating }, 'Received review.created — will recalc rating via vendor service');
   });
 

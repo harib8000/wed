@@ -1,5 +1,9 @@
 import { esClient } from '../config/elasticsearch';
 
+interface EsTotal { value: number; relation: string; }
+interface EsAggBucket { key: string; doc_count: number; }
+interface EsAggResult { buckets: EsAggBucket[]; }
+
 export const searchService = {
   async searchVendors(params: {
     query?: string;
@@ -59,8 +63,8 @@ export const searchService = {
         },
       });
 
-      const hits = result.hits.hits.map((h: any) => ({ ...h._source, _score: h._score }));
-      const total = typeof result.hits.total === 'number' ? result.hits.total : (result.hits.total as any)?.value || 0;
+      const hits = result.hits.hits.map((h) => ({ ...h._source, _score: h._score }));
+      const total = typeof result.hits.total === 'number' ? result.hits.total : (result.hits.total as EsTotal)?.value || 0;
 
       return {
         vendors: hits,
@@ -69,8 +73,8 @@ export const searchService = {
         limit,
         totalPages: Math.ceil(total / limit),
         aggregations: {
-          categories: (result.aggregations?.categories as any)?.buckets || [],
-          cities: (result.aggregations?.cities as any)?.buckets || [],
+          categories: (result.aggregations?.categories as EsAggResult)?.buckets || [],
+          cities: (result.aggregations?.cities as EsAggResult)?.buckets || [],
           priceStats: result.aggregations?.price_stats || {},
         },
       };
@@ -100,7 +104,7 @@ export const searchService = {
         query: { match_phrase_prefix: { businessName: { query } } },
         _source: ['businessName'],
       });
-      return result.hits.hits.map((h: any) => h._source.businessName);
+      return result.hits.hits.map((h) => (h._source as Record<string, string>).businessName);
     } catch { return []; }
   },
 };

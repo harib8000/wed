@@ -1,5 +1,7 @@
 import { getEsClient, VENDOR_INDEX } from '../config/elasticsearch';
 
+interface EsTotal { value: number; relation: string; }
+
 export interface VendorSearchParams {
   q?: string;
   category?: string;
@@ -57,7 +59,7 @@ export const searchService = {
     });
 
     const hits = response.hits.hits;
-    const total = typeof response.hits.total === 'number' ? response.hits.total : (response.hits.total as any)?.value ?? 0;
+    const total = typeof response.hits.total === 'number' ? response.hits.total : (response.hits.total as EsTotal)?.value ?? 0;
 
     return {
       vendors: hits.map((h) => h._source),
