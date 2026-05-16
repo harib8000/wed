@@ -19,7 +19,7 @@ export interface AuthRequest extends Request {
 
 function loadPublicKey(): string {
   if (config.JWT_PUBLIC_KEY_PATH) {
-    try { return fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch {}
+    try { return fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch (e) { /* Key file not found, will fall back to env var */ }
   }
   if (config.JWT_PUBLIC_KEY) return config.JWT_PUBLIC_KEY;
   throw new AppError('SYS_9001', 'JWT_PUBLIC_KEY or JWT_PUBLIC_KEY_PATH must be configured', 500);

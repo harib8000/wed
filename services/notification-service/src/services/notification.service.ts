@@ -3,6 +3,7 @@ import { notificationQueue, startNotificationWorker } from '../config/queue';
 import { sendPushNotification } from '../utils/fcm';
 import { sendSms, sendWhatsApp } from '../utils/sms';
 import { logger } from '../utils/logger';
+import { NotFoundError } from '@wedding-os/shared-errors';
 
 export interface NotifyPayload {
   userId: string;
@@ -49,11 +50,12 @@ export const notificationService = {
           where: { id: log.id },
           data: { status: 'SENT', providerRef, sentAt: new Date() },
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         logger.error({ err, channel, userId, event }, 'Notification delivery failed');
+        const errorMsg = err instanceof Error ? err.message?.slice(0, 500) : String(err).slice(0, 500);
         await prisma.notificationLog.update({
           where: { id: log.id },
-          data: { status: 'FAILED', errorMsg: err.message?.slice(0, 500) },
+          data: { status: 'FAILED', errorMsg },
         });
       }
     }

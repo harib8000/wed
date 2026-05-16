@@ -1,15 +1,16 @@
 import { Client } from '@elastic/elasticsearch';
 import { config } from './index';
+import { logger } from '../utils/logger';
 
 export const esClient = new Client({ node: config.ELASTICSEARCH_URL });
 
 export async function connectElasticsearch(): Promise<void> {
   try {
     await esClient.ping();
-    console.log('Elasticsearch connected');
+    logger.info('Elasticsearch connected');
     await ensureVendorIndex();
   } catch (err) {
-    console.warn('Elasticsearch not available, search features degraded:', err);
+    logger.warn({ err }, 'Elasticsearch not available, search features degraded');
   }
 }
 

@@ -8,7 +8,7 @@ import { NotFoundError, ConflictError } from '@wedding-os/shared-errors';
 function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
     const bus = getEventBus();
-    bus.publish(type, aggregateId, 'review', payload).catch((err: any) =>
+    bus.publish(type, aggregateId, 'review', payload).catch((err: unknown) =>
       logger.warn({ err, type }, 'Event publish failed (non-blocking)')
     );
   } catch {

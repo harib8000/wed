@@ -101,8 +101,10 @@ async function bootstrap() {
         conv = await Conversation.create({ bookingId, customerId, vendorId });
       }
       res.json({ success: true, data: { conversation: conv } });
-    } catch (err: any) {
-      res.status(err.status || 500).json({ success: false, error: { message: err.message } });
+    } catch (err: unknown) {
+      const status = err instanceof Error && 'status' in err ? (err as { status: number }).status : 500;
+      const message = err instanceof Error ? err.message : 'Internal server error';
+      res.status(status).json({ success: false, error: { message } });
     }
   });
 

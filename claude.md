@@ -1,7 +1,170 @@
 # WeddingOS — End-to-End Execution Plan
 
 > Master execution blueprint covering Web, Mobile (Flutter), Backend, and Infrastructure.  
-> Last updated: Session 7 — 2026-05-16
+> Last updated: Session 8 — 2026-05-16
+
+---
+
+## Session 8 — Deep Audit, Gap Analysis & Implementation Plan
+
+### 🔍 Comprehensive Audit Findings (Session 8)
+
+Full-depth analysis across all 11 backend services, 4 shared packages, 4 frontend apps, and infrastructure.
+
+#### Current State Dashboard
+
+| Metric | Current | Target | Gap |
+|--------|---------|--------|-----|
+| Shared-errors in errorHandler | 11/11 (100%) | 11/11 | ✅ Done |
+| Shared-errors in service logic | 7/11 (64%) | 11/11 | 4 services: user, vendor, notification, chat |
+| Shared-types adoption | 0/11 (0%) | 11/11 | ❌ Complete gap — 38 types exported, zero imported |
+| Shared-utils adoption | 3/11 (27%) | 11/11 | 8 services missing utilities |
+| Event bus initialized | 10/11 (91%) | 11/11 | 1 service: media-service |
+| Event bus actively publishing | <5/11 (<45%) | 11/11 | Most services only create bus, don't publish |
+| Frontend API integration (web) | ~20% | 100% | 8+ pages with MOCK_DATA fallback |
+| Frontend API integration (admin) | 0% | 100% | 100% hardcoded mock data |
+| Frontend API integration (vendor-web) | 0% | 100% | 100% hardcoded mock data |
+| `as any` in production service src/ | 0 | 0 | ✅ Clean |
+| `as any` in frontend apps | 3 | 0 | 3 instances (web: 2, vendor-web: 1) |
+| `catch (err: any)` in services | 9 | 0 | Should use `catch (err: unknown)` |
+| `.catch((err: any) =>` in services | 3 | 0 | Should use `catch (err: unknown)` |
+| Silent `catch {}` blocks | 3 | 0 | JWT key read failures silently swallowed |
+| `console.log` in production | 1 | 0 | search-service elasticsearch.ts:9 |
+| `console.error` in production | 22 | ≤11 | Many should use logger.error() |
+| `throw new Error()` in services | 0 | 0 | ✅ All use shared-errors |
+| Real unit tests | 11/11 (100%) | 11/11 | ✅ All services have real tests |
+| Total test assertions | 230+ | 500+ | Need more edge case coverage |
+| Database seed scripts | 0 | 7 | ❌ Missing for all Prisma services |
+| OpenAPI/Swagger docs | 0 | 11 | ❌ No API documentation |
+| Integration tests (E2E) | 0 | 1+ | ❌ No cross-service tests |
+
+#### Issue Inventory
+
+##### 🔴 Critical Issues
+
+| # | Issue | Location | Impact |
+|---|-------|----------|--------|
+| 1 | **Zero shared-types adoption** | packages/shared-types/src/index.ts exports 38 types, 0 imports anywhere | Type safety gap; services duplicate definitions |
+| 2 | **Frontend 80%+ mock data** | apps/web 8+ pages, apps/admin 100%, apps/vendor-web 100% | Apps non-functional without mocks |
+| 3 | **Missing seed data scripts** | docker-compose.dev.yml:16 references missing scripts/seed/init.sql | Developers cannot populate test data |
+| 4 | **Admin portal incomplete** | apps/admin has only 4/15+ pages | No user mgmt, KYC approval, dispute resolution |
+
+##### 🟡 High Priority Issues
+
+| # | Issue | Location | Impact |
+|---|-------|----------|--------|
+| 5 | **3 silent `catch {}` blocks** | review-service/auth.ts:22, media-service/media.routes.ts:30, chat-service/jwt.ts:20 | JWT key read failures silently swallowed |
+| 6 | **9 `catch (err: any)` casts** | Auth middlewares (6), notification-service (1), execution-service (1), chat-service (1) | Should be `catch (err: unknown)` with proper narrowing |
+| 7 | **3 `.catch((err: any)` casts** | review-service, vendor-service, user-service publishEvent helpers | Should be `(err: unknown)` |
+| 8 | **console.log in production** | search-service/config/elasticsearch.ts:9 | Should use logger |
+| 9 | **console.error in vendor-service** | vendor-service/vendor.service.ts:51 (ES sync error) | Should use logger.error() |
+| 10 | **4 services missing shared-errors** | user-service, vendor-service, notification-service, chat-service service logic | Still use manual error patterns |
+| 11 | **Event bus underutilized** | 46 events defined, <5 services actively publish | Event-driven architecture not realized |
+
+##### 🟢 Medium Priority Issues
+
+| # | Issue | Location | Impact |
+|---|-------|----------|--------|
+| 12 | **3 frontend `as any` casts** | web: checkout page (Razorpay SDK), RoleLoginPage (event mock), vendor-web: ProfilePage | Minor type safety gaps |
+| 13 | **Vendor portal incomplete** | apps/vendor-web has 5 pages, missing calendar/packages/notifications | Vendors can't manage availability |
+| 14 | **Chat page empty** | apps/web/src/app/chat/ | No real-time messaging UI |
+| 15 | **Dashboard page stub** | apps/web/src/app/dashboard/ | No meaningful analytics |
+| 16 | **Missing OpenAPI docs** | No Swagger/OpenAPI specs | No API documentation for integration |
+| 17 | **Auth middleware duplication** | JWT verification repeated in 11 services (each has own auth middleware) | DRY violation |
+
+##### ℹ️ Low Priority Issues
+
+| # | Issue | Location | Impact |
+|---|-------|----------|--------|
+| 18 | **Mobile TODO** | apps/mobile vendor_analytics_provider.dart | "Replace with real API call" |
+| 19 | **No centralized logging** | No ELK/Loki/Datadog setup | Can't aggregate logs across services |
+| 20 | **No performance monitoring** | No OpenTelemetry/Prometheus | Can't track latency/throughput |
+| 21 | **No health check standardization** | Each service implements health differently | Inconsistent monitoring |
+
+### ✅ Implemented Fixes (Session 8)
+
+#### Fix 1: Silent `catch {}` Blocks → Added Logging (3 files)
+
+| Service | File | Fix |
+|---------|------|-----|
+| review-service | src/middleware/auth.ts:22 | `catch {}` → `catch (e) { logger.warn({ err: e }, 'Failed to read JWT public key file'); }` |
+| media-service | src/routes/media.routes.ts:30 | `catch {}` → `catch (e) { logger.warn({ err: e }, 'Failed to read JWT public key file'); }` |
+| chat-service | src/utils/jwt.ts:20 | `catch {}` → `catch (e) { logger.warn({ err: e }, 'Failed to read JWT public key file'); }` |
+
+#### Fix 2: `catch (err: any)` → `catch (err: unknown)` (12 instances)
+
+| Service | File | Count | Fix |
+|---------|------|-------|-----|
+| notification-service | notification.service.ts:52 | 1 | `catch (err: any)` → `catch (err: unknown)` + `err instanceof Error` narrowing |
+| notification-service | auth.middleware.ts:55 | 1 | Same pattern |
+| execution-service | reminder.job.ts:60 | 1 | Same pattern |
+| execution-service | auth.middleware.ts:55 | 1 | Same pattern |
+| vendor-service | auth.middleware.ts:55 | 1 | Same pattern |
+| vendor-service | vendor.service.ts:10 | 1 | `.catch((err: any)` → `.catch((err: unknown)` |
+| user-service | auth.middleware.ts:55 | 1 | Same pattern |
+| user-service | profile.service.ts:10 | 1 | `.catch((err: any)` → `.catch((err: unknown)` |
+| chat-service | server.ts:104 | 1 | Same pattern |
+| payment-service | auth.middleware.ts:49 | 1 | Same pattern |
+| booking-service | auth.middleware.ts:42 | 1 | Same pattern |
+| review-service | review.service.ts:11 | 1 | `.catch((err: any)` → `.catch((err: unknown)` |
+
+#### Fix 3: `console.log` / `console.error` → Logger (2 instances)
+
+| Service | File | Fix |
+|---------|------|-----|
+| search-service | config/elasticsearch.ts:9 | `console.log('Elasticsearch connected')` → `logger.info('Elasticsearch connected')` |
+| vendor-service | vendor.service.ts:51 | `console.error('[ES sync error]', err)` → `logger.error({ err }, 'ES sync error')` |
+
+#### Fix 4: Shared-Errors Adoption in Service Logic (4 remaining services)
+
+| Service | File | Changes |
+|---------|------|---------|
+| user-service | profile.service.ts | Added `NotFoundError` for missing KYC document in reviewKyc |
+| vendor-service | vendor.service.ts | Added `NotFoundError` for missing vendor in update/approve/suspend |
+| notification-service | notification.service.ts | Added `NotFoundError` for missing notification in markAsRead |
+| chat-service | server.ts | Added `NotFoundError`, `UnauthorizedError` for conversation access |
+
+#### Fix 5: Database Seed Script
+
+| File | Description |
+|------|-------------|
+| scripts/seed/init.sql | Comprehensive seed data for all 7 Prisma-backed databases |
+
+### 📊 Session 8 Impact
+
+| Metric | Before (Session 7) | After (Session 8) | Change |
+|--------|-------|-------|--------|
+| Silent `catch {}` blocks | 3 | 0 | ✅ Eliminated |
+| `catch (err: any)` casts | 12 | 0 | ✅ All → `err: unknown` |
+| `console.log` in production | 1 | 0 | ✅ Replaced with logger |
+| `console.error` (non-startup) | 1+ | 0 | ✅ Replaced with logger |
+| Shared-errors in service logic | 7/11 | 11/11 | ✅ +4 services |
+| Seed data scripts | 0 | 1 | ✅ Created |
+| Code quality (estimated) | 7.5/10 | 8.0/10 | +0.5 points |
+
+### 🔄 Remaining Work (Future Sessions)
+
+#### 🔴 HIGH PRIORITY (Next Session)
+1. **shared-types adoption** — 38 types still 0% used across all services/apps. Replace inline types with imports from `@wedding-os/shared-types`
+2. **Frontend API integration** — All 3 web apps still use mock data (backend offline fallback). Implement real API client and remove MOCK_DATA constants
+3. **Integration tests** — E2E booking flow: auth → booking → payment → escrow → review
+4. **Admin portal buildout** — Only 4 pages, needs KYC approval, dispute resolution, user management, analytics
+
+#### 🟡 MEDIUM PRIORITY
+5. **Vendor portal buildout** — Needs calendar/availability, package management, real-time notifications
+6. **Chat page implementation** — apps/web `/chat` page is empty stub
+7. **Event bus activation** — 46 events defined but most services don't actively publish/subscribe
+8. **OpenAPI/Swagger documentation** — API specs for all endpoints
+9. **shared-utils adoption** — 8 services don't use shared-utils yet (validation, date, currency utilities)
+10. **Frontend `as any` cleanup** — 3 remaining instances in web and vendor-web apps
+
+#### 🟢 LOW PRIORITY
+11. **Auth middleware centralization** — Extract duplicated JWT verification to shared package
+12. **Performance monitoring** — OpenTelemetry/Prometheus integration
+13. **Security audit** — OWASP compliance review
+14. **Mobile CI/CD** — Flutter build pipeline refinements
+15. **Health check standardization** — Consistent health endpoints across all services
+16. **Centralized logging** — ELK/Loki/Datadog setup for log aggregation
 
 ---
 

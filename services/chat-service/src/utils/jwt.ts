@@ -17,7 +17,7 @@ let cachedKey: string | null = null;
 export function verifyToken(token: string): { id: string; role: string; phone: string } {
   if (!cachedKey) {
     if (config.JWT_PUBLIC_KEY_PATH) {
-      try { cachedKey = fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch {}
+      try { cachedKey = fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch (e) { /* Key file not found, will fall back to env var */ }
     }
     if (!cachedKey && config.JWT_PUBLIC_KEY) cachedKey = config.JWT_PUBLIC_KEY;
     if (!cachedKey) throw new AppError('SYS_9001', 'JWT public key not configured', 500);

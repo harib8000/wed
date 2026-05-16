@@ -46,8 +46,8 @@ export const authenticate = (req: Request, _res: Response, next: NextFunction) =
     const payload = jwt.verify(token, publicKey, { algorithms }) as JwtPayload;
     req.user = { id: payload.sub ?? payload.userId, role: payload.role, phone: payload.phone };
     next();
-  } catch (err: any) {
-    if (err.name === 'TokenExpiredError') {
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'TokenExpiredError') {
       next(new TokenExpiredError());
     } else {
       next(new TokenInvalidError());
