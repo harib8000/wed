@@ -11,6 +11,7 @@ import { logger } from './utils/logger';
 import { config } from './config';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { runDailyReminderJob } from './jobs/reminder.job';
+import { createEventBus } from '@wedding-os/shared-events';
 
 // Simple cron scheduler (no external deps) — runs at 08:00 IST daily
 function scheduleDaily(fn: () => void): NodeJS.Timeout {
@@ -27,6 +28,25 @@ function scheduleDaily(fn: () => void): NodeJS.Timeout {
 
 async function bootstrap() {
   await connectDatabase();
+
+  // ── Event Bus ─────────────────────────────────────────────────────────────
+  const eventBus = createEventBus({
+    redisUrl: config.REDIS_URL,
+    serviceName: 'execution-service',
+  });
+  await eventBus.connect();
+  logger.info('Event bus connected');
+
+  // Subscribe to booking events for automatic timeline creation
+  await eventBus.subscribe('booking.confirmed', async (event) => {
+    const { bookingId, customerId, vendorId } = event.payload as any;
+    logger.info({ bookingId, customerId, vendorId }, 'Received booking.confirmed — ready for timeline creation');
+  });
+
+  await eventBus.subscribe('booking.completed', async (event) => {
+    const { bookingId } = event.payload as any;
+    logger.info({ bookingId }, 'Received booking.completed');
+  });
 
   const app = express();
   app.set('trust proxy', 1);
@@ -68,7 +88,11 @@ async function bootstrap() {
 
   const shutdown = async () => {
     io.close();
-    server.close(async () => { await disconnectDatabase(); process.exit(0); });
+    server.close(async () => {
+      await eventBus.disconnect();
+      await disconnectDatabase();
+      process.exit(0);
+    });
     setTimeout(() => process.exit(1), 30_000).unref();
   };
   process.on('SIGTERM', shutdown);

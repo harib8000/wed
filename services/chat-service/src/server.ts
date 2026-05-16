@@ -8,12 +8,22 @@ import { pinoHttp } from 'pino-http';
 import { connectMongo, disconnectMongo, Message, Conversation } from './config/database';
 import { registerChatHandlers } from './handlers/chat.handler';
 import { verifyToken } from './utils/jwt';
+import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { createEventBus } from '@wedding-os/shared-events';
 
 async function bootstrap() {
   await connectMongo();
   logger.info('MongoDB connected');
+
+  // ── Event Bus ─────────────────────────────────────────────────────────────
+  const eventBus = createEventBus({
+    redisUrl: config.REDIS_URL,
+    serviceName: 'chat-service',
+  });
+  await eventBus.connect();
+  logger.info('Event bus connected');
 
   const app = express();
   app.set('trust proxy', 1);
@@ -83,6 +93,8 @@ async function bootstrap() {
     } catch { res.status(401).json({ success: false, error: { message: 'Invalid token' } }); }
   });
 
+  app.use(errorHandler);
+
   const server = http.createServer(app);
   const io = new SocketServer(server, {
     cors: { origin: config.ALLOWED_ORIGINS, credentials: true },
@@ -98,6 +110,7 @@ async function bootstrap() {
   const gracefulShutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutting down...');
     server.close(async () => {
+      await eventBus.disconnect();
       await disconnectMongo();
       process.exit(0);
     });

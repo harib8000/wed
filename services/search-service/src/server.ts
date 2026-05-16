@@ -7,6 +7,7 @@ import { pinoHttp } from 'pino-http';
 import { searchRouter } from './routes/search.routes';
 import { connectElasticsearch } from './config/elasticsearch';
 import { searchService } from './services/search.service';
+import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
 import { createEventBus } from '@wedding-os/shared-events';
@@ -54,6 +55,7 @@ async function bootstrap() {
 
   app.get('/search/health', (_, res) => res.json({ status: 'ok', service: 'search-service', timestamp: new Date().toISOString() }));
   app.use('/search', searchRouter);
+  app.use(errorHandler);
 
   const server = http.createServer(app);
   server.listen(config.PORT, () => {

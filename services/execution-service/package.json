@@ -25,7 +25,8 @@
     "express-rate-limit": "^7.2.0",
     "helmet": "^7.1.0",
     "cors": "^2.8.5",
-    "socket.io": "^4.7.0"
+    "socket.io": "^4.7.0",
+    "@wedding-os/shared-events": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
