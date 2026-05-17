@@ -62,16 +62,25 @@
 14. [Getting Started](#14-getting-started)
 15. [Environment Variables](#15-environment-variables)
 16. [Project Status](#16-project-status)
-17. [Complete Database Schema Reference](#17-complete-database-schema-reference)
-18. [Shared Package API Reference](#18-shared-package-api-reference)
-19. [Cross-Service Communication Flows](#19-cross-service-communication-flows)
-20. [Error Code Reference](#20-error-code-reference)
-21. [Service Source File Architecture](#21-service-source-file-architecture)
-22. [Testing Documentation](#22-testing-documentation)
-23. [API Request & Response Examples](#23-api-request--response-examples)
-24. [Rebuild from Scratch Guide](#24-rebuild-from-scratch-guide)
-25. [Troubleshooting & Debugging](#25-troubleshooting--debugging)
-26. [Architectural Decision Records](#26-architectural-decision-records)
+17. [Testing Architecture](#17-testing-architecture)
+18. [Error Handling Patterns](#18-error-handling-patterns)
+19. [Code Quality Standards](#19-code-quality-standards)
+20. [Event Bus Deep Dive](#20-event-bus-deep-dive)
+21. [Booking & Payment Lifecycle](#21-booking--payment-lifecycle)
+22. [Real-Time Architecture](#22-real-time-architecture)
+23. [File Upload — S3 Presigned URLs](#23-file-upload--s3-presigned-urls)
+24. [Seed Data](#24-seed-data)
+25. [Rebuild from Scratch Guide](#25-rebuild-from-scratch-guide)
+26. [Complete Database Schema Reference](#26-complete-database-schema-reference)
+27. [Shared Package API Reference](#27-shared-package-api-reference)
+28. [Cross-Service Communication Flows](#28-cross-service-communication-flows)
+29. [Error Code Reference](#29-error-code-reference)
+30. [Service Source File Architecture](#30-service-source-file-architecture)
+31. [Testing Documentation](#31-testing-documentation)
+32. [API Request & Response Examples](#32-api-request--response-examples)
+33. [Rebuild from Scratch — Detailed Guide](#33-rebuild-from-scratch--detailed-guide)
+34. [Troubleshooting & Debugging](#34-troubleshooting--debugging)
+35. [Architectural Decision Records](#35-architectural-decision-records)
 
 ---
 
@@ -1376,27 +1385,785 @@ All environment variables are documented in `.env.example`:
 - [ ] MSG91 production credentials for OTP delivery
 - [ ] SendGrid email template configuration
 - [ ] S3 bucket creation and CORS configuration
-- [ ] Kong API gateway route configuration file (`infrastructure/kong/kong.yml`)
+- [x] ~~Kong API gateway route configuration~~ — `infrastructure/kong/kong.yml` exists (DB-less declarative mode, 11 services routed, global rate-limiting + CORS)
 - [ ] Terraform infrastructure modules (referenced in CD but not in repo)
 
 ### ❌ Not Yet Built
 
-- [ ] End-to-end integration tests (Jest + Supertest) — unit tests exist (~343 tests), integration tests pending
-- [ ] E2E tests (Playwright for web, Flutter integration_test)
+- [x] ~~Unit tests~~ — **343 real unit tests** across all 11 services (Jest + ts-jest). See [Section 17](#17-testing-architecture)
+- [ ] Integration tests (cross-service E2E flows — Jest + Supertest)
+- [ ] E2E browser tests (Playwright for web, Flutter integration_test)
 - [ ] Load testing (k6)
 - [ ] Monitoring and alerting (CloudWatch, PagerDuty)
 - [ ] Production Terraform infrastructure
-- [ ] Database seed data for development
+- [x] ~~Database seed data~~ — `scripts/seed/init.sql` (8 DBs) + `scripts/seed/seed-data.sql` (7 users, 3 vendors, 5 packages, 3 bookings). See [Section 24](#24-seed-data)
 - [ ] API documentation (OpenAPI/Swagger)
+
 - [ ] App Store / Play Store submission
+
+## 17. Testing Architecture
+
+### Test Coverage Summary
+
+All 11 Node.js services have **real unit tests** — zero placeholder tests remain.
+
+| Service | Test File | Cases | Key Scenarios |
+|---------|-----------|:-----:|---------------|
+| auth-service | `otp.service.test.ts`, `jwt.service.test.ts` | ~18 | OTP send/verify, JWT sign/refresh, rate limiting, account lockout |
+| booking-service | `booking.service.test.ts` | ~37 | Full lifecycle (enquiry → complete), cancel rules, fee calc, optimistic lock |
+| payment-service | `payment.service.test.ts` | ~26 | Razorpay order/capture, escrow hold/release, refunds, webhook handling |
+| review-service | `review.service.test.ts` | ~16 | CRUD, duplicate guard, star aggregation, vendor reply |
+| user-service | `profile.service.test.ts` | ~18 | Profile CRUD, KYC submission/review, avatar upload |
+| vendor-service | `vendor.service.test.ts` | ~16 | CRUD, ES sync, slug generation, KYC approval/rejection |
+| chat-service | `chat.handler.test.ts` | ~66 | Socket.IO auth, join/leave, message send/validation, typing, disconnect |
+| execution-service | `timeline.service.test.ts` | ~33 | Timeline CRUD, 12 default templates, date math, system task protection |
+| media-service | `upload.service.test.ts` | ~49 | MIME validation, S3 presigned URLs, key format, dev fallback |
+| notification-service | `notification.service.test.ts` | ~31 | BullMQ queue, multi-channel send, event routing, unread count |
+| search-service | `search.service.test.ts` | ~33 | ES query building, filters, sorting, pagination, aggregations, autocomplete |
+| **Total** | **12 test files** | **~343** | — |
+
+### Framework & Configuration
+
+- **Framework**: Jest + ts-jest
+- **Config pattern** (`jest.config.js` per service):
+  ```js
+  module.exports = {
+    preset: 'ts-jest',
+    testEnvironment: 'node',
+    roots: ['<rootDir>/tests'],
+    testMatch: ['**/*.test.ts'],
+    collectCoverageFrom: ['src/**/*.ts', '!src/server.ts'],
+    coverageReporters: ['text', 'lcov'],
+  };
+  ```
+
+### Mock Strategy
+
+Every test file mocks external dependencies before importing the service under test:
+
+| Dependency | Mock Technique | Used In |
+|-----------|---------------|---------|
+| Prisma Client | `jest.mock()` with method stubs (findUnique, create, update, etc.) | booking, payment, user, vendor, review, execution, notification |
+| Redis / ioredis | `jest.mock('ioredis')` returning fake pub/sub | auth, notification, search |
+| Razorpay SDK | `jest.mock('razorpay')` with `orders.create`, `payments.capture` stubs | payment |
+| BullMQ | `jest.mock('bullmq')` with Queue/Worker stubs | notification, payment |
+| Socket.IO | `jest.mock('socket.io')` with emit/on/join stubs | chat, execution |
+| Mongoose | `jest.mock()` with Model.find/save stubs | chat |
+| AWS S3 SDK v3 | `jest.mock('@aws-sdk/client-s3')` + `jest.mock('@aws-sdk/s3-request-presigner')` | media |
+| Elasticsearch | `jest.mock('@elastic/elasticsearch')` with search/index stubs | search, vendor |
+| axios / HTTP | `jest.mock('axios')` | notification (FCM/SMS) |
+
+### Test Pattern
+
+```typescript
+// 1. Mock before imports
+jest.mock('@prisma/client', () => ({ PrismaClient: jest.fn(() => mockPrisma) }));
+
+// 2. Import service under test
+import { BookingService } from '../../src/services/booking.service';
+
+// 3. Test error classes directly
+await expect(service.cancel('id', 'user', 'CUSTOMER'))
+  .rejects.toBeInstanceOf(NotFoundError);
+
+// 4. Verify side effects
+expect(mockPrisma.booking.update).toHaveBeenCalledWith(
+  expect.objectContaining({ where: { id: 'id' } })
+);
+```
+
+### CI Integration
+
+- GitHub Actions CI runs tests with PostgreSQL 16 and Redis 7 service containers
+- Each service tested independently: `cd services/{name} && npx jest`
+- **Not yet implemented**: integration tests (cross-service), E2E tests (Playwright), load tests (k6)
+- **Flutter**: `flutter test --coverage` in CI pipeline
 
 ---
 
-## 17. Complete Database Schema Reference
+## 18. Error Handling Patterns
+
+### Error Class Hierarchy
+
+All 11 services use `@wedding-os/shared-errors` in **both** the errorHandler middleware **and** service business logic. The package exports a base `AppError` class and 22 specific error subclasses across 7 code categories:
+
+```
+AppError (base)
+├── AUTH_1xxx — Authentication & Authorization
+│   ├── OtpInvalidError        (AUTH_1001, 401)
+│   ├── OtpExpiredError        (AUTH_1002, 401)
+│   ├── RateLimitedError       (AUTH_1003, 429)
+│   ├── AccountLockedError     (AUTH_1004, 403)
+│   ├── TokenExpiredError      (AUTH_1005, 401)
+│   ├── TokenInvalidError      (AUTH_1006, 401)
+│   ├── UnauthorizedError      (AUTH_1007, 401)
+│   └── ForbiddenError         (AUTH_1008, 403)
+├── VAL_2xxx — Validation
+│   └── ValidationError        (VAL_2001, 400)  — accepts field name
+├── RES_3xxx — Resource
+│   ├── NotFoundError          (RES_3001, 404)  — accepts resource type + id
+│   └── ConflictError          (RES_3002, 409)
+├── BOOK_4xxx — Booking
+│   ├── VendorNotAvailableError       (BOOK_4001, 409)
+│   ├── BookingAlreadyConfirmedError  (BOOK_4002, 409)
+│   └── BookingCancellationError      (BOOK_4003, 400)
+├── PAY_5xxx — Payment
+│   ├── PaymentVerificationError      (PAY_5001, 400)
+│   ├── EscrowNotFoundError           (PAY_5002, 404)
+│   ├── InsufficientFundsError        (PAY_5003, 402)
+│   └── DuplicatePaymentError         (PAY_5004, 409)
+├── VEN_6xxx — Vendor
+│   ├── VendorNotVerifiedError        (VEN_6001, 403)
+│   └── VendorSubscriptionRequiredError (VEN_6002, 402)
+└── SYS_9xxx — System
+    ├── InternalError           (SYS_9001, 500)
+    └── ServiceUnavailableError (SYS_9002, 503)
+```
+
+### Error Handler Middleware
+
+Every service uses the same error handler pattern in `src/middleware/errorHandler.ts`:
+
+```typescript
+export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction) {
+  if (err instanceof AppError) {
+    // Structured response from shared-errors
+    return res.status(err.statusCode).json({
+      success: false,
+      error: {
+        code: err.code,
+        message: err.message,
+        field: err.field,       // optional (ValidationError)
+        details: err.details,   // optional (additional context)
+      },
+      meta: {
+        requestId: req.headers['x-request-id'],
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+
+  // Legacy error object fallback: { statusCode, code, message }
+  if ('statusCode' in err) { /* ... */ }
+
+  // Unknown error → 500
+  logger.error({ err }, 'Unhandled error');
+  return res.status(500).json({
+    success: false,
+    error: { code: 'SYS_9001', message: 'Internal server error' },
+  });
+}
+```
+
+### Concurrency & Atomicity Patterns
+
+| Service | Pattern | Implementation |
+|---------|---------|---------------|
+| booking-service | **Optimistic locking** | `version` field incremented on each update. Prisma error `P2025` caught → throws `ConflictError` |
+| chat-service | **Atomic upsert** | `findOneAndUpdate()` with `{ upsert: true }` prevents duplicate conversations from concurrent requests |
+| media-service | **Path-segment auth** | `key.startsWith(userId + '/')` prevents user123 from accessing user12's files (replaced vulnerable `key.includes(userId)`) |
+
+---
+
+## 19. Code Quality Standards
+
+### Zero-Tolerance Rules (Enforced)
+
+| Rule | Status | Details |
+|------|--------|---------|
+| `as any` type casts | ✅ Zero across all services + frontends | Replaced with proper interfaces (JwtPayload, EsTotal, Prisma enums) |
+| `catch (err: any)` | ✅ Zero | All use `catch (err: unknown)` with `err instanceof Error` narrowing |
+| Silent `catch {}` | ✅ Zero | All catch blocks log with `logger.warn({ err }, 'context message')` |
+| `console.log` in production | ✅ Zero | All services use Pino logger (`import { logger } from '../config/logger'`) |
+| `console.error` | ⚠️ Startup only | Permitted only for config validation at boot (e.g., missing env vars) |
+| `throw new Error()` | ✅ Zero | All throw specific `AppError` subclasses from `@wedding-os/shared-errors` |
+| Placeholder tests | ✅ Zero | All 11 services have real unit tests (~343 cases total) |
+
+### Route Validation
+
+All 11 services use **Zod schemas** for request validation:
+
+```typescript
+// Example: services/review-service/src/middleware/validate.ts
+import { ZodSchema } from 'zod';
+
+export const validate = (schema: ZodSchema) => (req, res, next) => {
+  const result = schema.safeParse(req.body);
+  if (!result.success) {
+    throw new ValidationError(result.error.issues[0].message, result.error.issues[0].path[0]);
+  }
+  req.body = result.data;
+  next();
+};
+```
+
+### Linting & Formatting
+
+**Root `.eslintrc.json`:**
+```json
+{
+  "parser": "@typescript-eslint/parser",
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "prefer-const": "error",
+    "no-var": "error",
+    "eqeqeq": ["error", "always"]
+  },
+  "ignorePatterns": ["dist/", "node_modules/", "coverage/", "*.js", "*.d.ts"]
+}
+```
+
+**Root `.prettierrc.json`:**
+```json
+{
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 120,
+  "tabWidth": 2,
+  "arrowParens": "always",
+  "endOfLine": "lf",
+  "bracketSpacing": true
+}
+```
+
+---
+
+## 20. Event Bus Deep Dive
+
+### Architecture
+
+The event bus uses **Redis Pub/Sub** via the `@wedding-os/shared-events` package. Each service initializes a singleton bus in `server.ts`:
+
+```typescript
+import { createEventBus, getEventBus } from '@wedding-os/shared-events';
+
+// Initialize once at startup
+createEventBus({
+  serviceName: 'booking-service',
+  redisUrl: config.REDIS_URL,
+  prefix: 'wos',           // Channel prefix
+});
+
+// Publish from anywhere via singleton
+const bus = getEventBus();
+await bus.publish('booking.confirmed', bookingId, 'Booking', { bookingId, vendorId, amount });
+
+// Subscribe to events
+bus.subscribe('payment.captured', async (event) => { /* handle */ });
+bus.subscribeMany([
+  { type: 'booking.confirmed', handler: handleConfirmed },
+  { type: 'booking.completed', handler: handleCompleted },
+]);
+bus.subscribePattern('vendor.*', async (event) => { /* handle all vendor events */ });
+```
+
+### Channel Format
+
+```
+{prefix}:events:{domain}.{action}
+Example: wos:events:booking.confirmed
+```
+
+### Self-Loop Prevention
+
+Every published event includes `metadata.source` (the publishing service name). On receipt, the bus skips events where `metadata.source === serviceName`, preventing a service from reacting to its own events.
+
+### Actively Published Events (12 of 35)
+
+| Domain | Event | Published By |
+|--------|-------|-------------|
+| auth | `auth.user_registered` | auth-service |
+| vendor | `vendor.registered` | vendor-service |
+| vendor | `vendor.profile_updated` | vendor-service |
+| vendor | `vendor.kyc_approved` | vendor-service |
+| vendor | `vendor.kyc_rejected` | vendor-service |
+| review | `review.created` | review-service |
+| user | `user.profile_updated` | user-service |
+| booking | `booking.enquiry_created` | booking-service |
+| booking | `booking.confirmed` | booking-service |
+| booking | `booking.cancelled` | booking-service |
+| payment | `payment.captured` | payment-service |
+| escrow | `escrow.released` | payment-service |
+
+### Active Subscriptions (7)
+
+| Event | Subscribed By | Action |
+|-------|--------------|--------|
+| `booking.confirmed` | payment-service | Create escrow hold |
+| `booking.confirmed` | execution-service | Prepare wedding timeline |
+| `booking.completed` | execution-service | Finalize timeline |
+| `vendor.registered` | search-service | Index in Elasticsearch |
+| `vendor.profile_updated` | search-service | Update ES index |
+| `vendor.kyc_approved` | search-service | Mark as verified in ES |
+| `vendor.kyc_rejected` | search-service, notification-service | Remove from search / notify vendor |
+
+### Services Wired to Event Bus
+
+10 of 11 Node.js services initialize the event bus. `media-service` is excluded (stateless file proxy — no domain events needed).
+
+### Events Defined but Not Yet Published (23)
+
+These are defined in `shared-events` for future implementation:
+
+```
+auth.otp_sent, auth.login_success
+vendor.kyc_submitted, vendor.subscription_changed
+booking.quote_sent, booking.advance_paid, booking.completed, booking.disputed
+payment.failed, payment.refunded
+escrow.created, escrow.disputed
+payout.processed, payout.failed
+event.created, event.task_completed, event.vendor_checked_in, event.issue_reported, event.completed
+user.kyc_approved, user.kyc_rejected
+review.created (already published — but listed in some enum variants)
+```
+
+---
+
+## 21. Booking & Payment Lifecycle
+
+### Booking State Machine
+
+```
+ENQUIRY
+  ├─[vendor sends quote]→ QUOTE_SENT
+  │   ├─[customer accepts]→ QUOTE_ACCEPTED
+  │   │   └─[system]→ ADVANCE_PENDING
+  │   │       └─[payment captured]→ ADVANCE_PAID
+  │   │           └─[system]→ CONFIRMED
+  │   │               └─[vendor checks in]→ CHECKIN
+  │   │                   └─[event completes]→ COMPLETED
+  │   └─[customer rejects]→ CANCELLED_BY_CUSTOMER
+  └─[customer cancels]→ CANCELLED_BY_CUSTOMER
+
+Any active state → CANCELLED_BY_VENDOR (vendor initiates)
+Any active state → DISPUTED (either party)
+DISPUTED → REFUNDED (admin resolves)
+```
+
+**Cancellable states**: ENQUIRY, QUOTE_SENT, QUOTE_ACCEPTED, ADVANCE_PENDING, CONFIRMED
+
+Every state transition creates an **event audit record** with `actorId`, `actorRole`, and payload — providing a complete audit trail.
+
+### Optimistic Locking
+
+The booking service uses a `version` field that increments on each update. If two concurrent updates target the same version, Prisma throws error `P2025`, which the service catches and converts to `ConflictError` (HTTP 409). This prevents lost updates during simultaneous quote/accept operations.
+
+### Fee Calculation
+
+```
+quotedAmount        = vendor's quoted price (in paise)
+platformFee         = quotedAmount × 10%
+gstOnFee            = platformFee × 18%
+advanceAmount       = quotedAmount × 30%        (advance payment required)
+vendorPayout        = quotedAmount - platformFee - gstOnFee
+```
+
+### Escrow Lifecycle
+
+```
+Payment CAPTURED
+  └─→ EscrowHold created (status: HELD)
+        ├─[eventDate + N days]→ BullMQ delayed job → RELEASED_TO_VENDOR
+        ├─[dispute filed]→ DISPUTED
+        └─[admin refund]→ REFUNDED_TO_CUSTOMER
+```
+
+The `ESCROW_RELEASE_DAYS_AFTER_EVENT` config (default: 7 days) controls when the BullMQ delayed job triggers automatic escrow release to the vendor.
+
+### Payment Service Fee Breakdown
+
+```
+amountPaise         = total payment amount (in paise, 1 INR = 100 paise)
+platformFeePaise    = amountPaise × PLATFORM_FEE_PERCENT / 100   (default 10%)
+gstOnFeePaise       = platformFeePaise × 0.18                     (18% GST)
+vendorPayoutPaise   = amountPaise - platformFeePaise - gstOnFeePaise
+```
+
+---
+
+## 22. Real-Time Architecture
+
+### Socket.IO Services
+
+Two services expose WebSocket connections via Socket.IO:
+
+| Service | Port | Purpose | Database |
+|---------|------|---------|----------|
+| execution-service | 4006 | Wedding day timeline, live task updates | PostgreSQL (Prisma) |
+| chat-service | 4010 | Real-time vendor–customer messaging | MongoDB (Mongoose) |
+
+Both configure Socket.IO on the same HTTP server with transports `['websocket', 'polling']` and CORS from config.
+
+### Execution Service — Real-Time Timeline
+
+```typescript
+// Room pattern
+io.on('connection', (socket) => {
+  socket.on('join:timeline', ({ customerId }) => {
+    socket.join(`timeline:${customerId}`);
+  });
+});
+
+// Emitted events
+io.to(`timeline:${customerId}`).emit('task:created', task);
+io.to(`timeline:${customerId}`).emit('task:updated', task);
+io.to(`timeline:${customerId}`).emit('task:deleted', { taskId });
+```
+
+**Daily Reminder Scheduler**: Custom cron job (no external dependency) runs at **08:00 IST (02:30 UTC)** daily, querying for tasks due within 3 days and emitting reminder notifications.
+
+### Chat Service — Real-Time Messaging
+
+```typescript
+// JWT auth in handshake
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  // Verify JWT → attach user to socket
+});
+
+// Room pattern: conversations by bookingId
+socket.on('join:conversation', ({ conversationId }) => {
+  socket.join(conversationId);
+});
+
+// Message events
+socket.on('message:send', (data) => {
+  // Persist to MongoDB → emit to room
+  io.to(conversationId).emit('message:new', savedMessage);
+});
+
+socket.on('typing:start', ({ conversationId }) => {
+  socket.to(conversationId).emit('typing:start', { userId });
+});
+```
+
+### Client Connection Pattern
+
+```typescript
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:4010', {
+  auth: { token: jwtToken },
+  transports: ['websocket', 'polling'],
+});
+```
+
+### Redis Adapter (Horizontal Scaling)
+
+Both services support Redis adapter for multi-instance deployments, enabling Socket.IO event broadcasting across multiple server instances.
+
+---
+
+## 23. File Upload — S3 Presigned URLs
+
+### Upload Flow
+
+```
+Client                          Server                          S3/MinIO
+  │                               │                               │
+  │ POST /media/presign           │                               │
+  │  { mediaType, mimeType }      │                               │
+  │──────────────────────────────>│                               │
+  │                               │ Generate S3 key:              │
+  │                               │ {type}/{userId}/{uuid}.{ext}  │
+  │                               │ getSignedUrl(PutObject, 300s) │
+  │                               │──────────────────────────────>│
+  │      { uploadUrl, key,        │                               │
+  │        publicUrl }            │                               │
+  │<──────────────────────────────│                               │
+  │                               │                               │
+  │ PUT uploadUrl                 │                               │
+  │  [file binary]                │                               │
+  │──────────────────────────────────────────────────────────────>│
+  │                               │                               │
+  │ POST /media/confirm           │                               │
+  │  { key }                      │                               │
+  │──────────────────────────────>│   (verify key exists)         │
+```
+
+### Media Types
+
+| Type | Used By | Allowed MIME Types |
+|------|---------|-------------------|
+| `avatar` | user-service | image/jpeg, image/png, image/webp |
+| `portfolio` | vendor-service | image/jpeg, image/png, image/webp |
+| `kyc` | user-service | image/jpeg, image/png, application/pdf |
+| `review` | review-service | image/jpeg, image/png, image/webp |
+| `vendor_cover` | vendor-service | image/jpeg, image/png, image/webp |
+| `chat` | chat-service | image/jpeg, image/png, image/webp |
+
+### Configuration
+
+| Setting | Value | Notes |
+|---------|-------|-------|
+| Upload URL expiry | 300 seconds (5 min) | Time client has to upload |
+| Download URL expiry | 3600 seconds (1 hour) | For private media access |
+| Max file size | 10 MB | Configurable via env |
+| S3 key format | `{mediaType}/{userId}/{uuid}.{ext}` | Prevents collisions |
+| Dev replacement | MinIO | Drop-in S3-compatible storage |
+| CDN endpoint | Configurable | Set `CDN_ENDPOINT` env var for production |
+| AWS SDK | v3 (`@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`) | — |
+
+---
+
+## 24. Seed Data
+
+### Database Initialization
+
+**`scripts/seed/init.sql`** — Creates all 8 PostgreSQL databases:
+
+```sql
+CREATE DATABASE weddingos_auth;
+CREATE DATABASE weddingos_users;
+CREATE DATABASE weddingos_vendors;
+CREATE DATABASE weddingos_bookings;
+CREATE DATABASE weddingos_payments;
+CREATE DATABASE weddingos_execution;
+CREATE DATABASE weddingos_notifications;
+CREATE DATABASE weddingos_reviews;
+```
+
+This script is mounted into the PostgreSQL container via `docker-compose.infra.yml` and runs automatically on first startup.
+
+### Sample Data
+
+**`scripts/seed/seed-data.sql`** — Populates development data:
+
+| Database | Table | Records | Details |
+|----------|-------|:-------:|---------|
+| weddingos_auth | users | 7 | 3 customers, 3 vendors, 1 admin; phone-based auth |
+| weddingos_users | profiles | 3 | Priya Sharma (Mumbai), Rahul Patel (Bangalore), Ananya Reddy (Hyderabad) |
+| weddingos_vendors | vendors | 3 | Photography, Catering, Decoration — all ACTIVE + verified |
+| weddingos_vendors | packages | 5 | Photography: ₹50,000–₹120,000; Catering: ₹80,000–₹150,000; Decor: ₹30,000 |
+| weddingos_bookings | bookings | 3 | Statuses: CONFIRMED, ADVANCE_PENDING, ENQUIRY |
+| weddingos_payments | escrow_holds | 1 | Status: CAPTURED |
+| weddingos_reviews | reviews | 1 | 5-star rating from customer |
+
+### Loading Seed Data
+
+```bash
+# 1. Start infrastructure
+docker compose -f docker-compose.infra.yml up -d
+
+# 2. Wait for PostgreSQL to be ready
+docker compose -f docker-compose.infra.yml exec postgres pg_isready
+
+# 3. Create databases (runs automatically on first start via init.sql mount)
+# Manual: docker compose exec postgres psql -U postgres -f /docker-entrypoint-initdb.d/init.sql
+
+# 4. Load sample data
+docker compose -f docker-compose.infra.yml exec -T postgres \
+  psql -U postgres < scripts/seed/seed-data.sql
+```
+
+---
+
+## 25. Rebuild from Scratch Guide
+
+Complete step-by-step instructions to set up the entire WeddingOS platform from a fresh clone.
+
+### Step 1: Prerequisites
+
+```bash
+# Required
+node --version    # v20 LTS
+pnpm --version    # v9+
+docker --version  # Docker 24+
+docker compose version  # v2.20+
+
+# Optional (for mobile)
+flutter --version # 3.19+
+dart --version    # 3.3+
+
+# Optional (for AI service)
+python3 --version # 3.12+
+```
+
+### Step 2: Clone & Install Dependencies
+
+```bash
+git clone https://github.com/harib8000/wed.git
+cd wed
+pnpm install          # Installs all workspace dependencies
+```
+
+### Step 3: Environment Setup
+
+```bash
+# Copy environment templates for each service
+for svc in auth user vendor booking payment execution notification review chat search media; do
+  cp services/${svc}-service/.env.example services/${svc}-service/.env 2>/dev/null || true
+done
+
+# Copy frontend env files
+cp apps/web/.env.example apps/web/.env.local 2>/dev/null || true
+cp apps/admin/.env.example apps/admin/.env 2>/dev/null || true
+cp apps/vendor-web/.env.example apps/vendor-web/.env 2>/dev/null || true
+```
+
+### Step 4: Generate RS256 JWT Keys
+
+```bash
+mkdir -p keys
+openssl genrsa -out keys/private.pem 2048
+openssl rsa -in keys/private.pem -pubout -out keys/public.pem
+
+# Copy to each service that needs JWT verification
+for svc in auth user vendor booking payment execution notification review chat search media; do
+  mkdir -p services/${svc}-service/keys
+  cp keys/private.pem services/${svc}-service/keys/
+  cp keys/public.pem services/${svc}-service/keys/
+done
+```
+
+### Step 5: Start Infrastructure
+
+```bash
+# Start PostgreSQL 16, Redis 7, Elasticsearch 8, MongoDB 7
+docker compose -f docker-compose.infra.yml up -d
+
+# Verify all containers are healthy
+docker compose -f docker-compose.infra.yml ps
+```
+
+### Step 6: Initialize Databases
+
+```bash
+# init.sql creates 8 databases — runs automatically on first PostgreSQL start
+# If needed manually:
+docker compose -f docker-compose.infra.yml exec postgres \
+  psql -U postgres -f /docker-entrypoint-initdb.d/init.sql
+```
+
+### Step 7: Generate Prisma Clients
+
+```bash
+# Services with Prisma schemas:
+for svc in auth user vendor booking payment execution notification review; do
+  echo "Generating Prisma client for ${svc}-service..."
+  cd services/${svc}-service && npx prisma generate && cd ../..
+done
+```
+
+### Step 8: Run Database Migrations
+
+```bash
+for svc in auth user vendor booking payment execution notification review; do
+  echo "Migrating ${svc}-service..."
+  cd services/${svc}-service && npx prisma migrate dev --name init && cd ../..
+done
+```
+
+### Step 9: Load Seed Data
+
+```bash
+docker compose -f docker-compose.infra.yml exec -T postgres \
+  psql -U postgres < scripts/seed/seed-data.sql
+```
+
+### Step 10: Start Backend Services
+
+Start services in dependency order:
+
+```bash
+# 1. Auth service (no dependencies)
+cd services/auth-service && pnpm dev &
+
+# 2. User + Vendor services (depend on auth for JWT)
+cd services/user-service && pnpm dev &
+cd services/vendor-service && pnpm dev &
+
+# 3. Core business services
+cd services/booking-service && pnpm dev &
+cd services/payment-service && pnpm dev &
+cd services/execution-service && pnpm dev &
+
+# 4. Supporting services
+cd services/notification-service && pnpm dev &
+cd services/review-service && pnpm dev &
+cd services/chat-service && pnpm dev &
+cd services/search-service && pnpm dev &
+cd services/media-service && pnpm dev &
+
+# 5. AI service (Python)
+cd services/ai-service && pip install -r requirements.txt && uvicorn main:app --port 5000 &
+```
+
+### Step 11: Start Frontend Apps
+
+```bash
+# Customer web app (Next.js) — http://localhost:3000
+cd apps/web && pnpm dev &
+
+# Admin dashboard (React + Vite) — http://localhost:3001
+cd apps/admin && pnpm dev &
+
+# Vendor portal (React + Vite) — http://localhost:3002
+cd apps/vendor-web && pnpm dev &
+
+# Mobile (Flutter) — requires emulator or device
+cd apps/mobile && flutter pub get && flutter run
+```
+
+### Step 12: Kong Gateway Setup (Optional)
+
+```bash
+# Kong config exists at infrastructure/kong/kong.yml
+# Start Kong in DB-less declarative mode:
+docker run -d --name kong \
+  -e "KONG_DATABASE=off" \
+  -e "KONG_DECLARATIVE_CONFIG=/kong/kong.yml" \
+  -v $(pwd)/infrastructure/kong:/kong \
+  -p 8000:8000 -p 8443:8443 \
+  kong:3.6
+```
+
+### Step 13: Verification Checklist
+
+| Service | Port | Health Endpoint | Verify |
+|---------|:----:|-----------------|--------|
+| auth-service | 4001 | `GET /auth/health` | `curl http://localhost:4001/auth/health` |
+| user-service | 4002 | `GET /users/health` | `curl http://localhost:4002/users/health` |
+| vendor-service | 4003 | `GET /vendors/health` | `curl http://localhost:4003/vendors/health` |
+| booking-service | 4004 | `GET /bookings/health` | `curl http://localhost:4004/bookings/health` |
+| payment-service | 4005 | `GET /payments/health` | `curl http://localhost:4005/payments/health` |
+| execution-service | 4006 | `GET /execution/health` | `curl http://localhost:4006/execution/health` |
+| notification-service | 4008 | `GET /notifications/health` | `curl http://localhost:4008/notifications/health` |
+| review-service | 4009 | `GET /reviews/health` | `curl http://localhost:4009/reviews/health` |
+| chat-service | 4010 | `GET /chat/health` | `curl http://localhost:4010/chat/health` |
+| search-service | 4011 | `GET /search/health` | `curl http://localhost:4011/search/health` |
+| media-service | 4012 | `GET /media/health` | `curl http://localhost:4012/media/health` |
+| ai-service | 5000 | `GET /health` | `curl http://localhost:5000/health` |
+| Web App | 3000 | — | Open `http://localhost:3000` |
+| Admin | 3001 | — | Open `http://localhost:3001` |
+| Vendor Portal | 3002 | — | Open `http://localhost:3002` |
+
+### Common Troubleshooting
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| `ECONNREFUSED :5432` | PostgreSQL not running | `docker compose -f docker-compose.infra.yml up -d postgres` |
+| `ECONNREFUSED :6379` | Redis not running | `docker compose -f docker-compose.infra.yml up -d redis` |
+| Prisma "database does not exist" | init.sql didn't run | Run `psql -U postgres -f scripts/seed/init.sql` manually |
+| `Cannot find module '@prisma/client'` | Prisma not generated | `cd services/{name} && npx prisma generate` |
+| JWT verification fails | Missing key files | Copy `keys/public.pem` to `services/{name}/keys/` |
+| Elasticsearch connection refused | ES not started or still initializing | Wait 30s, check `curl localhost:9200/_cluster/health` |
+| MongoDB auth failed | Wrong credentials in `.env` | Match `MONGO_*` env vars with docker-compose settings |
+| Port already in use | Another service on same port | Check with `lsof -i :{port}` and kill conflicting process |
+| `pnpm install` fails | Wrong Node version | Use Node 20 LTS: `nvm use 20` |
+| Flutter build fails | Missing Android SDK / Xcode | Run `flutter doctor` and resolve listed issues |
+
+---
+
+## 26. Complete Database Schema Reference
 
 Every field, type, constraint, relation, and index — the full specification needed to recreate all database schemas from scratch.
 
-### 17.1 Auth Service — PostgreSQL (`weddingos_auth`)
+### 26.1 Auth Service — PostgreSQL (`weddingos_auth`)
 
 **Enums:**
 
@@ -1442,7 +2209,7 @@ Indexes: `(userId)`, `(expiresAt)`
 
 ---
 
-### 17.2 User Service — PostgreSQL (`weddingos_users`)
+### 26.2 User Service — PostgreSQL (`weddingos_users`)
 
 **Enums:**
 
@@ -1512,7 +2279,7 @@ Indexes: `(profileId)`, `(status)`
 
 ---
 
-### 17.3 Vendor Service — PostgreSQL (`weddingos_vendors`)
+### 26.3 Vendor Service — PostgreSQL (`weddingos_vendors`)
 
 **Enums:**
 
@@ -1635,7 +2402,7 @@ Unique: `(vendorId, tag)` · Indexes: `(tag)`
 
 ---
 
-### 17.4 Booking Service — PostgreSQL (`weddingos_bookings`)
+### 26.4 Booking Service — PostgreSQL (`weddingos_bookings`)
 
 **Enums:**
 
@@ -1705,7 +2472,7 @@ Indexes: `(bookingId)`
 
 ---
 
-### 17.5 Payment Service — PostgreSQL (`weddingos_payments`)
+### 26.5 Payment Service — PostgreSQL (`weddingos_payments`)
 
 **Enums:**
 
@@ -1782,7 +2549,7 @@ Indexes: `(paymentId)`
 
 ---
 
-### 17.6 Execution Service — PostgreSQL (`weddingos_execution`)
+### 26.6 Execution Service — PostgreSQL (`weddingos_execution`)
 
 **Enums:**
 
@@ -1841,7 +2608,7 @@ Indexes: `(timelineId, status)`, `(dueDate)`
 
 ---
 
-### 17.7 Notification Service — PostgreSQL (`weddingos_notifications`)
+### 26.7 Notification Service — PostgreSQL (`weddingos_notifications`)
 
 **Enums:**
 
@@ -1871,7 +2638,7 @@ Indexes: `(userId, createdAt)`, `(event)`, `(status)`
 
 ---
 
-### 17.8 Review Service — PostgreSQL (`weddingos_reviews`)
+### 26.8 Review Service — PostgreSQL (`weddingos_reviews`)
 
 **Table: `reviews`**
 
@@ -1901,7 +2668,7 @@ Indexes: `(vendorId, isPublished)`, `(customerId)`
 
 ---
 
-### 17.9 Chat Service — MongoDB (`weddingos_chat`)
+### 26.9 Chat Service — MongoDB (`weddingos_chat`)
 
 **Collection: `conversations`**
 
@@ -1944,7 +2711,7 @@ Indexes: `(vendorId, isPublished)`, `(customerId)`
 
 ---
 
-### 17.10 Schema Summary
+### 26.10 Schema Summary
 
 | Database | Service | Models | Enums | Relations | Financial Fields |
 |----------|---------|--------|-------|-----------|-----------------|
@@ -1962,11 +2729,11 @@ Indexes: `(vendorId, isPublished)`, `(customerId)`
 
 ---
 
-## 18. Shared Package API Reference
+## 27. Shared Package API Reference
 
 Complete function signatures, class definitions, and type exports for all shared packages.
 
-### 18.1 @wedding-os/shared-errors — Error Class Hierarchy
+### 27.1 @wedding-os/shared-errors — Error Class Hierarchy
 
 ```typescript
 // ═══════════════════════════════════════════════════════════════
@@ -2111,7 +2878,7 @@ class ServiceUnavailableError extends AppError;
 
 ---
 
-### 18.2 @wedding-os/shared-events — Event Bus API
+### 27.2 @wedding-os/shared-events — Event Bus API
 
 ```typescript
 // ═══════════════════════════════════════════════════════════════
@@ -2276,7 +3043,7 @@ interface NotificationRequestPayload {
 
 ---
 
-### 18.3 @wedding-os/shared-types — Type Definitions (46 exports)
+### 27.3 @wedding-os/shared-types — Type Definitions (46 exports)
 
 ```typescript
 // ═══════════════════════════════════════════════════════════════
@@ -2595,7 +3362,7 @@ interface VendorSearchItem {
 
 ---
 
-### 18.4 @wedding-os/shared-utils — Utility Functions
+### 27.4 @wedding-os/shared-utils — Utility Functions
 
 ```typescript
 // ═══════════════════════════════════════════════════════════════
@@ -2713,11 +3480,11 @@ function calculatePlatformFee(
 
 ---
 
-## 19. Cross-Service Communication Flows
+## 28. Cross-Service Communication Flows
 
 Detailed step-by-step flows showing how services interact for key business processes.
 
-### 19.1 Complete Booking Lifecycle
+### 28.1 Complete Booking Lifecycle
 
 ```
 ┌─────────┐    ┌──────────────┐    ┌──────────────┐    ┌───────────────┐    ┌──────────────┐
@@ -2790,7 +3557,7 @@ Detailed step-by-step flows showing how services interact for key business proce
      │                 │                   │                    │                   │ Credit vendor
 ```
 
-### 19.2 Review & Rating Flow
+### 28.2 Review & Rating Flow
 
 ```
 1. Customer submits review:
@@ -2809,7 +3576,7 @@ Detailed step-by-step flows showing how services interact for key business proce
    └─ review-service increments helpfulCount
 ```
 
-### 19.3 Vendor Registration & KYC Flow
+### 28.3 Vendor Registration & KYC Flow
 
 ```
 1. POST /auth/register-vendor { phone }
@@ -2833,7 +3600,7 @@ Detailed step-by-step flows showing how services interact for key business proce
       └─ notification-service → Notifies vendor of approval
 ```
 
-### 19.4 Real-time Chat Flow
+### 28.4 Real-time Chat Flow
 
 ```
 1. Create conversation:
@@ -2857,7 +3624,7 @@ Detailed step-by-step flows showing how services interact for key business proce
    └─ Broadcast to room: socket.to(conversationId).emit('typing:start', { userId })
 ```
 
-### 19.5 Search & Indexing Flow
+### 28.5 Search & Indexing Flow
 
 ```
 1. Vendor profile updated → vendor-service PUBLISHES: vendor.profile_updated
@@ -2875,7 +3642,7 @@ Detailed step-by-step flows showing how services interact for key business proce
 
 ---
 
-## 20. Error Code Reference
+## 29. Error Code Reference
 
 Complete mapping of all error codes used across the platform.
 
@@ -2924,11 +3691,11 @@ Complete mapping of all error codes used across the platform.
 
 ---
 
-## 21. Service Source File Architecture
+## 30. Service Source File Architecture
 
 Detailed file structure for every backend service showing exact files, their purpose, and key implementation details.
 
-### 21.1 Common Service Structure
+### 30.1 Common Service Structure
 
 Every Node.js service follows this pattern:
 
@@ -2962,7 +3729,7 @@ services/{service-name}/
         └── *.test.ts         ← Jest unit tests (mock Prisma, Redis, external APIs)
 ```
 
-### 21.2 Per-Service Source Files
+### 30.2 Per-Service Source Files
 
 | Service | Source Files | Key Tech | Routes File | Service File | Test File |
 |---------|-------------|----------|-------------|-------------|-----------|
@@ -2979,7 +3746,7 @@ services/{service-name}/
 | media | server, config/index, routes/media.routes, services/upload.service, middleware/errorHandler+validate, utils/logger | AWS S3, Sharp, presigned URLs | media.routes.ts | upload.service.ts | upload.service.test.ts |
 | ai | main.py (FastAPI) | OpenAI, Anthropic, FastAPI | (in main.py) | (in main.py) | — |
 
-### 21.3 Middleware Stack (Applied in Order)
+### 30.3 Middleware Stack (Applied in Order)
 
 ```typescript
 // Every service applies these in server.ts / app.ts:
@@ -2997,7 +3764,7 @@ router.get('/protected', authMiddleware, controller.handler);
 app.use(errorHandler);                          // 7. Global error handler
 ```
 
-### 21.4 Error Handler Pattern
+### 30.4 Error Handler Pattern
 
 ```typescript
 // All 11 services use this pattern in errorHandler.ts:
@@ -3035,9 +3802,9 @@ export const errorHandler = (err, req, res, next) => {
 
 ---
 
-## 22. Testing Documentation
+## 31. Testing Documentation
 
-### 22.1 Test Infrastructure
+### 31.1 Test Infrastructure
 
 | Tool | Version | Purpose |
 |------|---------|---------|
@@ -3060,7 +3827,7 @@ module.exports = {
 };
 ```
 
-### 22.2 Test Counts by Service
+### 31.2 Test Counts by Service
 
 | Service | Test File | Test Cases | Key Scenarios |
 |---------|-----------|------------|---------------|
@@ -3077,7 +3844,7 @@ module.exports = {
 | **search** | search.service.test.ts | 33 | ES query building, category/city/price filters, rating filter, sort modes, pagination, aggregations, autocomplete |
 | **TOTAL** | **11 files** | **~343** | |
 
-### 22.3 Mocking Strategy
+### 31.3 Mocking Strategy
 
 Every test file mocks external dependencies to ensure isolated unit testing:
 
@@ -3128,7 +3895,7 @@ jest.mock('../../src/utils/logger', () => ({
 }));
 ```
 
-### 22.4 Running Tests
+### 31.4 Running Tests
 
 ```bash
 # Run all tests across all services
@@ -3150,11 +3917,11 @@ cd services/payment-service && npx jest --watch
 
 ---
 
-## 23. API Request & Response Examples
+## 32. API Request & Response Examples
 
 Concrete request/response examples for key endpoints.
 
-### 23.1 Authentication
+### 32.1 Authentication
 
 **Send OTP:**
 
@@ -3201,7 +3968,7 @@ Content-Type: application/json
 }
 ```
 
-### 23.2 Vendor Search
+### 32.2 Vendor Search
 
 ```bash
 GET /search/vendors?q=photographer&city=Mumbai&minRating=4&sortBy=rating&page=1&limit=10
@@ -3232,7 +3999,7 @@ GET /search/vendors?q=photographer&city=Mumbai&minRating=4&sortBy=rating&page=1&
 }
 ```
 
-### 23.3 Create Booking Enquiry
+### 32.3 Create Booking Enquiry
 
 ```bash
 POST /bookings
@@ -3266,7 +4033,7 @@ Content-Type: application/json
 }
 ```
 
-### 23.4 Create Payment Order
+### 32.4 Create Payment Order
 
 ```bash
 POST /payments/order
@@ -3293,7 +4060,7 @@ Content-Type: application/json
 }
 ```
 
-### 23.5 Verify Payment
+### 32.5 Verify Payment
 
 ```bash
 POST /payments/verify
@@ -3327,7 +4094,7 @@ Content-Type: application/json
 }
 ```
 
-### 23.6 Get Presigned Upload URL
+### 32.6 Get Presigned Upload URL
 
 ```bash
 POST /media/presign
@@ -3353,7 +4120,7 @@ Content-Type: application/json
 }
 ```
 
-### 23.7 Submit Review
+### 32.7 Submit Review
 
 ```bash
 POST /reviews
@@ -3389,11 +4156,11 @@ Content-Type: application/json
 
 ---
 
-## 24. Rebuild from Scratch Guide
+## 33. Rebuild from Scratch — Detailed Guide
 
-Complete step-by-step instructions to recreate the entire WeddingOS platform from zero.
+Complete step-by-step instructions to recreate the entire WeddingOS platform from zero. For a high-level overview, see [Section 25](#25-rebuild-from-scratch-guide). This section provides the exact commands and file structures.
 
-### 24.1 Prerequisites
+### 33.1 Prerequisites
 
 | Tool | Version | Installation |
 |------|---------|-------------|
@@ -3405,7 +4172,7 @@ Complete step-by-step instructions to recreate the entire WeddingOS platform fro
 | OpenSSL | any | Pre-installed on macOS/Linux |
 | Git | any | Pre-installed on macOS/Linux |
 
-### 24.2 Step 1 — Monorepo Setup
+### 33.2 Step 1 — Monorepo Setup
 
 ```bash
 # Create root project
@@ -3433,7 +4200,7 @@ pnpm add -D turbo typescript rimraf
 # Create .gitignore, .env.example
 ```
 
-### 24.3 Step 2 — Shared Packages
+### 33.3 Step 2 — Shared Packages
 
 Create in order (shared-errors has no deps, shared-utils needs pino, shared-events needs redis):
 
@@ -3462,7 +4229,7 @@ pnpm --filter shared-events add redis@4.6.0
 # Define: 43 DomainEventType literals, DomainEvent<T> interface
 ```
 
-### 24.4 Step 3 — Infrastructure
+### 33.4 Step 3 — Infrastructure
 
 ```bash
 # Create docker-compose.infra.yml with:
@@ -3494,7 +4261,7 @@ openssl rsa -in keys/private.pem -pubout -out keys/public.pem
 docker compose -f docker-compose.infra.yml up -d
 ```
 
-### 24.5 Step 4 — Backend Services (Build Order)
+### 33.5 Step 4 — Backend Services (Build Order)
 
 Build services in dependency order:
 
@@ -3556,7 +4323,7 @@ npx prisma generate
 npx prisma migrate dev --name init
 ```
 
-### 24.6 Step 5 — Frontend Apps
+### 33.6 Step 5 — Frontend Apps
 
 **Web App (Next.js 14):**
 
@@ -3626,7 +4393,7 @@ flutter pub get
 # - lib/shared/widgets/ (app_shell, vendor_app_shell)
 ```
 
-### 24.7 Step 6 — Kong API Gateway
+### 33.7 Step 6 — Kong API Gateway
 
 ```bash
 mkdir -p infrastructure/kong
@@ -3636,7 +4403,7 @@ mkdir -p infrastructure/kong
 # - strip_path: false
 ```
 
-### 24.8 Step 7 — CI/CD
+### 33.8 Step 7 — CI/CD
 
 ```bash
 mkdir -p .github/workflows
@@ -3659,7 +4426,7 @@ mkdir -p .github/workflows
 # - Smoke test health endpoints
 ```
 
-### 24.9 Step 8 — Verification Checklist
+### 33.9 Step 8 — Verification Checklist
 
 ```bash
 # 1. Infrastructure health
@@ -3692,9 +4459,9 @@ pnpm build                                      # All packages compile
 
 ---
 
-## 25. Troubleshooting & Debugging
+## 34. Troubleshooting & Debugging
 
-### 25.1 Common Issues
+### 34.1 Common Issues
 
 | Issue | Cause | Solution |
 |-------|-------|----------|
@@ -3710,7 +4477,7 @@ pnpm build                                      # All packages compile
 | CORS errors in browser | Origin not in allowed list | Add your frontend URL to `ALLOWED_ORIGINS` in `.env` |
 | OTP not received | MSG91 not configured | Set `MSG91_AUTH_KEY` in .env, or use demo login buttons |
 
-### 25.2 Debugging Commands
+### 34.2 Debugging Commands
 
 ```bash
 # ── Logs ──
@@ -3759,7 +4526,7 @@ open http://localhost:8081
 open http://localhost:5601
 ```
 
-### 25.3 Environment-Specific Notes
+### 34.3 Environment-Specific Notes
 
 **macOS (Apple Silicon):**
 - Elasticsearch 8.13 Docker image is `linux/amd64` only — runs under Rosetta emulation (slower)
@@ -3776,7 +4543,7 @@ open http://localhost:5601
 
 ---
 
-## 26. Architectural Decision Records
+## 35. Architectural Decision Records
 
 Key decisions made during the design and implementation of WeddingOS, with rationale.
 

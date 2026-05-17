@@ -1,11 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, Share2, SearchX, Clock } from 'lucide-react';
+import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, SearchX, Clock } from 'lucide-react';
 import AvailabilityCalendar from '@/components/vendors/AvailabilityCalendar';
 import { motion } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { addToRecentlyViewed } from '@/components/vendors/RecentlyViewed';
+import { ShareButton } from '@/components/vendors/ShareButton';
 
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
 const stagger = { animate: { transition: { staggerChildren: 0.1 } } };
@@ -125,6 +127,21 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
   const v = VENDOR_MAP[params.id];
   const isNotFound = !v;
 
+  // Track recently viewed vendors
+  useEffect(() => {
+    if (v) {
+      addToRecentlyViewed({
+        id: params.id,
+        businessName: v.businessName,
+        category: v.category,
+        city: v.city,
+        rating: String(v.rating),
+        coverImage: v.portfolio[0]?.url ?? '',
+        basePrice: v.basePrice,
+      });
+    }
+  }, [params.id, v]);
+
   if (isLoading) return <LoadingSkeleton />;
   if (isNotFound) return <VendorNotFound />;
 
@@ -184,7 +201,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                   </div>
                   <div className="flex items-center gap-2">
                     <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors" aria-label="Save to wishlist"><Heart size={18} className="text-gray-400" /></button>
-                    <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors" aria-label="Share vendor"><Share2 size={18} className="text-gray-400" /></button>
+                    <ShareButton title={v.businessName} text={`Check out ${v.businessName} on WeddingOS — ${v.category} in ${v.city}`} />
                   </div>
                 </div>
                 <p className="text-gray-600 text-sm leading-relaxed mb-4">{v.description}</p>

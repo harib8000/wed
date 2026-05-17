@@ -27,7 +27,7 @@ let cachedKey: string | null = null;
 function getPublicKey(): string {
   if (!cachedKey) {
     if (config.JWT_PUBLIC_KEY_PATH) {
-      try { cachedKey = fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch {}
+      try { cachedKey = fs.readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf-8'); } catch { /* Key file not found, will fall back to env var */ }
     }
     if (!cachedKey && config.JWT_PUBLIC_KEY) cachedKey = config.JWT_PUBLIC_KEY;
     if (!cachedKey) throw new AppError('SYS_9001', 'JWT public key not configured', 500);
@@ -68,8 +68,8 @@ router.delete('/', validate(DeleteMediaSchema), (req: Request, res: Response) =>
   try {
     const user = getUser(req);
     const { key } = req.body;
-    // Security: only allow deleting own files
-    if (!key.includes(user.id) && user.role !== 'admin') {
+    // Security: only allow deleting own files — use path-segment match to prevent user123 from deleting user12's files
+    if (!key.startsWith(`${user.id}/`) && !key.includes(`/${user.id}/`) && user.role !== 'admin') {
       res.status(403).json({ success: false, error: { message: 'Forbidden' } }); return;
     }
     uploadService.deleteMedia(key)

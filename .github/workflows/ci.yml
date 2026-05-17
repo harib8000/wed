@@ -96,7 +96,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: ci-test-secret-min-32-chars-long
           NODE_ENV: test
-        run: pnpm test -- --passWithNoTests
+        run: pnpm test
 
       - name: Upload coverage
         if: github.ref == 'refs/heads/main'

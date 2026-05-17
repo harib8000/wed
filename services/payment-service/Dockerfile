@@ -45,9 +45,9 @@ COPY --from=builder /app/services/payment-service/prisma ./services/payment-serv
 USER appuser
 WORKDIR /app/services/payment-service
 
-EXPOSE 4004
+EXPOSE 4005
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4004/payment/health || exit 1
+  CMD wget -qO- http://localhost:4005/payment/health || exit 1
 
 CMD ["node", "dist/server.js"]

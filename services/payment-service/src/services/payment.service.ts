@@ -6,8 +6,18 @@ import { logger } from '../utils/logger';
 import { config } from '../config';
 import { NotFoundError, PaymentVerificationError, ConflictError } from '@wedding-os/shared-errors';
 import { calculatePlatformFee } from '@wedding-os/shared-utils';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import axios from 'axios';
 import { randomUUID } from 'crypto';
+
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
+  try {
+    const bus = getEventBus();
+    bus.publish(type, aggregateId, 'payment', payload).catch((err: unknown) =>
+      logger.warn({ err, type }, 'Event publish failed (non-blocking)')
+    );
+  } catch { /* Event bus not initialized (e.g., in tests) */ }
+}
 
 function platformFee(amountPaise: number) {
   const result = calculatePlatformFee(amountPaise, config.PLATFORM_FEE_PERCENT / 100);
@@ -122,6 +132,7 @@ export const paymentService = {
     await notifyBookingService(bookingId, updatedPayment.id);
 
     logger.info({ paymentId: updatedPayment.id, bookingId, vendorPayoutPaise, releaseDate }, 'Payment captured and escrow created');
+    publishEvent('payment.captured', updatedPayment.id, { paymentId: updatedPayment.id, bookingId, customerId: payment.customerId, vendorId: payment.vendorId, amountPaise: payment.amountPaise });
 
     return updatedPayment;
   },
@@ -169,6 +180,7 @@ export const paymentService = {
     });
 
     logger.info({ escrowHoldId, vendorId: hold.vendorId, vendorPayoutPaise: hold.vendorPayoutPaise }, 'Escrow released to vendor');
+    publishEvent('escrow.released', escrowHoldId, { escrowHoldId, vendorId: hold.vendorId, vendorPayoutPaise: hold.vendorPayoutPaise, bookingId: hold.bookingId });
     return updated;
   },
 

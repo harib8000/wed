@@ -11,15 +11,15 @@ export function ProfilePage() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b border-gray-200">
-        {[
-          { key: 'profile', label: 'Business Info' },
-          { key: 'packages', label: 'Packages' },
-          { key: 'portfolio', label: 'Portfolio' },
-          { key: 'kyc', label: 'KYC & Verification' },
-        ].map((tab) => (
+        {([
+          { key: 'profile' as const, label: 'Business Info' },
+          { key: 'packages' as const, label: 'Packages' },
+          { key: 'portfolio' as const, label: 'Portfolio' },
+          { key: 'kyc' as const, label: 'KYC & Verification' },
+        ]).map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key as any)}
+            onClick={() => setActiveTab(tab.key)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.key ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
             {tab.label}

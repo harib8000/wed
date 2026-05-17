@@ -3,6 +3,7 @@ import { getRedisClient } from '../config/redis';
 import { jwtService } from './jwt.service';
 import { hashSha256 as hashValue } from '@wedding-os/shared-utils';
 import { UnauthorizedError } from '@wedding-os/shared-errors';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { randomUUID } from 'crypto';
 
 const generateTokenId = (): string => randomUUID();
@@ -10,18 +11,28 @@ import type { User } from '@prisma/client';
 
 const BLACKLIST_PREFIX = 'token_blacklist:';
 
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
+  try {
+    const bus = getEventBus();
+    bus.publish(type, aggregateId, 'auth', payload).catch(() => {});
+  } catch { /* Event bus not initialized */ }
+}
+
 export class UserService {
   async findOrCreateByPhone(phone: string, role: 'customer' | 'vendor' = 'customer'): Promise<User> {
     const existing = await prisma.user.findUnique({ where: { phone } });
     if (existing) return existing;
 
-    return prisma.user.create({
+    const user = await prisma.user.create({
       data: {
         phone,
         role,
         phoneVerified: true,
       },
     });
+
+    publishEvent('auth.user_registered', user.id, { userId: user.id, phone, role });
+    return user;
   }
 
   async findById(id: string): Promise<User | null> {

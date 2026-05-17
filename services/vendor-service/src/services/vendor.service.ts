@@ -3,11 +3,12 @@ import { upsertVendorDocument, deleteVendorDocument } from '../config/elasticsea
 import type { Vendor, VendorPackage, Prisma, VendorCategory } from '@prisma/client';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { logger } from '../utils/logger';
+import { NotFoundError } from '@wedding-os/shared-errors';
 
 function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
     const bus = getEventBus();
-    bus.publish(type, aggregateId, 'vendor', payload).catch((err: any) =>
+    bus.publish(type, aggregateId, 'vendor', payload).catch((err: unknown) =>
       logger.warn({ err, type }, 'Event publish failed (non-blocking)')
     );
   } catch { /* Event bus not initialized (e.g., in tests) */ }
@@ -48,7 +49,7 @@ async function syncToEs(vendor: Vendor & { packages?: VendorPackage[]; tags?: { 
     tags: vendor.tags?.map((t) => t.tag) ?? [],
     priceFromPaise: minPrice,
     updatedAt: vendor.updatedAt.toISOString(),
-  }).catch((err) => console.error('[ES sync error]', err));
+  }).catch((err) => logger.error({ err }, 'ES sync error'));
 }
 
 export const vendorService = {
