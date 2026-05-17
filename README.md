@@ -71,6 +71,16 @@
 23. [File Upload — S3 Presigned URLs](#23-file-upload--s3-presigned-urls)
 24. [Seed Data](#24-seed-data)
 25. [Rebuild from Scratch Guide](#25-rebuild-from-scratch-guide)
+26. [Complete Database Schema Reference](#26-complete-database-schema-reference)
+27. [Shared Package API Reference](#27-shared-package-api-reference)
+28. [Cross-Service Communication Flows](#28-cross-service-communication-flows)
+29. [Error Code Reference](#29-error-code-reference)
+30. [Service Source File Architecture](#30-service-source-file-architecture)
+31. [Testing Documentation](#31-testing-documentation)
+32. [API Request & Response Examples](#32-api-request--response-examples)
+33. [Rebuild from Scratch — Detailed Guide](#33-rebuild-from-scratch--detailed-guide)
+34. [Troubleshooting & Debugging](#34-troubleshooting--debugging)
+35. [Architectural Decision Records](#35-architectural-decision-records)
 
 ---
 
@@ -2146,6 +2156,2527 @@ docker run -d --name kong \
 | Port already in use | Another service on same port | Check with `lsof -i :{port}` and kill conflicting process |
 | `pnpm install` fails | Wrong Node version | Use Node 20 LTS: `nvm use 20` |
 | Flutter build fails | Missing Android SDK / Xcode | Run `flutter doctor` and resolve listed issues |
+
+---
+
+## 26. Complete Database Schema Reference
+
+Every field, type, constraint, relation, and index — the full specification needed to recreate all database schemas from scratch.
+
+### 26.1 Auth Service — PostgreSQL (`weddingos_auth`)
+
+**Enums:**
+
+```sql
+-- UserRole
+CREATE TYPE "UserRole" AS ENUM ('customer', 'vendor', 'coordinator', 'admin', 'super_admin');
+
+-- UserStatus
+CREATE TYPE "UserStatus" AS ENUM ('active', 'suspended', 'deleted');
+```
+
+**Table: `users`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `phone` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `email` | `VARCHAR` | UNIQUE | `NULL` |
+| `emailVerified` | `BOOLEAN` | NOT NULL | `false` |
+| `phoneVerified` | `BOOLEAN` | NOT NULL | `false` |
+| `passwordHash` | `VARCHAR` | | `NULL` |
+| `role` | `UserRole` | NOT NULL | `customer` |
+| `status` | `UserStatus` | NOT NULL | `active` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+| `deletedAt` | `TIMESTAMP` | | `NULL` |
+
+Indexes: `(phone)`, `(email)`, `(status)`
+
+**Table: `refresh_tokens`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `userId` | `UUID` | FK → users.id (CASCADE) | — |
+| `tokenHash` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `deviceId` | `VARCHAR` | | `NULL` |
+| `expiresAt` | `TIMESTAMP` | NOT NULL | — |
+| `revokedAt` | `TIMESTAMP` | | `NULL` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+
+Indexes: `(userId)`, `(expiresAt)`
+
+---
+
+### 26.2 User Service — PostgreSQL (`weddingos_users`)
+
+**Enums:**
+
+```sql
+CREATE TYPE "KycStatus" AS ENUM ('PENDING', 'UNDER_REVIEW', 'APPROVED', 'REJECTED');
+CREATE TYPE "DocumentType" AS ENUM ('AADHAAR', 'PAN', 'PASSPORT', 'DRIVING_LICENSE', 'VOTER_ID', 'GSTIN', 'BANK_STATEMENT');
+```
+
+**Table: `user_profiles`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `userId` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `firstName` | `VARCHAR` | | `NULL` |
+| `lastName` | `VARCHAR` | | `NULL` |
+| `avatar` | `VARCHAR` | | `NULL` |
+| `email` | `VARCHAR` | UNIQUE | `NULL` |
+| `dateOfBirth` | `TIMESTAMP` | | `NULL` |
+| `city` | `VARCHAR` | | `NULL` |
+| `state` | `VARCHAR` | | `NULL` |
+| `pincode` | `VARCHAR` | | `NULL` |
+| `partnerName` | `VARCHAR` | | `NULL` |
+| `weddingDate` | `TIMESTAMP` | | `NULL` |
+| `estimatedBudgetPaise` | `INT` | | `NULL` |
+| `guestCount` | `INT` | | `NULL` |
+| `venueCity` | `VARCHAR` | | `NULL` |
+| `businessName` | `VARCHAR` | | `NULL` |
+| `businessCity` | `VARCHAR` | | `NULL` |
+| `whatsappNotif` | `BOOLEAN` | | `true` |
+| `emailNotif` | `BOOLEAN` | | `true` |
+| `pushNotif` | `BOOLEAN` | | `true` |
+| `smsNotif` | `BOOLEAN` | | `true` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+**Table: `push_tokens`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `profileId` | `UUID` | FK → user_profiles.id (CASCADE) | — |
+| `token` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `platform` | `VARCHAR` | NOT NULL | — |
+| `deviceId` | `VARCHAR` | | `NULL` |
+| `active` | `BOOLEAN` | | `true` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+
+Indexes: `(profileId)`
+
+**Table: `kyc_documents`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `profileId` | `UUID` | FK → user_profiles.id (CASCADE) | — |
+| `docType` | `DocumentType` | NOT NULL | — |
+| `s3Key` | `VARCHAR` | NOT NULL | — |
+| `status` | `KycStatus` | NOT NULL | `PENDING` |
+| `reviewNote` | `VARCHAR` | | `NULL` |
+| `reviewedAt` | `TIMESTAMP` | | `NULL` |
+| `reviewedBy` | `VARCHAR` | | `NULL` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+Indexes: `(profileId)`, `(status)`
+
+---
+
+### 26.3 Vendor Service — PostgreSQL (`weddingos_vendors`)
+
+**Enums:**
+
+```sql
+CREATE TYPE "VendorStatus" AS ENUM (
+  'DRAFT', 'PENDING_REVIEW', 'ACTIVE', 'SUSPENDED', 'BLACKLISTED'
+);
+
+CREATE TYPE "VendorCategory" AS ENUM (
+  'PHOTOGRAPHER', 'VIDEOGRAPHER', 'CATERER', 'DECORATOR', 'VENUE',
+  'DJ_SOUND', 'BAND_ENTERTAINMENT', 'BRIDAL_MAKEUP', 'GROOM_MAKEUP',
+  'MEHENDI', 'PANDIT_PRIEST', 'WEDDING_PLANNER', 'INVITATIONS',
+  'CHOREOGRAPHER', 'BARTENDER', 'LIGHTING', 'FIREWORKS',
+  'TENT_HOUSE', 'TRANSPORTATION', 'FLORIST'
+);
+
+CREATE TYPE "PackageType" AS ENUM ('BASIC', 'STANDARD', 'PREMIUM', 'CUSTOM');
+```
+
+**Table: `vendors`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `userId` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `businessName` | `VARCHAR` | NOT NULL | — |
+| `slug` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `category` | `VendorCategory` | NOT NULL | — |
+| `subCategories` | `VendorCategory[]` | | `[]` |
+| `status` | `VendorStatus` | NOT NULL | `DRAFT` |
+| `city` | `VARCHAR` | NOT NULL | — |
+| `state` | `VARCHAR` | NOT NULL | — |
+| `pincode` | `VARCHAR` | NOT NULL | — |
+| `serviceCities` | `VARCHAR[]` | | `[]` |
+| `tagline` | `VARCHAR` | | `NULL` |
+| `description` | `TEXT` | | `NULL` |
+| `yearsExperience` | `INT` | | `NULL` |
+| `teamSize` | `INT` | | `NULL` |
+| `coverPhoto` | `VARCHAR` | | `NULL` |
+| `logoUrl` | `VARCHAR` | | `NULL` |
+| `whatsappNumber` | `VARCHAR` | | `NULL` |
+| `websiteUrl` | `VARCHAR` | | `NULL` |
+| `instagramUrl` | `VARCHAR` | | `NULL` |
+| `gstNumber` | `VARCHAR` | | `NULL` |
+| `panNumber` | `VARCHAR` | | `NULL` |
+| `bankAccountNo` | `VARCHAR` | | `NULL` |
+| `bankIfsc` | `VARCHAR` | | `NULL` |
+| `bankAccountName` | `VARCHAR` | | `NULL` |
+| `avgRating` | `FLOAT` | | `0` |
+| `reviewCount` | `INT` | | `0` |
+| `bookingCount` | `INT` | | `0` |
+| `responseRatePercent` | `INT` | | `0` |
+| `avgResponseHours` | `FLOAT` | | `0` |
+| `plusMember` | `BOOLEAN` | | `false` |
+| `isFeatured` | `BOOLEAN` | | `false` |
+| `adminNote` | `VARCHAR` | | `NULL` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+Indexes: `(category, city, status)`, `(slug)`, `(avgRating)`
+
+**Table: `vendor_packages`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `vendorId` | `UUID` | FK → vendors.id (CASCADE) | — |
+| `packageType` | `PackageType` | NOT NULL | `BASIC` |
+| `name` | `VARCHAR` | NOT NULL | — |
+| `description` | `TEXT` | | `NULL` |
+| `priceFromPaise` | `INT` | NOT NULL | — |
+| `priceUpToPaise` | `INT` | | `NULL` |
+| `isCustomQuote` | `BOOLEAN` | | `false` |
+| `inclusions` | `VARCHAR[]` | | `[]` |
+| `exclusions` | `VARCHAR[]` | | `[]` |
+| `deliverables` | `VARCHAR[]` | | `[]` |
+| `isActive` | `BOOLEAN` | | `true` |
+| `sortOrder` | `INT` | | `0` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+Indexes: `(vendorId, isActive)`
+
+**Table: `portfolio_items`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `vendorId` | `UUID` | FK → vendors.id (CASCADE) | — |
+| `s3Key` | `VARCHAR` | NOT NULL | — |
+| `publicUrl` | `VARCHAR` | NOT NULL | — |
+| `thumbUrl` | `VARCHAR` | | `NULL` |
+| `caption` | `VARCHAR` | | `NULL` |
+| `mediaType` | `VARCHAR` | | `"image"` |
+| `sortOrder` | `INT` | | `0` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+
+Indexes: `(vendorId)`
+
+**Table: `availability_blocks`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `vendorId` | `UUID` | FK → vendors.id (CASCADE) | — |
+| `blockedDate` | `TIMESTAMP` | NOT NULL | — |
+| `reason` | `VARCHAR` | | `NULL` |
+
+Unique: `(vendorId, blockedDate)` · Indexes: `(vendorId, blockedDate)`
+
+**Table: `vendor_tags`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `vendorId` | `UUID` | FK → vendors.id (CASCADE) | — |
+| `tag` | `VARCHAR` | NOT NULL | — |
+
+Unique: `(vendorId, tag)` · Indexes: `(tag)`
+
+---
+
+### 26.4 Booking Service — PostgreSQL (`weddingos_bookings`)
+
+**Enums:**
+
+```sql
+CREATE TYPE "BookingStatus" AS ENUM (
+  'ENQUIRY', 'QUOTE_SENT', 'QUOTE_ACCEPTED', 'ADVANCE_PENDING',
+  'ADVANCE_PAID', 'CONFIRMED', 'CHECKIN', 'COMPLETED',
+  'CANCELLED_BY_CUSTOMER', 'CANCELLED_BY_VENDOR', 'DISPUTED', 'REFUNDED'
+);
+
+CREATE TYPE "EventType" AS ENUM (
+  'WEDDING_CEREMONY', 'RECEPTION', 'ENGAGEMENT', 'HALDI', 'MEHNDI',
+  'SANGEET', 'BACHELOR_PARTY', 'PRE_WEDDING_SHOOT', 'BIRTHDAY',
+  'ANNIVERSARY', 'CORPORATE', 'OTHER'
+);
+```
+
+**Table: `bookings`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `bookingNumber` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `customerId` | `VARCHAR` | NOT NULL | — |
+| `vendorId` | `VARCHAR` | NOT NULL | — |
+| `packageId` | `VARCHAR` | | `NULL` |
+| `status` | `BookingStatus` | NOT NULL | `ENQUIRY` |
+| `eventDate` | `TIMESTAMP` | NOT NULL | — |
+| `eventType` | `EventType` | NOT NULL | — |
+| `eventCity` | `VARCHAR` | NOT NULL | — |
+| `quotedAmountPaise` | `INT` | | `NULL` |
+| `advanceAmountPaise` | `INT` | | `NULL` |
+| `finalAmountPaise` | `INT` | | `NULL` |
+| `platformFeePaise` | `INT` | | `NULL` |
+| `gstOnFeePaise` | `INT` | | `NULL` |
+| `requirements` | `TEXT` | | `NULL` |
+| `guestCount` | `INT` | | `NULL` |
+| `specialNotes` | `TEXT` | | `NULL` |
+| `vendorQuoteNote` | `TEXT` | | `NULL` |
+| `cancellationReason` | `TEXT` | | `NULL` |
+| `quoteSentAt` | `TIMESTAMP` | | `NULL` |
+| `quoteAcceptedAt` | `TIMESTAMP` | | `NULL` |
+| `confirmedAt` | `TIMESTAMP` | | `NULL` |
+| `completedAt` | `TIMESTAMP` | | `NULL` |
+| `cancelledAt` | `TIMESTAMP` | | `NULL` |
+| `version` | `INT` | NOT NULL | `0` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+Indexes: `(customerId, status)`, `(vendorId, status)`, `(eventDate)`, `(bookingNumber)`
+
+> **Optimistic Locking:** The `version` field is used for concurrent update protection. Updates use `WHERE id = ? AND version = ?` — if another process updated first, Prisma throws P2025, caught as `ConflictError`.
+
+**Table: `booking_events`** (audit trail)
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `bookingId` | `UUID` | FK → bookings.id (CASCADE) | — |
+| `eventType` | `VARCHAR` | NOT NULL | — |
+| `actorId` | `VARCHAR` | NOT NULL | — |
+| `actorRole` | `VARCHAR` | NOT NULL | — |
+| `payload` | `JSON` | | `{}` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+
+Indexes: `(bookingId)`
+
+---
+
+### 26.5 Payment Service — PostgreSQL (`weddingos_payments`)
+
+**Enums:**
+
+```sql
+CREATE TYPE "PaymentStatus" AS ENUM (
+  'CREATED', 'PENDING', 'CAPTURED', 'FAILED', 'REFUNDED', 'PARTIALLY_REFUNDED'
+);
+CREATE TYPE "EscrowStatus" AS ENUM (
+  'HELD', 'RELEASED_TO_VENDOR', 'REFUNDED_TO_CUSTOMER', 'DISPUTED'
+);
+CREATE TYPE "RefundReason" AS ENUM ('CANCELLATION', 'DISPUTE_RESOLVED_CUSTOMER', 'OTHER');
+```
+
+**Table: `payments`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `bookingId` | `VARCHAR` | NOT NULL | — |
+| `customerId` | `VARCHAR` | NOT NULL | — |
+| `vendorId` | `VARCHAR` | NOT NULL | — |
+| `razorpayOrderId` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `razorpayPaymentId` | `VARCHAR` | UNIQUE | `NULL` |
+| `razorpaySignature` | `VARCHAR` | | `NULL` |
+| `amountPaise` | `INT` | NOT NULL | — |
+| `currency` | `VARCHAR` | NOT NULL | `"INR"` |
+| `status` | `PaymentStatus` | NOT NULL | `CREATED` |
+| `description` | `VARCHAR` | | `NULL` |
+| `idempotencyKey` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `webhookVerified` | `BOOLEAN` | | `false` |
+| `webhookReceivedAt` | `TIMESTAMP` | | `NULL` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+Indexes: `(bookingId)`, `(customerId)`, `(status)`
+
+**Table: `escrow_holds`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `paymentId` | `UUID` | UNIQUE, FK → payments.id | — |
+| `bookingId` | `VARCHAR` | NOT NULL | — |
+| `vendorId` | `VARCHAR` | NOT NULL | — |
+| `heldAmountPaise` | `INT` | NOT NULL | — |
+| `platformFeePaise` | `INT` | NOT NULL | — |
+| `gstOnFeePaise` | `INT` | NOT NULL | — |
+| `vendorPayoutPaise` | `INT` | NOT NULL | — |
+| `status` | `EscrowStatus` | NOT NULL | `HELD` |
+| `releaseScheduledAt` | `TIMESTAMP` | | `NULL` |
+| `releasedAt` | `TIMESTAMP` | | `NULL` |
+| `razorpayPayoutId` | `VARCHAR` | | `NULL` |
+| `adminNote` | `VARCHAR` | | `NULL` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+Indexes: `(vendorId, status)`, `(releaseScheduledAt)`
+
+**Table: `refunds`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `paymentId` | `VARCHAR` | NOT NULL | — |
+| `bookingId` | `VARCHAR` | NOT NULL | — |
+| `razorpayRefundId` | `VARCHAR` | UNIQUE | `NULL` |
+| `amountPaise` | `INT` | NOT NULL | — |
+| `reason` | `RefundReason` | NOT NULL | `OTHER` |
+| `note` | `VARCHAR` | | `NULL` |
+| `status` | `VARCHAR` | NOT NULL | `"PENDING"` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+
+Indexes: `(paymentId)`
+
+---
+
+### 26.6 Execution Service — PostgreSQL (`weddingos_execution`)
+
+**Enums:**
+
+```sql
+CREATE TYPE "TaskStatus" AS ENUM ('PENDING', 'IN_PROGRESS', 'DONE', 'SKIPPED');
+CREATE TYPE "TaskCategory" AS ENUM (
+  'VENDOR_BOOKING', 'VENUE', 'CATERING', 'DECORATION', 'CEREMONY',
+  'GUEST_MANAGEMENT', 'PHOTOGRAPHY', 'ENTERTAINMENT', 'LOGISTICS', 'LEGAL', 'OTHER'
+);
+```
+
+**Table: `wedding_timelines`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `customerId` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `weddingDate` | `TIMESTAMP` | NOT NULL | — |
+| `title` | `VARCHAR` | NOT NULL | `"My Wedding"` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+**Table: `timeline_tasks`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `timelineId` | `UUID` | FK → wedding_timelines.id (CASCADE) | — |
+| `title` | `VARCHAR` | NOT NULL | — |
+| `description` | `TEXT` | | `NULL` |
+| `category` | `TaskCategory` | NOT NULL | `OTHER` |
+| `status` | `TaskStatus` | NOT NULL | `PENDING` |
+| `dueDate` | `TIMESTAMP` | | `NULL` |
+| `dueDaysBeforeWedding` | `INT` | | `NULL` |
+| `linkedBookingId` | `VARCHAR` | | `NULL` |
+| `assignedVendorId` | `VARCHAR` | | `NULL` |
+| `completedAt` | `TIMESTAMP` | | `NULL` |
+| `sortOrder` | `INT` | | `0` |
+| `isSystemGenerated` | `BOOLEAN` | | `false` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+Indexes: `(timelineId, status)`, `(dueDate)`
+
+**Table: `task_templates`** (seed data)
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `title` | `VARCHAR` | NOT NULL | — |
+| `description` | `TEXT` | | `NULL` |
+| `category` | `TaskCategory` | NOT NULL | `OTHER` |
+| `dueDaysBeforeWedding` | `INT` | NOT NULL | — |
+| `sortOrder` | `INT` | | `0` |
+| `isActive` | `BOOLEAN` | | `true` |
+
+---
+
+### 26.7 Notification Service — PostgreSQL (`weddingos_notifications`)
+
+**Enums:**
+
+```sql
+CREATE TYPE "NotificationChannel" AS ENUM ('PUSH', 'SMS', 'WHATSAPP', 'EMAIL', 'IN_APP');
+CREATE TYPE "NotificationStatus" AS ENUM ('QUEUED', 'SENT', 'DELIVERED', 'FAILED', 'SKIPPED');
+```
+
+**Table: `notification_logs`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `userId` | `VARCHAR` | NOT NULL | — |
+| `channel` | `NotificationChannel` | NOT NULL | — |
+| `event` | `VARCHAR` | NOT NULL | — |
+| `title` | `VARCHAR` | | `NULL` |
+| `body` | `TEXT` | NOT NULL | — |
+| `data` | `JSON` | | `{}` |
+| `status` | `NotificationStatus` | NOT NULL | `QUEUED` |
+| `providerRef` | `VARCHAR` | | `NULL` |
+| `errorMsg` | `TEXT` | | `NULL` |
+| `sentAt` | `TIMESTAMP` | | `NULL` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+
+Indexes: `(userId, createdAt)`, `(event)`, `(status)`
+
+---
+
+### 26.8 Review Service — PostgreSQL (`weddingos_reviews`)
+
+**Table: `reviews`**
+
+| Column | Type | Constraints | Default |
+|--------|------|-------------|---------|
+| `id` | `UUID` | PRIMARY KEY | `uuid()` |
+| `bookingId` | `VARCHAR` | UNIQUE, NOT NULL | — |
+| `customerId` | `VARCHAR` | NOT NULL | — |
+| `vendorId` | `VARCHAR` | NOT NULL | — |
+| `rating` | `INT` | NOT NULL (1-5) | — |
+| `title` | `VARCHAR` | | `NULL` |
+| `body` | `TEXT` | NOT NULL | — |
+| `qualityRating` | `INT` | | `NULL` |
+| `valueRating` | `INT` | | `NULL` |
+| `professionalismRating` | `INT` | | `NULL` |
+| `punctualityRating` | `INT` | | `NULL` |
+| `photos` | `VARCHAR[]` | | `[]` |
+| `isPublished` | `BOOLEAN` | | `false` |
+| `adminNote` | `TEXT` | | `NULL` |
+| `vendorReply` | `TEXT` | | `NULL` |
+| `vendorRepliedAt` | `TIMESTAMP` | | `NULL` |
+| `helpfulCount` | `INT` | | `0` |
+| `createdAt` | `TIMESTAMP` | NOT NULL | `now()` |
+| `updatedAt` | `TIMESTAMP` | NOT NULL | auto |
+
+Indexes: `(vendorId, isPublished)`, `(customerId)`
+
+---
+
+### 26.9 Chat Service — MongoDB (`weddingos_chat`)
+
+**Collection: `conversations`**
+
+```javascript
+{
+  bookingId:      String,     // required, unique index
+  customerId:     String,     // required
+  vendorId:       String,     // required
+  lastMessage:    String,     // preview text
+  lastMessageAt:  Date,
+  customerUnread: Number,     // default: 0
+  vendorUnread:   Number,     // default: 0
+  isActive:       Boolean,    // default: true
+  createdAt:      Date,       // auto
+  updatedAt:      Date        // auto
+}
+// Indexes: (customerId), (vendorId)
+```
+
+**Collection: `messages`**
+
+```javascript
+{
+  conversationId: String,     // required, indexed
+  senderId:       String,     // required
+  senderRole:     String,     // enum: ['customer', 'vendor', 'admin']
+  content:        String,     // required, maxlength: 2000
+  contentType:    String,     // enum: ['text', 'image', 'document'], default: 'text'
+  mediaUrl:       String,     // optional (S3 URL)
+  readBy:         [{          // array
+    userId: String,
+    readAt: Date
+  }],
+  isDeleted:      Boolean,    // default: false (soft delete)
+  createdAt:      Date,       // auto
+  updatedAt:      Date        // auto
+}
+// Compound Index: (conversationId, createdAt DESC)
+```
+
+---
+
+### 26.10 Schema Summary
+
+| Database | Service | Models | Enums | Relations | Financial Fields |
+|----------|---------|--------|-------|-----------|-----------------|
+| weddingos_auth | auth | 2 | 2 | 1 FK | — |
+| weddingos_users | user | 3 | 2 | 2 FK | estimatedBudgetPaise |
+| weddingos_vendors | vendor | 5 | 3 | 4 FK | priceFromPaise, priceUpToPaise |
+| weddingos_bookings | booking | 2 | 2 | 1 FK | quotedAmountPaise, advanceAmountPaise, finalAmountPaise, platformFeePaise, gstOnFeePaise |
+| weddingos_payments | payment | 3 | 3 | 1 FK | amountPaise, heldAmountPaise, platformFeePaise, gstOnFeePaise, vendorPayoutPaise |
+| weddingos_execution | execution | 3 | 2 | 1 FK | — |
+| weddingos_notifications | notification | 1 | 2 | 0 FK | — |
+| weddingos_reviews | review | 1 | 0 | 0 FK | — |
+| weddingos_chat (Mongo) | chat | 2 | — | — | — |
+
+> **Currency Convention:** All monetary values are stored in **paise** (1 INR = 100 paise) for precision. Display conversion: `paiseToRupees(paise)` from `@wedding-os/shared-utils`.
+
+---
+
+## 27. Shared Package API Reference
+
+Complete function signatures, class definitions, and type exports for all shared packages.
+
+### 27.1 @wedding-os/shared-errors — Error Class Hierarchy
+
+```typescript
+// ═══════════════════════════════════════════════════════════════
+// BASE ERROR CLASS
+// ═══════════════════════════════════════════════════════════════
+
+class AppError extends Error {
+  public readonly code: string;
+  public readonly statusCode: number;
+  public readonly isOperational: boolean;
+  public readonly field?: string;
+  public readonly details?: Record<string, unknown>;
+
+  constructor(
+    code: string,
+    message: string,
+    statusCode: number = 500,
+    isOperational: boolean = true,
+    field?: string,
+    details?: Record<string, unknown>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AUTH ERRORS (AUTH_1xxx)
+// ═══════════════════════════════════════════════════════════════
+
+class OtpInvalidError extends AppError;
+  // Code: AUTH_1001  |  Status: 400  |  Field: "otp"
+  // Message: "Invalid OTP. Please try again."
+
+class OtpExpiredError extends AppError;
+  // Code: AUTH_1002  |  Status: 400  |  Field: "otp"
+  // Message: "OTP has expired. Please request a new one."
+
+class RateLimitedError extends AppError;
+  // Code: AUTH_1003  |  Status: 429
+  // constructor(retryAfterSeconds?: number)
+  // Message: "Too many requests. Try again in {retryAfterSeconds} seconds."
+
+class AccountLockedError extends AppError;
+  // Code: AUTH_1004  |  Status: 423
+  // constructor(unlockMinutes: number = 30)
+  // Message: "Account locked due to too many failed attempts. Try again in {unlockMinutes} minutes."
+
+class TokenExpiredError extends AppError;
+  // Code: AUTH_1005  |  Status: 401
+  // Message: "Token has expired. Please login again."
+
+class TokenInvalidError extends AppError;
+  // Code: AUTH_1006  |  Status: 401
+  // Message: "Invalid token."
+
+class UnauthorizedError extends AppError;
+  // Code: AUTH_1007  |  Status: 401
+  // constructor(message: string = "Authentication required.")
+
+class ForbiddenError extends AppError;
+  // Code: AUTH_1008  |  Status: 403
+  // constructor(message?: string)
+  // Default: "You do not have permission to perform this action."
+
+// ═══════════════════════════════════════════════════════════════
+// VALIDATION ERRORS (VAL_2xxx)
+// ═══════════════════════════════════════════════════════════════
+
+class ValidationError extends AppError;
+  // Code: VAL_2001  |  Status: 400
+  // constructor(message: string, field?: string, details?: Record<string, unknown>)
+
+// ═══════════════════════════════════════════════════════════════
+// RESOURCE ERRORS (RES_3xxx)
+// ═══════════════════════════════════════════════════════════════
+
+class NotFoundError extends AppError;
+  // Code: RES_3001  |  Status: 404
+  // constructor(resource: string, id?: string)
+  // Message: "{resource} with id '{id}' not found." OR "{resource} not found."
+
+class ConflictError extends AppError;
+  // Code: RES_3002  |  Status: 409
+  // constructor(message: string, field?: string)
+
+// ═══════════════════════════════════════════════════════════════
+// BOOKING ERRORS (BOOK_4xxx)
+// ═══════════════════════════════════════════════════════════════
+
+class VendorNotAvailableError extends AppError;
+  // Code: BOOK_4001  |  Status: 409  |  Field: "eventDate"
+  // constructor(date: string)
+
+class BookingAlreadyConfirmedError extends AppError;
+  // Code: BOOK_4002  |  Status: 409
+  // Message: "This booking has already been confirmed."
+
+class BookingCancellationError extends AppError;
+  // Code: BOOK_4003  |  Status: 400
+  // constructor(reason: string)
+
+// ═══════════════════════════════════════════════════════════════
+// PAYMENT ERRORS (PAY_5xxx)
+// ═══════════════════════════════════════════════════════════════
+
+class PaymentVerificationError extends AppError;
+  // Code: PAY_5001  |  Status: 400
+  // Message: "Payment signature verification failed."
+
+class EscrowNotFoundError extends AppError;
+  // Code: PAY_5002  |  Status: 404
+  // constructor(bookingId: string)
+
+class InsufficientFundsError extends AppError;
+  // Code: PAY_5003  |  Status: 400
+
+class DuplicatePaymentError extends AppError;
+  // Code: PAY_5004  |  Status: 409
+  // Message: "This payment has already been processed."
+
+// ═══════════════════════════════════════════════════════════════
+// VENDOR ERRORS (VEN_6xxx)
+// ═══════════════════════════════════════════════════════════════
+
+class VendorNotVerifiedError extends AppError;
+  // Code: VEN_6001  |  Status: 403
+
+class VendorSubscriptionRequiredError extends AppError;
+  // Code: VEN_6002  |  Status: 402
+  // constructor(feature: string)
+
+// ═══════════════════════════════════════════════════════════════
+// SYSTEM ERRORS (SYS_9xxx)
+// ═══════════════════════════════════════════════════════════════
+
+class InternalError extends AppError;
+  // Code: SYS_9001  |  Status: 500
+  // constructor(message?: string)
+
+class ServiceUnavailableError extends AppError;
+  // Code: SYS_9002  |  Status: 503
+  // constructor(service: string)
+```
+
+---
+
+### 27.2 @wedding-os/shared-events — Event Bus API
+
+```typescript
+// ═══════════════════════════════════════════════════════════════
+// DOMAIN EVENT TYPES (43 total)
+// ═══════════════════════════════════════════════════════════════
+
+type DomainEventType =
+  // Auth (3)
+  | 'auth.otp_sent'
+  | 'auth.user_registered'
+  | 'auth.login_success'
+  // Vendor (6)
+  | 'vendor.registered'
+  | 'vendor.kyc_submitted'
+  | 'vendor.kyc_approved'
+  | 'vendor.kyc_rejected'
+  | 'vendor.profile_updated'
+  | 'vendor.subscription_changed'
+  // Booking (7)
+  | 'booking.enquiry_created'
+  | 'booking.quote_sent'
+  | 'booking.confirmed'
+  | 'booking.advance_paid'
+  | 'booking.completed'
+  | 'booking.cancelled'
+  | 'booking.disputed'
+  // Payment (3)
+  | 'payment.captured'
+  | 'payment.failed'
+  | 'payment.refunded'
+  // Escrow (3)
+  | 'escrow.created'
+  | 'escrow.released'
+  | 'escrow.disputed'
+  // Payout (2)
+  | 'payout.processed'
+  | 'payout.failed'
+  // Execution (5)
+  | 'event.created'
+  | 'event.task_completed'
+  | 'event.vendor_checked_in'
+  | 'event.issue_reported'
+  | 'event.completed'
+  // Review (1)
+  | 'review.created'
+  // User (3)
+  | 'user.profile_updated'
+  | 'user.kyc_approved'
+  | 'user.kyc_rejected'
+
+// ═══════════════════════════════════════════════════════════════
+// CORE INTERFACES
+// ═══════════════════════════════════════════════════════════════
+
+interface DomainEvent<T = unknown> {
+  id: string;                         // UUID v4
+  type: DomainEventType;
+  occurredAt: string;                 // ISO 8601
+  aggregateId: string;
+  aggregateType: string;
+  payload: T;
+  metadata?: Record<string, unknown>; // includes 'source' for self-loop prevention
+}
+
+interface EventBusOptions {
+  redisUrl: string;
+  serviceName: string;
+  prefix?: string;                    // default: 'wos'
+}
+
+type EventHandler<T = unknown> = (event: DomainEvent<T>) => Promise<void>;
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT BUS CLASS
+// ═══════════════════════════════════════════════════════════════
+
+class EventBus {
+  constructor(opts: EventBusOptions);
+  async connect(): Promise<void>;
+  async disconnect(): Promise<void>;
+
+  async publish<T>(
+    type: DomainEventType,
+    aggregateId: string,
+    aggregateType: string,
+    payload: T,
+    metadata?: Record<string, unknown>
+  ): Promise<string>;                 // returns event ID
+
+  async subscribe<T = unknown>(
+    type: DomainEventType,
+    handler: EventHandler<T>
+  ): Promise<void>;
+
+  async subscribeMany(
+    subscriptions: Array<{ type: DomainEventType; handler: EventHandler }>
+  ): Promise<void>;
+
+  async subscribePattern(
+    pattern: string,                  // e.g., 'booking.*'
+    handler: EventHandler
+  ): Promise<void>;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FACTORY FUNCTIONS (Singleton)
+// ═══════════════════════════════════════════════════════════════
+
+function createEventBus(opts: EventBusOptions): EventBus;
+  // Creates + stores singleton. Call once in server.ts startup.
+
+function getEventBus(): EventBus;
+  // Returns singleton. Throws if not initialized.
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT PAYLOAD INTERFACES
+// ═══════════════════════════════════════════════════════════════
+
+interface BookingEnquiryPayload {
+  bookingId: string;
+  customerId: string;
+  vendorId: string;
+  eventDate: string;
+  totalAmount: number;
+}
+
+interface PaymentCapturedPayload {
+  paymentId: string;
+  bookingId: string;
+  vendorId: string;
+  customerId: string;
+  amount: number;
+  gatewayPaymentId: string;
+}
+
+interface EscrowCreatedPayload {
+  escrowId: string;
+  paymentId: string;
+  bookingId: string;
+  vendorId: string;
+  heldAmount: number;
+  platformFee: number;
+  vendorPayout: number;
+}
+
+interface VendorCheckedInPayload {
+  eventId: string;
+  bookingId: string;
+  vendorId: string;
+  checkedInAt: string;
+  lat?: number;
+  lng?: number;
+}
+
+interface NotificationRequestPayload {
+  userId: string;
+  channels: string[];
+  template: string;
+  variables: Record<string, string>;
+}
+```
+
+---
+
+### 27.3 @wedding-os/shared-types — Type Definitions (46 exports)
+
+```typescript
+// ═══════════════════════════════════════════════════════════════
+// USER & AUTH
+// ═══════════════════════════════════════════════════════════════
+
+type UserRole = 'customer' | 'vendor' | 'coordinator' | 'admin' | 'super_admin';
+type UserStatus = 'active' | 'suspended' | 'deleted';
+
+interface User {
+  id: string;
+  phone: string;
+  email?: string;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  role: UserRole;
+  status: UserStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface UserProfile {
+  id: string;
+  userId: string;
+  fullName: string;
+  avatarUrl?: string;
+  city?: string;
+  state?: string;
+  languagePreference: string;
+  notificationPreferences: NotificationPreferences;
+}
+
+interface NotificationPreferences {
+  push: boolean;
+  sms: boolean;
+  whatsapp: boolean;
+  email: boolean;
+}
+
+interface JwtPayload {
+  sub: string;       // user id
+  role: UserRole;
+  phone: string;
+  iat: number;
+  exp: number;
+}
+
+interface RefreshTokenPayload {
+  sub: string;
+  deviceId?: string;
+  jti: string;       // unique token id
+}
+
+// ═══════════════════════════════════════════════════════════════
+// VENDOR
+// ═══════════════════════════════════════════════════════════════
+
+type VendorCategory =
+  | 'venue' | 'catering' | 'photography' | 'videography'
+  | 'decor' | 'makeup' | 'mehendi' | 'music'
+  | 'transport' | 'invitation' | 'priest' | 'other';
+
+type VerificationStatus = 'pending' | 'verified' | 'rejected';
+type KycStatus = 'not_submitted' | 'submitted' | 'approved' | 'rejected';
+type SubscriptionTier = 'free' | 'premium' | 'enterprise';
+type PriceType = 'fixed' | 'per_plate' | 'per_hour' | 'per_day' | 'custom';
+
+interface Vendor {
+  id: string;
+  userId: string;
+  businessName: string;
+  category: VendorCategory;
+  subCategories: string[];
+  description?: string;
+  verificationStatus: VerificationStatus;
+  kycStatus: KycStatus;
+  citiesServed: string[];
+  yearsExperience?: number;
+  teamSize?: number;
+  basePrice?: number;
+  rating: number;
+  totalReviews: number;
+  totalBookings: number;
+  isFeatured: boolean;
+  subscriptionTier: SubscriptionTier;
+  createdAt: Date;
+}
+
+interface VendorPackage {
+  id: string;
+  vendorId: string;
+  name: string;
+  description?: string;
+  price: number;
+  priceType: PriceType;
+  inclusions: string[];
+  exclusions: string[];
+  minGuests?: number;
+  maxGuests?: number;
+  advancePercentage: number;
+  isActive: boolean;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// BOOKING
+// ═══════════════════════════════════════════════════════════════
+
+type BookingStatus =
+  | 'enquiry' | 'quoted' | 'confirmed' | 'advance_paid'
+  | 'in_progress' | 'completed' | 'cancelled' | 'disputed';
+
+type EventType =
+  | 'wedding' | 'engagement' | 'reception' | 'sangeet'
+  | 'mehendi' | 'haldi' | 'birthday' | 'corporate' | 'other';
+
+interface Booking {
+  id: string;
+  bookingNumber: string;
+  customerId: string;
+  vendorId: string;
+  eventId?: string;
+  packageId?: string;
+  status: BookingStatus;
+  eventDate: Date;
+  eventTime?: string;
+  eventLocation?: string;
+  totalAmount: number;
+  advanceAmount?: number;
+  advancePaid: boolean;
+  finalAmount?: number;
+  specialRequirements?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface Event {
+  id: string;
+  customerId: string;
+  eventName: string;
+  eventType: EventType;
+  weddingDate?: Date;
+  venueCity?: string;
+  totalBudget?: number;
+  allocatedBudget: number;
+  guestCount?: number;
+  status: 'planning' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  createdAt: Date;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PAYMENT
+// ═══════════════════════════════════════════════════════════════
+
+type PaymentType = 'advance' | 'milestone' | 'final' | 'refund' | 'platform_fee';
+type PaymentStatus = 'initiated' | 'processing' | 'success' | 'failed' | 'refunded';
+type PaymentGateway = 'razorpay' | 'stripe' | 'manual';
+type EscrowStatus =
+  | 'holding' | 'partial_released' | 'release_pending'
+  | 'fully_released' | 'disputed' | 'refunded';
+type EscrowReleaseTrigger = 'manual' | 'auto_7day' | 'customer_confirm' | 'milestone';
+
+interface Payment {
+  id: string;
+  bookingId: string;
+  payerId: string;
+  payeeId: string;
+  amount: number;
+  currency: string;
+  paymentType: PaymentType;
+  status: PaymentStatus;
+  gateway: PaymentGateway;
+  gatewayOrderId?: string;
+  gatewayPaymentId?: string;
+  createdAt: Date;
+}
+
+interface EscrowHold {
+  id: string;
+  paymentId: string;
+  bookingId: string;
+  vendorId: string;
+  heldAmount: number;
+  platformFee: number;
+  vendorPayout: number;
+  status: EscrowStatus;
+  holdExpiry?: Date;
+  releaseTrigger?: EscrowReleaseTrigger;
+  releasedAt?: Date;
+  createdAt: Date;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TASK / EXECUTION
+// ═══════════════════════════════════════════════════════════════
+
+type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'overdue' | 'skipped';
+type TaskOwner = 'customer' | 'vendor' | 'coordinator' | 'system';
+
+interface Task {
+  id: string;
+  eventId: string;
+  bookingId?: string;
+  title: string;
+  description?: string;
+  dueDate: Date;
+  dueDaysBeforeEvent: number;
+  status: TaskStatus;
+  owner: TaskOwner;
+  assignedUserId?: string;
+  dependsOnTaskId?: string;
+  isAutoGenerated: boolean;
+  createdAt: Date;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// REVIEW
+// ═══════════════════════════════════════════════════════════════
+
+interface Review {
+  id: string;
+  bookingId: string;
+  reviewerId: string;
+  vendorId: string;
+  rating: number;
+  comment?: string;
+  photoUrls: string[];
+  isVerified: boolean;
+  createdAt: Date;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// API RESPONSE
+// ═══════════════════════════════════════════════════════════════
+
+interface ApiSuccessResponse<T = unknown> {
+  success: true;
+  data: T;
+  meta: {
+    requestId: string;
+    timestamp: string;
+    pagination?: { cursor?: string; hasNext: boolean; totalCount?: number; };
+  };
+}
+
+interface ApiErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    field?: string;
+    details?: Record<string, unknown>;
+  };
+  meta: { requestId: string; timestamp: string; };
+}
+
+type ApiResponse<T = unknown> = ApiSuccessResponse<T> | ApiErrorResponse;
+
+// ═══════════════════════════════════════════════════════════════
+// NOTIFICATION
+// ═══════════════════════════════════════════════════════════════
+
+type NotificationChannel = 'push' | 'sms' | 'whatsapp' | 'email' | 'in_app';
+type NotificationPriority = 'low' | 'medium' | 'high' | 'critical';
+
+interface NotificationPayload {
+  userId: string;
+  channels: NotificationChannel[];
+  priority: NotificationPriority;
+  template: string;
+  variables: Record<string, string>;
+  data?: Record<string, unknown>;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════════════════════════════
+
+interface VendorSearchFilters {
+  query?: string;
+  category?: VendorCategory;
+  city?: string;
+  priceMin?: number;
+  priceMax?: number;
+  ratingMin?: number;
+  availabilityDate?: string;
+  verifiedOnly?: boolean;
+  lat?: number;
+  lng?: number;
+  radiusKm?: number;
+  cursor?: string;
+  limit?: number;
+  sort?: 'relevance' | 'price_asc' | 'price_desc' | 'rating_desc' | 'newest';
+}
+
+interface VendorSearchResult {
+  vendors: VendorSearchItem[];
+  cursor?: string;
+  hasNext: boolean;
+  total: number;
+}
+
+interface VendorSearchItem {
+  id: string;
+  businessName: string;
+  category: VendorCategory;
+  citiesServed: string[];
+  basePrice?: number;
+  rating: number;
+  totalReviews: number;
+  isVerified: boolean;
+  isFeatured: boolean;
+  coverPhotoUrl?: string;
+  score?: number;
+}
+```
+
+---
+
+### 27.4 @wedding-os/shared-utils — Utility Functions
+
+```typescript
+// ═══════════════════════════════════════════════════════════════
+// CURRENCY (INR-specific)
+// ═══════════════════════════════════════════════════════════════
+
+/** Convert rupees to paise for Razorpay (1 INR = 100 paise) */
+function rupeesToPaise(rupees: number): number;
+  // returns Math.round(rupees * 100)
+
+/** Convert paise back to rupees for display */
+function paiseToRupees(paise: number): number;
+  // returns paise / 100
+
+/** Format as Indian currency: ₹1,23,456.00 */
+function formatINR(rupees: number): string;
+  // uses Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' })
+
+// ═══════════════════════════════════════════════════════════════
+// DATE UTILITIES
+// ═══════════════════════════════════════════════════════════════
+
+function addDays(date: Date, days: number): Date;
+function daysBetween(start: Date, end: Date): number;
+function isWeekend(date: Date): boolean;
+function formatDate(date: Date): string;   // returns "YYYY-MM-DD"
+
+/** Indian wedding peak season: November through February */
+function isPeakSeason(date: Date): boolean;
+  // month 11, 12, 1, or 2
+
+// ═══════════════════════════════════════════════════════════════
+// ID GENERATION
+// ═══════════════════════════════════════════════════════════════
+
+/** Generate booking number: "WOS-{timestamp_base36}-{random_4hex}" */
+function generateBookingNumber(): string;
+  // Example: WOS-LQ3ZMX7-A1B2
+
+/** Convert text to URL-safe slug */
+function slugify(text: string): string;
+  // lowercase, replace non-alphanumeric with hyphens, trim hyphens
+
+/** Mask phone number for display privacy */
+function maskPhone(phone: string): string;
+  // "+9196****789" — first 4 chars + **** + last 3 chars
+
+// ═══════════════════════════════════════════════════════════════
+// CRYPTOGRAPHIC UTILITIES
+// ═══════════════════════════════════════════════════════════════
+
+/** Generate cryptographically secure 6-digit OTP */
+function generateOtp(): string;
+  // uses crypto.randomBytes(3), range: 100000-999999
+
+/** SHA-256 hash of any string */
+function hashSha256(value: string): string;
+  // returns hex digest
+
+/** Constant-time string comparison (prevents timing attacks) */
+function safeCompare(a: string, b: string): boolean;
+  // uses crypto.timingSafeEqual, returns false if lengths differ
+
+// ═══════════════════════════════════════════════════════════════
+// INDIAN DOCUMENT VALIDATION
+// ═══════════════════════════════════════════════════════════════
+
+function isValidIndianPhone(phone: string): boolean;
+  // Regex: /^\+91[6-9]\d{9}$/   — E.164 format
+
+function isValidGST(gst: string): boolean;
+  // Regex: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/
+  // 15-char GST number
+
+function isValidPAN(pan: string): boolean;
+  // Regex: /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/
+  // 10-char PAN: AAAAA9999A
+
+function isValidIFSC(ifsc: string): boolean;
+  // Regex: /^[A-Z]{4}0[A-Z0-9]{6}$/
+  // 11-char IFSC: ABCD0123456
+
+// ═══════════════════════════════════════════════════════════════
+// PAGINATION (Cursor-based)
+// ═══════════════════════════════════════════════════════════════
+
+function encodeCursor(id: string): string;
+  // base64url(JSON.stringify({ id }))
+
+function decodeCursor(cursor: string): { id: string } | null;
+  // returns null on decode error
+
+// ═══════════════════════════════════════════════════════════════
+// PLATFORM FEE CALCULATION
+// ═══════════════════════════════════════════════════════════════
+
+interface FeeCalculation {
+  totalAmount: number;
+  platformFee: number;      // amount × commissionRate (default 10%)
+  gstOnFee: number;         // platformFee × 0.18 (18% GST)
+  vendorPayout: number;     // amount − platformFee − gstOnFee
+  razorpayFee: number;      // amount × 0.02 (2% gateway fee)
+  netToVendor: number;      // vendorPayout − razorpayFee
+}
+
+function calculatePlatformFee(
+  amount: number,
+  commissionRate: number = 0.10
+): FeeCalculation;
+
+// Example: calculatePlatformFee(100000)
+// → { totalAmount: 100000, platformFee: 10000, gstOnFee: 1800,
+//     vendorPayout: 88200, razorpayFee: 2000, netToVendor: 86200 }
+```
+
+---
+
+## 28. Cross-Service Communication Flows
+
+Detailed step-by-step flows showing how services interact for key business processes.
+
+### 28.1 Complete Booking Lifecycle
+
+```
+┌─────────┐    ┌──────────────┐    ┌──────────────┐    ┌───────────────┐    ┌──────────────┐
+│ Customer │    │ booking-svc  │    │ payment-svc  │    │notification   │    │ vendor-svc   │
+│ (Web/App)│    │   :4004      │    │   :4005      │    │   :4008       │    │   :4003      │
+└────┬─────┘    └──────┬───────┘    └──────┬───────┘    └───────┬───────┘    └──────┬───────┘
+     │                 │                   │                    │                   │
+     │ 1. POST /bookings                  │                    │                   │
+     │─────────────────>                   │                    │                   │
+     │ { vendorId, eventDate, eventType,   │                    │                   │
+     │   guestCount, requirements }        │                    │                   │
+     │                 │                   │                    │                   │
+     │                 │ Creates Booking(ENQUIRY)               │                   │
+     │                 │ Generates WOS-XXXXX number             │                   │
+     │                 │                   │                    │                   │
+     │                 │ PUBLISH: booking.enquiry_created       │                   │
+     │                 │──────────────────────────────────────────>                  │
+     │                 │                   │                    │ SMS+Push to vendor │
+     │                 │                   │                    │                   │
+     │ 2. Vendor sends quote               │                    │                   │
+     │ POST /bookings/:id/quote            │                    │                   │
+     │─────────────────>                   │                    │                   │
+     │ { quotedAmountPaise, vendorQuoteNote }                   │                   │
+     │                 │                   │                    │                   │
+     │                 │ Updates status → QUOTE_SENT            │                   │
+     │                 │ PUBLISH: booking.quote_sent             │                   │
+     │                 │──────────────────────────────────────────>                  │
+     │                 │                   │                    │ Push to customer   │
+     │                 │                   │                    │                   │
+     │ 3. Customer accepts quote           │                    │                   │
+     │ POST /bookings/:id/accept-quote     │                    │                   │
+     │─────────────────>                   │                    │                   │
+     │                 │                   │                    │                   │
+     │                 │ Updates → QUOTE_ACCEPTED               │                   │
+     │                 │ Calculates platformFee + GST            │                   │
+     │                 │                   │                    │                   │
+     │ 4. Customer pays via Razorpay       │                    │                   │
+     │ POST /payments/order                │                    │                   │
+     │────────────────────────────────────>│                    │                   │
+     │                 │                   │ Creates Razorpay order                  │
+     │                 │                   │ Returns { orderId, amount, key }        │
+     │<────────────────────────────────────│                    │                   │
+     │                 │                   │                    │                   │
+     │ (Razorpay checkout in browser/app)  │                    │                   │
+     │                 │                   │                    │                   │
+     │ POST /payments/verify               │                    │                   │
+     │────────────────────────────────────>│                    │                   │
+     │ { razorpayOrderId, paymentId, signature }                │                   │
+     │                 │                   │                    │                   │
+     │                 │                   │ Verifies HMAC signature                 │
+     │                 │                   │ Creates Payment(CAPTURED)               │
+     │                 │                   │ Creates EscrowHold(HELD)                │
+     │                 │                   │ Schedules release (eventDate + 7 days)  │
+     │                 │                   │                    │                   │
+     │                 │                   │ HTTP: booking-svc/internal/confirm      │
+     │                 │<──────────────────│                    │                   │
+     │                 │ Updates → CONFIRMED                    │                   │
+     │                 │                   │                    │                   │
+     │                 │                   │ PUBLISH: payment.captured               │
+     │                 │                   │──────────────────────>                  │
+     │                 │                   │                    │ Notify both parties │
+     │                 │                   │                    │                   │
+     │ 5. Event day + 7 days (auto)        │                    │                   │
+     │                 │                   │ BullMQ cron job    │                   │
+     │                 │                   │ Releases escrow    │                   │
+     │                 │                   │ PUBLISH: escrow.released                │
+     │                 │                   │──────────────────────>                  │
+     │                 │                   │                    │ Notify vendor      │
+     │                 │                   │                    │──────────────────>│
+     │                 │                   │                    │                   │ Credit vendor
+```
+
+### 28.2 Review & Rating Flow
+
+```
+1. Customer submits review:
+   POST /reviews { bookingId, rating, title, body, photos[] }
+   └─ review-service creates Review (isPublished: false for moderation)
+   └─ PUBLISHES: review.created { bookingId, vendorId, rating, customerId }
+      ├─ notification-service → Push notification to vendor
+      └─ vendor-service → Recalculates vendor avgRating from all reviews
+
+2. Vendor replies:
+   POST /reviews/:id/reply { vendorReply }
+   └─ review-service updates Review (vendorReply, vendorRepliedAt)
+
+3. User marks helpful:
+   POST /reviews/:id/helpful
+   └─ review-service increments helpfulCount
+```
+
+### 28.3 Vendor Registration & KYC Flow
+
+```
+1. POST /auth/register-vendor { phone }
+   └─ auth-service creates User(role: vendor)
+   └─ PUBLISHES: auth.user_registered
+
+2. PUT /vendors/me { businessName, category, city, ... }
+   └─ vendor-service creates/updates Vendor profile
+   └─ PUBLISHES: vendor.profile_updated
+      └─ search-service → Indexes vendor (but not yet searchable)
+
+3. POST /users/me/kyc/presign { docType: "PAN" }
+   └─ user-service creates KycDocument(PENDING), returns presigned S3 URL
+   └─ Client uploads document directly to S3
+
+4. Admin reviews KYC:
+   PATCH /users/kyc/:docId/review { status: "APPROVED" }
+   └─ user-service updates KycDocument(APPROVED)
+   └─ PUBLISHES: vendor.kyc_approved
+      ├─ search-service → Makes vendor searchable in ES
+      └─ notification-service → Notifies vendor of approval
+```
+
+### 28.4 Real-time Chat Flow
+
+```
+1. Create conversation:
+   POST /chat/conversations { bookingId }
+   └─ chat-service finds or creates Conversation (upsert by bookingId)
+   └─ Returns conversationId
+
+2. WebSocket connection:
+   Client connects: io('ws://localhost:4010', { auth: { token: JWT } })
+   └─ chat-service verifies JWT via middleware
+   └─ Client joins room: socket.emit('join:conversation', { conversationId })
+
+3. Send message:
+   socket.emit('message:send', { conversationId, content, contentType })
+   └─ chat-service validates input, saves Message to MongoDB
+   └─ Broadcasts to room: io.to(conversationId).emit('message:new', message)
+   └─ Updates Conversation.lastMessage + unread counts
+
+4. Typing indicator:
+   socket.emit('typing:start', { conversationId })
+   └─ Broadcast to room: socket.to(conversationId).emit('typing:start', { userId })
+```
+
+### 28.5 Search & Indexing Flow
+
+```
+1. Vendor profile updated → vendor-service PUBLISHES: vendor.profile_updated
+2. search-service SUBSCRIBES to vendor.profile_updated
+3. search-service calls internal: POST /search/vendors/index { vendor data }
+4. Elasticsearch index updated with vendor document
+
+5. Customer searches: GET /search/vendors?q=photographer&city=Mumbai
+6. search-service builds ES query with:
+   - Multi-match on businessName + description
+   - Filters: category, city, price range, rating
+   - Aggregations: category counts, city counts
+7. Returns paginated results with relevance scores
+```
+
+---
+
+## 29. Error Code Reference
+
+Complete mapping of all error codes used across the platform.
+
+| Code | HTTP Status | Category | Error Class | Default Message |
+|------|-------------|----------|-------------|-----------------|
+| `AUTH_1001` | 400 | Auth | `OtpInvalidError` | Invalid OTP. Please try again. |
+| `AUTH_1002` | 400 | Auth | `OtpExpiredError` | OTP has expired. Please request a new one. |
+| `AUTH_1003` | 429 | Auth | `RateLimitedError` | Too many requests. Try again in {n} seconds. |
+| `AUTH_1004` | 423 | Auth | `AccountLockedError` | Account locked. Try again in {n} minutes. |
+| `AUTH_1005` | 401 | Auth | `TokenExpiredError` | Token has expired. Please login again. |
+| `AUTH_1006` | 401 | Auth | `TokenInvalidError` | Invalid token. |
+| `AUTH_1007` | 401 | Auth | `UnauthorizedError` | Authentication required. |
+| `AUTH_1008` | 403 | Auth | `ForbiddenError` | You do not have permission. |
+| `VAL_2001` | 400 | Validation | `ValidationError` | (custom message + field) |
+| `RES_3001` | 404 | Resource | `NotFoundError` | {resource} not found. |
+| `RES_3002` | 409 | Resource | `ConflictError` | (custom message) |
+| `BOOK_4001` | 409 | Booking | `VendorNotAvailableError` | Vendor not available on {date}. |
+| `BOOK_4002` | 409 | Booking | `BookingAlreadyConfirmedError` | Booking already confirmed. |
+| `BOOK_4003` | 400 | Booking | `BookingCancellationError` | Cannot cancel: {reason}. |
+| `PAY_5001` | 400 | Payment | `PaymentVerificationError` | Payment signature verification failed. |
+| `PAY_5002` | 404 | Payment | `EscrowNotFoundError` | No escrow found for booking {id}. |
+| `PAY_5003` | 400 | Payment | `InsufficientFundsError` | Insufficient funds in wallet. |
+| `PAY_5004` | 409 | Payment | `DuplicatePaymentError` | Payment already processed. |
+| `VEN_6001` | 403 | Vendor | `VendorNotVerifiedError` | Vendor KYC verification pending. |
+| `VEN_6002` | 402 | Vendor | `VendorSubscriptionRequiredError` | Feature requires Premium subscription. |
+| `SYS_9001` | 500 | System | `InternalError` | An internal error occurred. |
+| `SYS_9002` | 503 | System | `ServiceUnavailableError` | Service {name} temporarily unavailable. |
+
+**Standard Error Response Format:**
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTH_1001",
+    "message": "Invalid OTP. Please try again.",
+    "field": "otp",
+    "details": {}
+  },
+  "meta": {
+    "requestId": "550e8400-e29b-41d4-a716-446655440000",
+    "timestamp": "2024-01-15T10:30:00.000Z"
+  }
+}
+```
+
+---
+
+## 30. Service Source File Architecture
+
+Detailed file structure for every backend service showing exact files, their purpose, and key implementation details.
+
+### 30.1 Common Service Structure
+
+Every Node.js service follows this pattern:
+
+```
+services/{service-name}/
+├── package.json              ← Dependencies, scripts (dev, build, start, test, lint, typecheck)
+├── tsconfig.json             ← Extends ../../tsconfig.base.json
+├── jest.config.js            ← Jest + ts-jest config (roots: ['tests'], diagnostics: false)
+├── Dockerfile                ← Multi-stage: node:20-alpine builder → runner
+├── prisma/
+│   └── schema.prisma         ← Database schema (PostgreSQL or MongoDB)
+├── src/
+│   ├── server.ts             ← HTTP server + graceful shutdown (SIGTERM/SIGINT) + event bus
+│   ├── config/
+│   │   └── index.ts          ← Environment variable loading with defaults
+│   ├── routes/
+│   │   └── *.routes.ts       ← Express route definitions with middleware chain
+│   ├── controllers/
+│   │   └── *.controller.ts   ← Request handler functions (parse req → call service → send response)
+│   ├── services/
+│   │   └── *.service.ts      ← Business logic layer (throws AppError subclasses)
+│   ├── middleware/
+│   │   ├── auth.ts           ← JWT verification (RS256 public key), req.user extraction
+│   │   ├── errorHandler.ts   ← Global error handler (AppError → JSON, unknown → 500)
+│   │   ├── validate.ts       ← Zod schema validation middleware
+│   │   └── requestId.ts      ← X-Request-ID header generation
+│   └── utils/
+│       └── logger.ts         ← Pino logger (JSON in prod, pino-pretty in dev)
+└── tests/
+    └── unit/
+        └── *.test.ts         ← Jest unit tests (mock Prisma, Redis, external APIs)
+```
+
+### 30.2 Per-Service Source Files
+
+| Service | Source Files | Key Tech | Routes File | Service File | Test File |
+|---------|-------------|----------|-------------|-------------|-----------|
+| auth | server, config, routes/auth.routes, services/otp.service, services/user.service, middleware/auth+errorHandler, utils/logger | JWT RS256, Redis OTP, MSG91 | auth.routes.ts | otp.service.ts, user.service.ts | otp.service.test.ts |
+| user | server, config/index+database, routes/user.routes, controllers/user.controller, services/profile.service, middleware/auth+errorHandler, utils/logger | Prisma, S3 presign, KYC | user.routes.ts | profile.service.ts | profile.service.test.ts |
+| vendor | server, config/index+database, routes/vendor.routes, controllers/vendor.controller, services/vendor.service+search.service, middleware/auth+errorHandler, utils/logger | Prisma, ES indexing | vendor.routes.ts | vendor.service.ts, search.service.ts | vendor.service.test.ts |
+| booking | server, config/index+database, routes/booking.routes, controllers/booking.controller, services/booking.service, middleware/auth+errorHandler+validate, utils/logger | Prisma, FSM, event bus | booking.routes.ts | booking.service.ts | booking.service.test.ts |
+| payment | server, config/index+database, routes/payment.routes, controllers/payment.controller, services/payment.service, middleware/auth+errorHandler+validate, utils/logger | Razorpay SDK, BullMQ, escrow | payment.routes.ts | payment.service.ts | payment.service.test.ts |
+| execution | server, config/index+database, routes/execution.routes, controllers/timeline.controller, services/timeline.service, middleware/auth+errorHandler, utils/logger | Prisma, Socket.IO, cron | execution.routes.ts | timeline.service.ts | timeline.service.test.ts |
+| notification | server, config/index+database, routes/notification.routes, controllers/notification.controller, services/notification.service, channels/{push,sms,email,whatsapp}, middleware/auth+errorHandler+validate, utils/logger | BullMQ, FCM, MSG91, SendGrid | notification.routes.ts | notification.service.ts | notification.service.test.ts |
+| review | server, config/index+database, routes/review.routes, controllers/review.controller, services/review.service, middleware/auth+errorHandler+validate, utils/logger | Prisma, event bus | review.routes.ts | review.service.ts | review.service.test.ts |
+| chat | server (Express+Socket.IO), config/index+database, middleware/errorHandler, utils/logger | Mongoose, Socket.IO, JWT | (in server.ts) | (in server.ts) | chat.handler.test.ts |
+| search | server, config/index, routes/search.routes, services/search.service, middleware/errorHandler+validate, utils/logger | Elasticsearch 8.13 | search.routes.ts | search.service.ts | search.service.test.ts |
+| media | server, config/index, routes/media.routes, services/upload.service, middleware/errorHandler+validate, utils/logger | AWS S3, Sharp, presigned URLs | media.routes.ts | upload.service.ts | upload.service.test.ts |
+| ai | main.py (FastAPI) | OpenAI, Anthropic, FastAPI | (in main.py) | (in main.py) | — |
+
+### 30.3 Middleware Stack (Applied in Order)
+
+```typescript
+// Every service applies these in server.ts / app.ts:
+app.use(helmet());                              // 1. Security headers
+app.use(cors({ origin: ALLOWED_ORIGINS, credentials: true }));  // 2. CORS
+app.use(rateLimit({ windowMs: 15*60*1000, max: N }));           // 3. Rate limit
+app.use(express.json({ limit: '10kb' }));       // 4. Body parsing
+app.use(pinoHttp({ logger }));                  // 5. Request logging
+app.use(requestId);                             // 6. X-Request-ID
+
+// Routes with auth middleware per-endpoint:
+router.get('/protected', authMiddleware, controller.handler);
+
+// Error handler MUST be last:
+app.use(errorHandler);                          // 7. Global error handler
+```
+
+### 30.4 Error Handler Pattern
+
+```typescript
+// All 11 services use this pattern in errorHandler.ts:
+import { AppError } from '@wedding-os/shared-errors';
+
+export const errorHandler = (err, req, res, next) => {
+  // 1. Check for shared-errors AppError instances
+  if (err instanceof AppError) {
+    return res.status(err.statusCode).json({
+      success: false,
+      error: {
+        code: err.code,
+        message: err.message,
+        field: err.field,
+        details: err.details,
+      },
+      meta: { requestId: req.id, timestamp: new Date().toISOString() },
+    });
+  }
+
+  // 2. Legacy error object support (backward compat)
+  if (err.statusCode && err.code) {
+    return res.status(err.statusCode).json({ ... });
+  }
+
+  // 3. Unknown errors → 500
+  logger.error({ err, requestId: req.id }, 'Unhandled error');
+  return res.status(500).json({
+    success: false,
+    error: { code: 'SYS_9001', message: 'An unexpected error occurred' },
+    meta: { requestId: req.id, timestamp: new Date().toISOString() },
+  });
+};
+```
+
+---
+
+## 31. Testing Documentation
+
+### 31.1 Test Infrastructure
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Jest | ^29.0.0 | Test runner & assertion library |
+| ts-jest | ^29.0.0 | TypeScript transformer for Jest |
+| @types/jest | ^29.0.0 | TypeScript definitions |
+
+**Jest Configuration (`jest.config.js`):**
+
+```javascript
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['tests'],
+  testMatch: ['**/*.test.ts'],
+  transform: { '^.+\\.ts$': ['ts-jest', { diagnostics: false }] },
+  moduleNameMapper: {
+    '@wedding-os/(.*)': '<rootDir>/../../packages/$1/src',
+  },
+};
+```
+
+### 31.2 Test Counts by Service
+
+| Service | Test File | Test Cases | Key Scenarios |
+|---------|-----------|------------|---------------|
+| **auth** | otp.service.test.ts | 18 | OTP generation, verification, expiry, rate limiting, lockout, JWT signing |
+| **booking** | booking.service.test.ts | 37 | Fee calculation, enquiry CRUD, quote send/accept, confirm, cancel (customer/vendor/forbidden/non-cancellable), status filtering |
+| **payment** | payment.service.test.ts | 26 | Razorpay order creation, idempotency, signature verification, escrow hold, escrow release, refund (full/partial), webhook handlers |
+| **review** | review.service.test.ts | 16 | Create review, duplicate prevention (ConflictError), vendor reply, helpful votes, pagination |
+| **user** | profile.service.test.ts | 18 | Profile CRUD, avatar presign, KYC upload, push token management, notification preferences |
+| **vendor** | vendor.service.test.ts | 16 | Vendor CRUD, package management, ES sync, search query building |
+| **chat** | chat.handler.test.ts | 66 | Socket auth, join:conversation, message:send, message validation, typing indicators, disconnect, unread counts |
+| **execution** | timeline.service.test.ts | 33 | Timeline CRUD, 12 default task templates, due date calculation, system task protection, task status updates |
+| **media** | upload.service.test.ts | 49 | MIME validation (image/pdf), S3 presigned URL generation, key structure by media type, dev fallback, file deletion, ownership check |
+| **notification** | notification.service.test.ts | 31 | BullMQ job processing, multi-channel dispatch (FCM/SMS/Email/WhatsApp), event routing, unread count, preferences |
+| **search** | search.service.test.ts | 33 | ES query building, category/city/price filters, rating filter, sort modes, pagination, aggregations, autocomplete |
+| **TOTAL** | **11 files** | **~343** | |
+
+### 31.3 Mocking Strategy
+
+Every test file mocks external dependencies to ensure isolated unit testing:
+
+```typescript
+// Pattern: Mock at module level, reset in beforeEach
+
+// Prisma client mock
+jest.mock('../../src/config/database', () => ({
+  prisma: {
+    booking: {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findMany: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+    },
+    bookingEvent: { create: jest.fn() },
+    $transaction: jest.fn((fn) => fn(mockPrisma)),
+  },
+}));
+
+// Redis mock
+jest.mock('ioredis', () => jest.fn().mockImplementation(() => ({
+  get: jest.fn(), set: jest.fn(), del: jest.fn(), incr: jest.fn(),
+})));
+
+// External API mocks
+jest.mock('axios');             // Inter-service HTTP calls
+jest.mock('razorpay');          // Payment gateway
+jest.mock('@aws-sdk/client-s3');// S3 operations
+jest.mock('@elastic/elasticsearch'); // Search engine
+jest.mock('mongoose');          // MongoDB (chat-service)
+jest.mock('bullmq');            // Job queues
+jest.mock('socket.io');         // WebSocket (chat, execution)
+
+// Config mock (avoid loading .env in tests)
+jest.mock('../../src/config', () => ({
+  PORT: 4004,
+  DATABASE_URL: 'postgresql://test@localhost/test',
+  REDIS_URL: 'redis://localhost:6379',
+  JWT_PUBLIC_KEY: 'test-key',
+  // ... service-specific defaults
+}));
+
+// Logger mock (suppress output)
+jest.mock('../../src/utils/logger', () => ({
+  info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(),
+}));
+```
+
+### 31.4 Running Tests
+
+```bash
+# Run all tests across all services
+pnpm test
+
+# Run tests for a specific service
+pnpm test --filter=auth-service
+pnpm test --filter=booking-service
+
+# Run tests with coverage
+cd services/booking-service && npx jest --coverage
+
+# Run a specific test file
+cd services/chat-service && npx jest tests/unit/chat.handler.test.ts
+
+# Watch mode for development
+cd services/payment-service && npx jest --watch
+```
+
+---
+
+## 32. API Request & Response Examples
+
+Concrete request/response examples for key endpoints.
+
+### 32.1 Authentication
+
+**Send OTP:**
+
+```bash
+POST /auth/send-otp
+Content-Type: application/json
+
+{ "phone": "+919876543210" }
+```
+
+```json
+// 200 OK
+{
+  "success": true,
+  "data": { "message": "OTP sent successfully", "expiresInSeconds": 600 },
+  "meta": { "requestId": "uuid", "timestamp": "2024-01-15T10:00:00Z" }
+}
+```
+
+**Verify OTP:**
+
+```bash
+POST /auth/verify-otp
+Content-Type: application/json
+
+{ "phone": "+919876543210", "otp": "123456" }
+```
+
+```json
+// 200 OK
+{
+  "success": true,
+  "data": {
+    "accessToken": "eyJhbGciOiJSUzI1NiIs...",
+    "refreshToken": "eyJhbGciOiJSUzI1NiIs...",
+    "user": {
+      "id": "uuid",
+      "phone": "+919876543210",
+      "role": "customer",
+      "status": "active",
+      "phoneVerified": true
+    }
+  }
+}
+```
+
+### 32.2 Vendor Search
+
+```bash
+GET /search/vendors?q=photographer&city=Mumbai&minRating=4&sortBy=rating&page=1&limit=10
+```
+
+```json
+// 200 OK
+{
+  "success": true,
+  "data": {
+    "vendors": [
+      {
+        "id": "uuid",
+        "businessName": "Pixel Perfect Studios",
+        "category": "PHOTOGRAPHER",
+        "city": "Mumbai",
+        "avgRating": 4.8,
+        "reviewCount": 124,
+        "priceFrom": 5000000,
+        "coverPhoto": "https://s3.amazonaws.com/...",
+        "plusMember": true
+      }
+    ],
+    "total": 45,
+    "page": 1,
+    "limit": 10
+  }
+}
+```
+
+### 32.3 Create Booking Enquiry
+
+```bash
+POST /bookings
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "vendorId": "vendor-uuid",
+  "packageId": "package-uuid",
+  "eventDate": "2024-12-15",
+  "eventType": "WEDDING_CEREMONY",
+  "eventCity": "Mumbai",
+  "guestCount": 500,
+  "requirements": "Need candid + traditional photography"
+}
+```
+
+```json
+// 201 Created
+{
+  "success": true,
+  "data": {
+    "id": "booking-uuid",
+    "bookingNumber": "WOS-LQ3ZMX7-A1B2",
+    "status": "ENQUIRY",
+    "vendorId": "vendor-uuid",
+    "eventDate": "2024-12-15T00:00:00Z",
+    "eventType": "WEDDING_CEREMONY",
+    "createdAt": "2024-01-15T10:00:00Z"
+  }
+}
+```
+
+### 32.4 Create Payment Order
+
+```bash
+POST /payments/order
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "bookingId": "booking-uuid",
+  "amountPaise": 5000000,
+  "description": "Advance payment for WOS-LQ3ZMX7-A1B2"
+}
+```
+
+```json
+// 200 OK
+{
+  "success": true,
+  "data": {
+    "razorpayOrderId": "order_NNNNxxxxxxxx",
+    "amountPaise": 5000000,
+    "currency": "INR",
+    "razorpayKeyId": "rzp_test_xxxx"
+  }
+}
+```
+
+### 32.5 Verify Payment
+
+```bash
+POST /payments/verify
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "razorpayOrderId": "order_NNNNxxxxxxxx",
+  "razorpayPaymentId": "pay_NNNNxxxxxxxx",
+  "razorpaySignature": "hmac_sha256_signature"
+}
+```
+
+```json
+// 200 OK
+{
+  "success": true,
+  "data": {
+    "paymentId": "payment-uuid",
+    "status": "CAPTURED",
+    "escrow": {
+      "id": "escrow-uuid",
+      "heldAmountPaise": 5000000,
+      "platformFeePaise": 500000,
+      "gstOnFeePaise": 90000,
+      "vendorPayoutPaise": 4410000,
+      "status": "HELD",
+      "releaseScheduledAt": "2024-12-22T00:00:00Z"
+    }
+  }
+}
+```
+
+### 32.6 Get Presigned Upload URL
+
+```bash
+POST /media/presign
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "mediaType": "portfolio",
+  "mimeType": "image/jpeg",
+  "fileName": "wedding-photo-1.jpg"
+}
+```
+
+```json
+// 200 OK
+{
+  "success": true,
+  "data": {
+    "uploadUrl": "https://weddingos-dev-media.s3.ap-south-1.amazonaws.com/portfolio/vendor-uuid/wedding-photo-1.jpg?X-Amz-...",
+    "s3Key": "portfolio/vendor-uuid/wedding-photo-1.jpg",
+    "expiresIn": 3600
+  }
+}
+```
+
+### 32.7 Submit Review
+
+```bash
+POST /reviews
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{
+  "bookingId": "booking-uuid",
+  "rating": 5,
+  "title": "Amazing photographer!",
+  "body": "Pixel Perfect Studios exceeded our expectations...",
+  "qualityRating": 5,
+  "valueRating": 4,
+  "professionalismRating": 5,
+  "punctualityRating": 5,
+  "photos": ["https://s3.amazonaws.com/reviews/booking-uuid/photo1.jpg"]
+}
+```
+
+```json
+// 201 Created
+{
+  "success": true,
+  "data": {
+    "id": "review-uuid",
+    "bookingId": "booking-uuid",
+    "rating": 5,
+    "isPublished": false,
+    "createdAt": "2024-01-20T14:30:00Z"
+  }
+}
+```
+
+---
+
+## 33. Rebuild from Scratch — Detailed Guide
+
+Complete step-by-step instructions to recreate the entire WeddingOS platform from zero. For a high-level overview, see [Section 25](#25-rebuild-from-scratch-guide). This section provides the exact commands and file structures.
+
+### 33.1 Prerequisites
+
+| Tool | Version | Installation |
+|------|---------|-------------|
+| Node.js | ≥ 20.0.0 LTS | [nodejs.org](https://nodejs.org) |
+| pnpm | ≥ 9.0.0 | `npm install -g pnpm@9` |
+| Docker | ≥ 24.0 | [docker.com](https://docker.com) |
+| Docker Compose | ≥ 2.20 | Included with Docker Desktop |
+| Flutter SDK | ≥ 3.19 | [flutter.dev](https://flutter.dev) |
+| OpenSSL | any | Pre-installed on macOS/Linux |
+| Git | any | Pre-installed on macOS/Linux |
+
+### 33.2 Step 1 — Monorepo Setup
+
+```bash
+# Create root project
+mkdir wedding-os && cd wedding-os
+pnpm init
+
+# Configure pnpm workspaces
+cat > pnpm-workspace.yaml << 'EOF'
+packages:
+  - 'apps/*'
+  - 'services/*'
+  - 'packages/*'
+EOF
+
+# Install Turborepo
+pnpm add -D turbo typescript rimraf
+
+# Create turbo.json with task pipeline
+# (build depends on ^build, test depends on ^build, lint/typecheck independent)
+
+# Create tsconfig.base.json
+# (ES2022, commonjs, strict, declaration, sourceMap)
+
+# Create .eslintrc.json, .prettierrc.json
+# Create .gitignore, .env.example
+```
+
+### 33.3 Step 2 — Shared Packages
+
+Create in order (shared-errors has no deps, shared-utils needs pino, shared-events needs redis):
+
+```bash
+# 1. shared-types — TypeScript interfaces (no runtime deps)
+mkdir -p packages/shared-types/src
+# Export: User, Vendor, Booking, Payment, Review, Task, Notification types
+# Export: UserRole, BookingStatus, EventType, PaymentStatus enums
+# Export: ApiSuccessResponse, ApiErrorResponse, VendorSearchFilters
+
+# 2. shared-errors — Error class hierarchy (no runtime deps)
+mkdir -p packages/shared-errors/src
+# Export: AppError base class + 18 specific error subclasses
+# Code ranges: AUTH_1xxx, VAL_2xxx, RES_3xxx, BOOK_4xxx, PAY_5xxx, VEN_6xxx, SYS_9xxx
+
+# 3. shared-utils — Utility functions
+mkdir -p packages/shared-utils/src
+pnpm --filter shared-utils add pino
+# Export: currency (rupeesToPaise, formatINR), dates, crypto (generateOtp, hashSha256),
+#         validation (isValidIndianPhone, isValidGST), pagination, calculatePlatformFee
+
+# 4. shared-events — Redis pub/sub event bus
+mkdir -p packages/shared-events/src
+pnpm --filter shared-events add redis@4.6.0
+# Export: EventBus class, createEventBus/getEventBus factories
+# Define: 43 DomainEventType literals, DomainEvent<T> interface
+```
+
+### 33.4 Step 3 — Infrastructure
+
+```bash
+# Create docker-compose.infra.yml with:
+# - PostgreSQL 16 (port 5432, user: weddingos)
+# - Redis 7 (port 6379, AOF enabled)
+# - Elasticsearch 8.13 (port 9200, single-node, security disabled)
+# - MongoDB 7 (port 27017, user: weddingos)
+
+# Create database init script
+mkdir -p scripts/seed
+cat > scripts/seed/init.sql << 'EOF'
+CREATE DATABASE weddingos_auth;
+CREATE DATABASE weddingos_users;
+CREATE DATABASE weddingos_vendors;
+CREATE DATABASE weddingos_bookings;
+CREATE DATABASE weddingos_payments;
+CREATE DATABASE weddingos_execution;
+CREATE DATABASE weddingos_notifications;
+CREATE DATABASE weddingos_reviews;
+-- Grant all privileges to weddingos user
+EOF
+
+# Generate JWT keys
+mkdir -p keys
+openssl genrsa -out keys/private.pem 2048
+openssl rsa -in keys/private.pem -pubout -out keys/public.pem
+
+# Start infrastructure
+docker compose -f docker-compose.infra.yml up -d
+```
+
+### 33.5 Step 4 — Backend Services (Build Order)
+
+Build services in dependency order:
+
+```
+Phase 1 (no inter-service deps):
+  1. auth-service    — JWT issuing, OTP verification
+  2. media-service   — S3 presigned URLs (stateless)
+  3. search-service  — Elasticsearch queries (stateless)
+
+Phase 2 (depends on auth):
+  4. user-service     — Profiles, KYC, push tokens
+  5. vendor-service   — Vendor CRUD, ES indexing
+  6. review-service   — Reviews, ratings
+
+Phase 3 (depends on auth + vendor):
+  7. booking-service  — Booking lifecycle FSM
+
+Phase 4 (depends on booking):
+  8. payment-service  — Razorpay, escrow holds
+
+Phase 5 (depends on everything):
+  9. notification-service — Multi-channel notifications
+  10. execution-service   — Wedding timeline, tasks
+  11. chat-service        — Real-time messaging
+
+Phase 6 (optional):
+  12. ai-service         — Python FastAPI, LLM integration
+```
+
+**For each Node.js service:**
+
+```bash
+mkdir -p services/{service-name}/{src/{config,routes,controllers,services,middleware,utils},prisma,tests/unit}
+
+# 1. Create package.json with scripts: dev, build, start, test, lint, typecheck, db:migrate, db:generate
+# 2. Create tsconfig.json extending ../../tsconfig.base.json
+# 3. Create prisma/schema.prisma (see Section 17 for complete schemas)
+# 4. Create src/config/index.ts (env var loading)
+# 5. Create src/utils/logger.ts (Pino)
+# 6. Create src/middleware/auth.ts (JWT RS256 verification)
+# 7. Create src/middleware/errorHandler.ts (AppError handling)
+# 8. Create src/middleware/validate.ts (Zod schema validation)
+# 9. Create src/services/*.service.ts (business logic)
+# 10. Create src/routes/*.routes.ts (Express routes)
+# 11. Create src/server.ts (Express setup + event bus + graceful shutdown)
+# 12. Create jest.config.js
+# 13. Create Dockerfile (multi-stage, node:20-alpine)
+# 14. Create tests/unit/*.test.ts
+
+# Install dependencies
+pnpm --filter {service-name} add express cors helmet express-rate-limit pino pino-http jsonwebtoken zod
+pnpm --filter {service-name} add @prisma/client ioredis
+pnpm --filter {service-name} add @wedding-os/shared-errors @wedding-os/shared-events @wedding-os/shared-utils
+pnpm --filter {service-name} add -D typescript @types/express @types/node prisma jest ts-jest @types/jest
+
+# Generate Prisma client
+cd services/{service-name}
+npx prisma generate
+npx prisma migrate dev --name init
+```
+
+### 33.6 Step 5 — Frontend Apps
+
+**Web App (Next.js 14):**
+
+```bash
+cd apps
+npx create-next-app@14 web --typescript --tailwind --eslint --app --src-dir
+cd web
+pnpm add axios zustand @tanstack/react-query react-hook-form zod @hookform/resolvers
+pnpm add framer-motion lucide-react react-hot-toast socket.io-client date-fns
+pnpm add js-cookie clsx tailwind-merge
+
+# Create:
+# - next.config.js with API rewrites to all 12 services
+# - tailwind.config.js with brand colors (purple/gold)
+# - src/lib/api.ts (Axios with JWT interceptors)
+# - src/store/authStore.ts (Zustand)
+# - 19 pages (see Section 3.4)
+# - 12+ components (see Section 3.5)
+```
+
+**Admin Dashboard:**
+
+```bash
+cd apps
+npm create vite@latest admin -- --template react-ts
+cd admin
+pnpm add antd @ant-design/icons react-router-dom axios zustand @tanstack/react-query recharts date-fns js-cookie
+
+# Create:
+# - vite.config.ts with API proxy to services
+# - 5 pages: Login, Dashboard, Vendors, Bookings, Users/Payments
+# - AdminLayout with Ant Design Sider
+```
+
+**Vendor Portal:**
+
+```bash
+cd apps
+npm create vite@latest vendor-web -- --template react-ts
+cd vendor-web
+pnpm add react-router-dom axios zustand @tanstack/react-query recharts date-fns react-hook-form zod
+
+# Create:
+# - vite.config.ts with API proxy
+# - 5 pages: Login, Dashboard, Bookings, Profile, Analytics
+# - DashboardLayout with sidebar
+```
+
+**Flutter Mobile App:**
+
+```bash
+cd apps
+flutter create mobile --org com.weddingos --platforms android,ios,web
+cd mobile
+# Add to pubspec.yaml:
+# flutter_riverpod, go_router, dio, flutter_secure_storage, hive_flutter
+# cached_network_image, shimmer, google_fonts, razorpay_flutter
+# firebase_core, firebase_messaging, flutter_local_notifications
+# connectivity_plus, image_picker, share_plus, url_launcher
+
+flutter pub get
+# Create:
+# - lib/core/ (theme, router, api_client)
+# - lib/models/ (user, vendor, booking, review)
+# - lib/providers/ (auth, vendor, booking, connectivity)
+# - lib/features/ (20+ screens for customer + vendor)
+# - lib/shared/widgets/ (app_shell, vendor_app_shell)
+```
+
+### 33.7 Step 6 — Kong API Gateway
+
+```bash
+mkdir -p infrastructure/kong
+# Create kong.yml with:
+# - Global plugins: rate-limiting (500/min), CORS, request-size-limiting (10MB)
+# - 12 service routes: /api/v1/{service} → {service}:{port}
+# - strip_path: false
+```
+
+### 33.8 Step 7 — CI/CD
+
+```bash
+mkdir -p .github/workflows
+
+# ci.yml:
+# - Lint & type-check (pnpm lint + tsc --noEmit)
+# - Service tests (Jest with Postgres + Redis services)
+# - Build web app (Next.js)
+# - Flutter analyze + test
+# - Build Android APK + iOS IPA
+# - Docker build & push (11 services → GHCR)
+# - Deploy staging (Terraform, develop branch)
+# - Deploy production (Terraform, v* tags)
+
+# cd.yml:
+# - Deploy services to AWS ECS
+# - Deploy web to Vercel
+# - Deploy portals to S3 + CloudFront
+# - Run Prisma migrations
+# - Smoke test health endpoints
+```
+
+### 33.9 Step 8 — Verification Checklist
+
+```bash
+# 1. Infrastructure health
+docker compose -f docker-compose.infra.yml ps  # All 4 services healthy
+curl localhost:9200                              # Elasticsearch responding
+redis-cli -h localhost ping                     # Redis PONG
+
+# 2. Database setup
+pnpm db:generate                                # Prisma clients generated
+pnpm db:migrate                                 # Migrations applied
+psql -U weddingos -l                            # 8 databases visible
+
+# 3. Service health
+pnpm dev                                        # Start all services
+curl localhost:4001/auth/health                 # Auth service up
+curl localhost:4002/health                      # User service up
+# ... repeat for all 12 services
+
+# 4. Frontend
+open http://localhost:3000                      # Web app loads
+open http://localhost:3001                      # Vendor portal loads
+open http://localhost:3002                      # Admin dashboard loads
+
+# 5. Tests
+pnpm test                                       # All ~343 tests pass
+
+# 6. Build
+pnpm build                                      # All packages compile
+```
+
+---
+
+## 34. Troubleshooting & Debugging
+
+### 34.1 Common Issues
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `ECONNREFUSED` on service start | Database not running | `docker compose -f docker-compose.infra.yml up -d` |
+| Prisma client not found | Client not generated | `pnpm db:generate` in service directory |
+| JWT verification fails | Missing/wrong key path | Ensure `keys/private.pem` and `keys/public.pem` exist |
+| `MODULE_NOT_FOUND` for shared packages | Packages not built | `pnpm build --filter=shared-*` |
+| Port already in use | Another process on same port | `lsof -ti:PORT \| xargs kill` |
+| Elasticsearch connection refused | ES not started or needs time | Wait 30s after `docker compose up`, check `curl localhost:9200` |
+| MongoDB auth failure | Wrong credentials | Match MONGODB_URL credentials with docker-compose env vars |
+| Redis connection timeout | Password mismatch | Check REDIS_URL includes password matching docker-compose |
+| `P2025` error in booking-service | Optimistic locking conflict | Retry the operation (concurrent update detected) |
+| CORS errors in browser | Origin not in allowed list | Add your frontend URL to `ALLOWED_ORIGINS` in `.env` |
+| OTP not received | MSG91 not configured | Set `MSG91_AUTH_KEY` in .env, or use demo login buttons |
+
+### 34.2 Debugging Commands
+
+```bash
+# ── Logs ──
+# Service logs (dev mode)
+pnpm dev --filter=auth-service 2>&1 | npx pino-pretty
+
+# Docker container logs
+docker compose -f docker-compose.dev.yml logs -f auth-service
+
+# ── Database Inspection ──
+# Open Prisma Studio (visual DB browser)
+cd services/booking-service && npx prisma studio
+
+# Direct PostgreSQL access
+docker exec -it weddingos-postgres psql -U weddingos -d weddingos_bookings
+
+# Direct MongoDB access
+docker exec -it weddingos-mongodb mongosh -u weddingos -p mongo_dev_password weddingos_chat
+
+# Direct Redis access
+docker exec -it weddingos-redis redis-cli
+
+# ── Elasticsearch ──
+# Check cluster health
+curl localhost:9200/_cluster/health?pretty
+
+# List all indexes
+curl localhost:9200/_cat/indices?v
+
+# Search vendors index
+curl "localhost:9200/vendors/_search?pretty" -H 'Content-Type: application/json' -d '{"query":{"match_all":{}}}'
+
+# ── Network ──
+# Test service connectivity
+curl -v localhost:4001/auth/health
+curl -v localhost:8000/api/v1/auth/health  # Via Kong
+
+# Check what's running on a port
+lsof -i :4001
+
+# ── Dev Tools ──
+# Redis Commander UI
+open http://localhost:8081
+
+# Kibana (Elasticsearch UI)
+open http://localhost:5601
+```
+
+### 34.3 Environment-Specific Notes
+
+**macOS (Apple Silicon):**
+- Elasticsearch 8.13 Docker image is `linux/amd64` only — runs under Rosetta emulation (slower)
+- Flutter iOS simulator: `flutter run -d "iPhone 15"`
+
+**Linux:**
+- Docker may require `sudo` — add user to docker group: `sudo usermod -aG docker $USER`
+- Elasticsearch requires `vm.max_map_count=262144`: `sudo sysctl -w vm.max_map_count=262144`
+
+**Windows (WSL2):**
+- Run all commands inside WSL2 Ubuntu
+- Docker Desktop with WSL2 backend recommended
+- Flutter Android: use Android Studio emulator from Windows side
+
+---
+
+## 35. Architectural Decision Records
+
+Key decisions made during the design and implementation of WeddingOS, with rationale.
+
+### ADR-1: Microservices over Monolith
+
+**Decision:** Split into 12 independent microservices instead of a single monolithic application.
+
+**Rationale:**
+- Independent deployment and scaling per domain (booking may need more resources than media)
+- Clear domain boundaries enforce separation of concerns
+- Team can work on different services simultaneously
+- Each service can choose its own database (PostgreSQL, MongoDB, Elasticsearch)
+
+**Trade-offs:** Higher operational complexity, network latency for inter-service calls, eventual consistency challenges.
+
+### ADR-2: Database per Service
+
+**Decision:** Each service has its own PostgreSQL database (8 total), plus MongoDB for chat and Elasticsearch for search.
+
+**Rationale:**
+- Services can evolve schemas independently
+- No cross-service table joins (prevents tight coupling)
+- Each service owns its data exclusively
+- Chat messages are document-shaped (MongoDB natural fit)
+- Search requires full-text indexing (Elasticsearch natural fit)
+
+### ADR-3: Event-Driven Architecture via Redis Pub/Sub
+
+**Decision:** Use Redis pub/sub for asynchronous inter-service communication instead of synchronous HTTP calls.
+
+**Rationale:**
+- Non-blocking: booking confirmation doesn't wait for notification delivery
+- Decoupled: adding a new subscriber doesn't require changing the publisher
+- Redis already in the stack for caching — no additional infrastructure
+- Simple to implement and debug compared to Kafka/RabbitMQ at current scale
+
+**Trade-offs:** At-most-once delivery (messages can be lost if subscriber is down), no message persistence.
+
+### ADR-4: RS256 JWT (Asymmetric)
+
+**Decision:** Use RS256 (RSA) instead of HS256 (HMAC) for JWT signing.
+
+**Rationale:**
+- Only auth-service needs the private key (signing)
+- All other services only need the public key (verification)
+- Public key can be freely distributed without security risk
+- Enables future support for key rotation and JWKS endpoints
+
+### ADR-5: OTP-Only Authentication (No Passwords)
+
+**Decision:** Use phone-based OTP authentication exclusively, with no password support.
+
+**Rationale:**
+- Standard practice for Indian marketplace apps
+- Eliminates password storage, hashing, and breach risks
+- Simpler UX — no "forgot password" flow needed
+- Phone numbers are verified at registration
+
+### ADR-6: Escrow Payment Model
+
+**Decision:** All payments go through an escrow hold before release to vendors.
+
+**Rationale:**
+- Builds customer trust — money is protected until event completion
+- Vendor is guaranteed payment after event
+- Platform earns commission on each transaction
+- Dispute resolution possible before fund release
+
+**Implementation:** 7-day auto-release after event date, manual admin override available.
+
+### ADR-7: Paise for All Monetary Values
+
+**Decision:** Store all monetary amounts in paise (1 INR = 100 paise) as integers.
+
+**Rationale:**
+- Avoids floating-point precision errors
+- Razorpay API expects amounts in paise
+- Integer arithmetic is precise and fast
+- Display conversion: `paiseToRupees()` from shared-utils
+
+### ADR-8: Prisma ORM with Service-Specific Schemas
+
+**Decision:** Use Prisma instead of raw SQL or other ORMs (TypeORM, Sequelize).
+
+**Rationale:**
+- Type-safe database access with auto-generated TypeScript types
+- Schema-first approach (schema.prisma is source of truth)
+- Built-in migration system (`prisma migrate`)
+- Visual database browser (`prisma studio`)
+- First-class PostgreSQL support with enum types
+
+### ADR-9: Flutter for Mobile (Cross-Platform)
+
+**Decision:** Use Flutter instead of React Native or native development.
+
+**Rationale:**
+- Single codebase for iOS, Android, and web preview
+- Superior UI performance and consistency
+- Riverpod provides compile-safe state management
+- Strong widget ecosystem for Material Design 3
+- Hot reload for rapid development
+
+### ADR-10: Turborepo + pnpm for Monorepo
+
+**Decision:** Use Turborepo with pnpm workspaces for the monorepo.
+
+**Rationale:**
+- pnpm's strict dependency resolution prevents phantom dependencies
+- Turborepo provides incremental builds with caching
+- Task pipeline ensures build order (shared packages before services)
+- Remote caching for CI/CD speed optimization
+- Single `pnpm install` sets up entire project
+
+### ADR-11: Kong API Gateway (DB-less Mode)
+
+**Decision:** Use Kong in declarative (DB-less) mode as the API gateway.
+
+**Rationale:**
+- Single entry point for all client requests
+- Built-in rate limiting, CORS, and request size limits
+- Declarative configuration in YAML (version-controlled)
+- No database dependency (simpler deployment)
+- Easy to extend with plugins (authentication, logging, etc.)
+
+### ADR-12: S3 Presigned URLs for File Uploads
+
+**Decision:** Client uploads files directly to S3 via presigned URLs, not through backend services.
+
+**Rationale:**
+- Reduces backend bandwidth and compute (no file proxying)
+- Scales independently of application servers
+- Supports large file uploads without server memory pressure
+- Presigned URLs have time-limited access (1 hour)
 
 ---
 
