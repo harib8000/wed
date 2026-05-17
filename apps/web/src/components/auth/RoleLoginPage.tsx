@@ -307,7 +307,7 @@ export default function RoleLoginPage({ config }: { config: RoleConfig }) {
                   ) : (
                     <button
                       type="button"
-                      onClick={() => handleSendOtp({ preventDefault: () => {} } as any)}
+                      onClick={() => handleSendOtp({ preventDefault: () => {} } as React.FormEvent)}
                       className="text-sm text-brand-600 hover:underline"
                     >
                       Resend OTP

@@ -45,9 +45,9 @@ COPY --from=builder /app/services/notification-service/prisma ./services/notific
 USER appuser
 WORKDIR /app/services/notification-service
 
-EXPOSE 4005
+EXPOSE 4008
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4005/notification/health || exit 1
+  CMD wget -qO- http://localhost:4008/notification/health || exit 1
 
 CMD ["node", "dist/server.js"]

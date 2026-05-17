@@ -7,12 +7,14 @@ import { TrustSection } from '@/components/home/TrustSection';
 import { TestimonialsSection } from '@/components/home/TestimonialsSection';
 import { CTASection } from '@/components/home/CTASection';
 import { Footer } from '@/components/layout/Footer';
+import { RecentlyViewed } from '@/components/vendors/RecentlyViewed';
 
 export default function HomePage() {
   return (
     <main className="min-h-screen">
       <Navbar />
       <HeroSection />
+      <RecentlyViewed />
       <CategoryGrid />
       <HowItWorks />
       <FeaturedVendors />

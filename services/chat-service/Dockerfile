@@ -45,9 +45,9 @@ COPY --from=builder /app/services/chat-service/node_modules ./services/chat-serv
 USER appuser
 WORKDIR /app/services/chat-service
 
-EXPOSE 4008
+EXPOSE 4010
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4008/chat/health || exit 1
+  CMD wget -qO- http://localhost:4010/chat/health || exit 1
 
 CMD ["node", "dist/server.js"]

@@ -57,8 +57,8 @@ export async function runDailyReminderJob(): Promise<void> {
           },
         });
         processed++;
-      } catch (err: any) {
-        logger.error({ err: err.message, taskId: task.id }, 'Failed to send reminder');
+      } catch (err: unknown) {
+        logger.error({ err: err instanceof Error ? err.message : String(err), taskId: task.id }, 'Failed to send reminder');
         errors++;
       }
     }

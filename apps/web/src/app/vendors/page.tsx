@@ -6,6 +6,7 @@ import { Search, MapPin, Star, Heart, X, SlidersHorizontal, Loader2 } from 'luci
 import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { QuickEnquiry } from '@/components/vendors/QuickEnquiry';
 
 const CATEGORIES = ['All', 'Venue', 'Photography', 'Catering', 'Decor', 'Makeup', 'Music', 'Mehendi', 'Videography', 'Transport'];
 const CITIES = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Jaipur'];
@@ -114,7 +115,7 @@ function EmptyState({ onClear }: { onClear: () => void }) {
 }
 
 /* ─── Vendor Card ─── */
-function VendorCard({ vendor, index }: { vendor: typeof MOCK_VENDORS[0]; index: number }) {
+function VendorCard({ vendor, index, onEnquiry }: { vendor: typeof MOCK_VENDORS[0]; index: number; onEnquiry: (vendor: typeof MOCK_VENDORS[0]) => void }) {
   const [liked, setLiked] = useState(false);
   const formatPrice = (p: number, cat: string) => {
     if (cat === 'catering') return `₹${p.toLocaleString('en-IN')}/plate`;
@@ -168,7 +169,16 @@ function VendorCard({ vendor, index }: { vendor: typeof MOCK_VENDORS[0]; index: 
             <span className="text-xs text-gray-400">Starting</span>
             <p className="text-sm font-bold text-brand-700">{formatPrice(vendor.basePrice, vendor.category)}</p>
           </div>
-          <Link href={`/vendors/${vendor.id}`} className="btn-primary text-xs py-2 px-4">View Profile</Link>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => onEnquiry(vendor)}
+              className="text-xs py-2 px-3 border border-brand-200 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors font-medium"
+              aria-label={`Quick enquiry for ${vendor.businessName}`}
+            >
+              Enquire
+            </button>
+            <Link href={`/vendors/${vendor.id}`} className="btn-primary text-xs py-2 px-4">View</Link>
+          </div>
         </div>
       </div>
     </motion.div>
@@ -191,6 +201,7 @@ function VendorsPageInner() {
   const [isLoading, setIsLoading] = useState(true);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [enquiryVendor, setEnquiryVendor] = useState<typeof MOCK_VENDORS[0] | null>(null);
 
   // Simulate initial load
   useEffect(() => {
@@ -396,7 +407,7 @@ function VendorsPageInner() {
                       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
                     >
                       {visibleVendors.map((vendor, i) => (
-                        <VendorCard key={vendor.id} vendor={vendor} index={i} />
+                        <VendorCard key={vendor.id} vendor={vendor} index={i} onEnquiry={setEnquiryVendor} />
                       ))}
                     </motion.div>
                   </AnimatePresence>
@@ -429,6 +440,16 @@ function VendorsPageInner() {
         </div>
       </div>
       <Footer />
+      {/* Quick Enquiry Modal */}
+      {enquiryVendor && (
+        <QuickEnquiry
+          vendorName={enquiryVendor.businessName}
+          vendorId={enquiryVendor.id}
+          category={enquiryVendor.category}
+          isOpen={!!enquiryVendor}
+          onClose={() => setEnquiryVendor(null)}
+        />
+      )}
     </div>
   );
 }

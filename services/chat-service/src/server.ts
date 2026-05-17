@@ -96,13 +96,17 @@ async function bootstrap() {
         return;
       }
       const { bookingId, customerId, vendorId } = bodyParsed.data;
-      let conv = await Conversation.findOne({ bookingId });
-      if (!conv) {
-        conv = await Conversation.create({ bookingId, customerId, vendorId });
-      }
+      // Use findOneAndUpdate with upsert to prevent race condition (concurrent findOne+create)
+      const conv = await Conversation.findOneAndUpdate(
+        { bookingId },
+        { $setOnInsert: { customerId, vendorId } },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      );
       res.json({ success: true, data: { conversation: conv } });
-    } catch (err: any) {
-      res.status(err.status || 500).json({ success: false, error: { message: err.message } });
+    } catch (err: unknown) {
+      const status = err instanceof Error && 'status' in err ? (err as { status: number }).status : 500;
+      const message = err instanceof Error ? err.message : 'Internal server error';
+      res.status(status).json({ success: false, error: { message } });
     }
   });
 

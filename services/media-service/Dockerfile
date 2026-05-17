@@ -45,9 +45,9 @@ COPY --from=builder /app/services/media-service/node_modules ./services/media-se
 USER appuser
 WORKDIR /app/services/media-service
 
-EXPOSE 4010
+EXPOSE 4012
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:4010/media/health || exit 1
+  CMD wget -qO- http://localhost:4012/media/health || exit 1
 
 CMD ["node", "dist/server.js"]
