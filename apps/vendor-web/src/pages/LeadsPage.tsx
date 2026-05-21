@@ -25,7 +25,7 @@ export function LeadsPage() {
   const [filter, setFilter] = useState('All');
   const [sortBy, setSortBy] = useState<SortKey>('newest');
 
-  const filtered = LEADS.filter((l) => filter === 'All' || l.status === filter.toLowerCase());
+  const filtered = LEADS.filter((l) => filter === 'All' || l.status === filter.toLowerCase().replace(' ', '_'));
 
   const stats = {
     new: LEADS.filter((l) => l.status === 'new').length,

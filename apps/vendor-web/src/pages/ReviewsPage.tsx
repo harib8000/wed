@@ -29,7 +29,7 @@ export function ReviewsPage() {
     });
 
   const totalReviews = REVIEWS.length;
-  const avgRating = (REVIEWS.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1);
+  const avgRating = totalReviews > 0 ? (REVIEWS.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1) : '0.0';
   const distribution = [5, 4, 3, 2, 1].map((star) => ({
     star,
     count: REVIEWS.filter((r) => r.rating === star).length,
