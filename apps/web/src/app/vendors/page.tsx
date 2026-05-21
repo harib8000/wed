@@ -1,12 +1,14 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, Star, Heart, X, SlidersHorizontal, Loader2 } from 'lucide-react';
+import { Search, MapPin, Star, Heart, X, SlidersHorizontal, Loader2, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { QuickEnquiry } from '@/components/vendors/QuickEnquiry';
+import { vendorApi, searchApi } from '@/lib/api';
 
 const CATEGORIES = ['All', 'Venue', 'Photography', 'Catering', 'Decor', 'Makeup', 'Music', 'Mehendi', 'Videography', 'Transport'];
 const CITIES = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Jaipur'];
@@ -20,7 +22,7 @@ const SORT_OPTIONS = [
 
 const PAGE_SIZE = 8;
 const LOAD_MORE_SIZE = 4;
-const INITIAL_LOAD_DELAY_MS = 800;
+const DEBOUNCE_MS = 400;
 
 // Mock vendors for display — deterministic values to prevent hydration mismatch
 const MOCK_RATINGS = ['4.9', '4.8', '4.7', '4.9', '4.6', '4.8', '4.7', '4.9', '4.8', '4.5', '4.7', '4.6'];
@@ -37,6 +39,8 @@ const MOCK_VENDORS = Array.from({ length: 12 }, (_, i) => ({
   featured: i < 3,
 }));
 
+type VendorItem = typeof MOCK_VENDORS[0];
+
 const cardVariants = {
   hidden: { opacity: 0, y: 24 },
   visible: (i: number) => ({
@@ -45,6 +49,30 @@ const cardVariants = {
     transition: { delay: i * 0.06, duration: 0.4, ease: 'easeOut' },
   }),
 };
+
+/* ─── Debounce hook ─── */
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
+/* ─── Wishlist helper ─── */
+function getWishlist(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem('wishlist') || '[]'); } catch { return []; }
+}
+function toggleWishlist(vendorId: string): boolean {
+  const list = getWishlist();
+  const idx = list.indexOf(vendorId);
+  if (idx >= 0) { list.splice(idx, 1); } else { list.push(vendorId); }
+  localStorage.setItem('wishlist', JSON.stringify(list));
+  window.dispatchEvent(new Event('storage'));
+  return idx < 0;
+}
 
 /* ─── Skeleton Card ─── */
 function SkeletonCard() {
@@ -72,6 +100,16 @@ function SkeletonGrid() {
       {Array.from({ length: 12 }).map((_, i) => (
         <SkeletonCard key={i} />
       ))}
+    </div>
+  );
+}
+
+/* ─── Demo Mode Badge ─── */
+function DemoModeBadge() {
+  return (
+    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">
+      <Info size={12} />
+      Demo mode — showing sample data
     </div>
   );
 }
@@ -115,8 +153,18 @@ function EmptyState({ onClear }: { onClear: () => void }) {
 }
 
 /* ─── Vendor Card ─── */
-function VendorCard({ vendor, index, onEnquiry }: { vendor: typeof MOCK_VENDORS[0]; index: number; onEnquiry: (vendor: typeof MOCK_VENDORS[0]) => void }) {
+function VendorCard({ vendor, index, onEnquiry }: { vendor: VendorItem; index: number; onEnquiry: (vendor: VendorItem) => void }) {
   const [liked, setLiked] = useState(false);
+
+  useEffect(() => {
+    setLiked(getWishlist().includes(vendor.id));
+  }, [vendor.id]);
+
+  const handleToggleWishlist = useCallback(() => {
+    const nowLiked = toggleWishlist(vendor.id);
+    setLiked(nowLiked);
+  }, [vendor.id]);
+
   const formatPrice = (p: number, cat: string) => {
     if (cat === 'catering') return `₹${p.toLocaleString('en-IN')}/plate`;
     if (p >= 100000) return `₹${(p / 100000).toFixed(1)}L`;
@@ -141,7 +189,7 @@ function VendorCard({ vendor, index, onEnquiry }: { vendor: typeof MOCK_VENDORS[
           loading="lazy"
         />
         <button
-          onClick={() => setLiked(!liked)}
+          onClick={handleToggleWishlist}
           aria-label={liked ? `Remove ${vendor.businessName} from wishlist` : `Add ${vendor.businessName} to wishlist`}
           className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white transition-colors"
         >
@@ -185,9 +233,31 @@ function VendorCard({ vendor, index, onEnquiry }: { vendor: typeof MOCK_VENDORS[
   );
 }
 
+/* ─── Filter mock data locally (fallback) ─── */
+function filterMockVendors(vendors: VendorItem[], search: string, category: string, city: string, sortBy: string): VendorItem[] {
+  let result = vendors.filter((v) => {
+    const matchCategory = category === 'All' || v.category === category.toLowerCase();
+    const matchSearch = !search || v.businessName.toLowerCase().includes(search.toLowerCase());
+    const matchCity = !city || v.citiesServed.some(c => c.toLowerCase() === city.toLowerCase());
+    return matchCategory && matchSearch && matchCity;
+  });
+
+  result = [...result].sort((a, b) => {
+    switch (sortBy) {
+      case 'reviews': return b.totalReviews - a.totalReviews;
+      case 'price_asc': return a.basePrice - b.basePrice;
+      case 'price_desc': return b.basePrice - a.basePrice;
+      default: return parseFloat(String(b.rating)) - parseFloat(String(a.rating));
+    }
+  });
+
+  return result;
+}
+
 /* ─── Page ─── */
 function VendorsPageInner() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const categoryParam = searchParams.get('category');
   const queryParam = searchParams.get('q');
 
@@ -195,19 +265,71 @@ function VendorsPageInner() {
   const [selectedCategory, setSelectedCategory] = useState(
     categoryParam ? CATEGORIES.find(c => c.toLowerCase() === categoryParam.toLowerCase()) || 'All' : 'All'
   );
-  const [selectedCity, setSelectedCity] = useState('Hyderabad');
+  const [selectedCity, setSelectedCity] = useState(searchParams.get('city') || 'Hyderabad');
   const [selectedEventType, setSelectedEventType] = useState(searchParams.get('eventType') || 'All Events');
-  const [sortBy, setSortBy] = useState('rating');
-  const [isLoading, setIsLoading] = useState(true);
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'rating');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [enquiryVendor, setEnquiryVendor] = useState<typeof MOCK_VENDORS[0] | null>(null);
+  const [enquiryVendor, setEnquiryVendor] = useState<VendorItem | null>(null);
 
-  // Simulate initial load
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), INITIAL_LOAD_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, []);
+  const debouncedSearch = useDebounce(search, DEBOUNCE_MS);
+
+  // Build API query params
+  const apiParams = useMemo(() => {
+    const params: Record<string, string> = {};
+    if (debouncedSearch) params.q = debouncedSearch;
+    if (selectedCategory !== 'All') params.category = selectedCategory.toLowerCase();
+    if (selectedCity) params.city = selectedCity;
+    if (selectedEventType !== 'All Events') params.eventType = selectedEventType;
+    if (sortBy) params.sortBy = sortBy;
+    params.limit = '50';
+    return params;
+  }, [debouncedSearch, selectedCategory, selectedCity, selectedEventType, sortBy]);
+
+  // Fetch vendors from API with mock fallback
+  const { data: vendorData, isLoading, isError } = useQuery({
+    queryKey: ['vendors', apiParams],
+    queryFn: async () => {
+      // Try search API first (Elasticsearch), fall back to vendor API
+      try {
+        const res = await searchApi.search(apiParams);
+        return { vendors: res.data.data?.vendors || res.data.data || res.data, isDemo: false };
+      } catch {
+        try {
+          const res = await vendorApi.search(apiParams);
+          return { vendors: res.data.data?.vendors || res.data.data || res.data, isDemo: false };
+        } catch {
+          return null;
+        }
+      }
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
+
+  const isDemo = !vendorData || vendorData.isDemo || isError;
+
+  // Normalize API vendors to match our card shape, or use mock fallback with local filtering
+  const allVendors: VendorItem[] = useMemo(() => {
+    if (!isDemo && vendorData?.vendors && Array.isArray(vendorData.vendors) && vendorData.vendors.length > 0) {
+      return vendorData.vendors.map((v: Record<string, unknown>) => ({
+        id: (v.id || v._id || '') as string,
+        businessName: (v.businessName || v.business_name || 'Unnamed Vendor') as string,
+        category: (v.category || 'venue') as string,
+        citiesServed: (v.citiesServed || v.cities_served || ['Hyderabad']) as string[],
+        rating: String(v.rating || v.avgRating || '4.5'),
+        totalReviews: Number(v.totalReviews || v.total_reviews || 0),
+        basePrice: Number(v.basePrice || v.base_price || v.startingPrice || 0),
+        coverImage: (v.coverImage || v.cover_image || v.portfolio?.[0]?.url || `https://images.unsplash.com/photo-1519741497674-611481863552?w=400&q=80`) as string,
+        featured: Boolean(v.featured),
+      }));
+    }
+    // Fallback: filter mock data locally
+    return filterMockVendors(MOCK_VENDORS, debouncedSearch, selectedCategory, selectedCity, sortBy);
+  }, [vendorData, isDemo, debouncedSearch, selectedCategory, selectedCity, sortBy]);
+
+  const visibleVendors = allVendors.slice(0, visibleCount);
+  const hasMore = visibleCount < allVendors.length;
 
   // Sync URL params when they change
   useEffect(() => {
@@ -218,21 +340,24 @@ function VendorsPageInner() {
     if (queryParam) setSearch(queryParam);
   }, [categoryParam, queryParam]);
 
+  // Update URL search params for deep linking (debounced)
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return; }
+    const params = new URLSearchParams();
+    if (debouncedSearch) params.set('q', debouncedSearch);
+    if (selectedCategory !== 'All') params.set('category', selectedCategory.toLowerCase());
+    if (selectedCity !== 'Hyderabad') params.set('city', selectedCity);
+    if (selectedEventType !== 'All Events') params.set('eventType', selectedEventType);
+    if (sortBy !== 'rating') params.set('sort', sortBy);
+    const qs = params.toString();
+    router.replace(`/vendors${qs ? `?${qs}` : ''}`, { scroll: false });
+  }, [debouncedSearch, selectedCategory, selectedCity, selectedEventType, sortBy, router]);
+
   // Reset visible count when filters change
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [search, selectedCategory, selectedCity, selectedEventType, sortBy]);
-
-  const filtered = useMemo(() => {
-    return MOCK_VENDORS.filter((v) => {
-      const matchCategory = selectedCategory === 'All' || v.category === selectedCategory.toLowerCase();
-      const matchSearch = !search || v.businessName.toLowerCase().includes(search.toLowerCase());
-      return matchCategory && matchSearch;
-    });
-  }, [search, selectedCategory]);
-
-  const visibleVendors = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
+  }, [debouncedSearch, selectedCategory, selectedCity, selectedEventType, sortBy]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -246,12 +371,11 @@ function VendorsPageInner() {
 
   const handleLoadMore = useCallback(() => {
     setIsLoadingMore(true);
-    // Simulate network delay
     setTimeout(() => {
-      setVisibleCount(prev => Math.min(prev + LOAD_MORE_SIZE, filtered.length));
+      setVisibleCount(prev => Math.min(prev + LOAD_MORE_SIZE, allVendors.length));
       setIsLoadingMore(false);
-    }, 500);
-  }, [filtered.length]);
+    }, 300);
+  }, [allVendors.length]);
 
   const clearFilters = useCallback(() => {
     setSearch('');
@@ -378,12 +502,15 @@ function VendorsPageInner() {
             <SkeletonGrid />
           ) : (
             <>
-              {/* Result count */}
+              {/* Result count + Demo badge */}
               <div className="flex items-center justify-between mb-6">
-                <p className="text-gray-600 text-sm">
-                  Showing <strong>{Math.min(visibleCount, filtered.length)}</strong> of <strong>{filtered.length}</strong> vendors in <strong>{selectedCity}</strong>
-                  {selectedCategory !== 'All' && <> · <strong>{selectedCategory}</strong></>}
-                </p>
+                <div className="flex items-center gap-3">
+                  <p className="text-gray-600 text-sm">
+                    Showing <strong>{Math.min(visibleCount, allVendors.length)}</strong> of <strong>{allVendors.length}</strong> vendors in <strong>{selectedCity}</strong>
+                    {selectedCategory !== 'All' && <> · <strong>{selectedCategory}</strong></>}
+                  </p>
+                  {isDemo && <DemoModeBadge />}
+                </div>
                 {activeFilterCount > 0 && (
                   <button
                     onClick={clearFilters}
@@ -395,11 +522,11 @@ function VendorsPageInner() {
                 )}
               </div>
 
-              {filtered.length > 0 ? (
+              {allVendors.length > 0 ? (
                 <>
                   <AnimatePresence mode="wait">
                     <motion.div
-                      key={`${selectedCategory}-${search}`}
+                      key={`${selectedCategory}-${debouncedSearch}`}
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
