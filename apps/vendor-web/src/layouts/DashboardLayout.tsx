@@ -1,11 +1,15 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Calendar, User, BarChart2, Bell, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Calendar, CalendarDays, User, BarChart2, Bell, LogOut, Settings, Inbox, Star, Wallet } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { clsx } from 'clsx';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: LayoutDashboard, to: '/' },
   { label: 'Bookings', icon: Calendar, to: '/bookings' },
+  { label: 'Leads', icon: Inbox, to: '/leads' },
+  { label: 'Calendar', icon: CalendarDays, to: '/calendar' },
+  { label: 'Reviews', icon: Star, to: '/reviews' },
+  { label: 'Payouts', icon: Wallet, to: '/payouts' },
   { label: 'Analytics', icon: BarChart2, to: '/analytics' },
   { label: 'My Profile', icon: User, to: '/profile' },
 ];
