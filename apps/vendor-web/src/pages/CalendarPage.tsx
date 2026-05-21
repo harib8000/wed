@@ -98,7 +98,7 @@ export function CalendarPage() {
         date: new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
         customer: b.customer,
         event: b.event,
-        package: b.event,
+        package: b.slot,
         slot: b.slot,
       }))
     : MOCK_UPCOMING;
