@@ -266,10 +266,9 @@ export default function GuestsPage() {
     const declined = guests.filter((g) => g.rsvpStatus === 'declined').length;
     const pending = guests.filter((g) => g.rsvpStatus === 'pending').length;
     const maybe = guests.filter((g) => g.rsvpStatus === 'maybe').length;
-    const totalWithPlusOnes = guests.reduce(
-      (sum, g) => sum + 1 + (g.rsvpStatus !== 'declined' ? g.plusOnes : 0),
-      0
-    );
+    const totalWithPlusOnes = guests
+      .filter((g) => g.rsvpStatus !== 'declined')
+      .reduce((sum, g) => sum + 1 + g.plusOnes, 0);
     return { total, accepted, declined, pending, maybe, totalWithPlusOnes };
   }, [guests]);
 
@@ -328,7 +327,7 @@ export default function GuestsPage() {
     a.href = url;
     a.download = 'guest-list.csv';
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   function handleWhatsAppBulk() {

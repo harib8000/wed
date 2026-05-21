@@ -54,7 +54,7 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
     const next: Partial<Record<keyof GuestFormData, string>> = {};
     if (!form.name.trim()) next.name = 'Name is required';
     if (form.phone && !/^[6-9]\d{9}$/.test(form.phone))
-      next.phone = 'Enter a valid 10-digit Indian mobile number';
+      next.phone = 'Enter a valid 10-digit Indian mobile number (starts with 6-9)';
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
       next.email = 'Enter a valid email address';
     if (form.plusOnes < 0 || form.plusOnes > 10) next.plusOnes = 'Plus-ones must be 0–10';
