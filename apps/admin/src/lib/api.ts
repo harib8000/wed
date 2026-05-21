@@ -175,3 +175,54 @@ export const usersApi = {
       .get<PaginatedResponse<{ users: AdminUser[] }>>('/admin/users', { params })
       .then((r) => r.data),
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DISPUTES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Dispute {
+  id: string;
+  bookingId: string;
+  bookingNumber: string;
+  customerName: string;
+  vendorName: string;
+  reason: string;
+  description: string;
+  status: 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED_CUSTOMER' | 'RESOLVED_VENDOR' | 'CLOSED';
+  evidenceUrls: string[];
+  refundAmountPaise: number | null;
+  adminNotes: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export const disputesApi = {
+  list: (params: { page?: number; limit?: number; status?: string }) =>
+    adminApi
+      .get<PaginatedResponse<{ disputes: Dispute[] }>>('/admin/disputes', { params })
+      .then((r) => r.data),
+
+  resolve: (disputeId: string, body: { status: string; refundAmountPaise?: number; adminNotes: string }) =>
+    adminApi.post(`/admin/disputes/${disputeId}/resolve`, body).then((r) => r.data),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REPORTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ReportSummary {
+  totalRevenue: number;
+  platformFees: number;
+  activeVendors: number;
+  activeCustomers: number;
+  monthlyRevenue: Array<{ month: string; revenue: number; bookings: number }>;
+  topVendors: Array<{ id: string; name: string; category: string; bookings: number; revenue: number; rating: number }>;
+  categoryBreakdown: Array<{ category: string; bookings: number; revenue: number }>;
+}
+
+export const reportsApi = {
+  getSummary: (params?: { from?: string; to?: string }) =>
+    adminApi
+      .get<{ success: boolean; data: ReportSummary }>('/admin/reports/summary', { params })
+      .then((r) => r.data.data),
+};

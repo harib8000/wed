@@ -1,64 +1,54 @@
 import { useState } from 'react';
-import { Card, Row, Col, Statistic, Table, Tag, Select, Space } from 'antd';
+import { useQuery } from '@tanstack/react-query';
+import { Card, Row, Col, Statistic, Table, Tag, Select, Space, Spin, Alert } from 'antd';
 import { DollarOutlined, ShopOutlined, TeamOutlined, RiseOutlined } from '@ant-design/icons';
-import { format } from 'date-fns';
+import { reportsApi, type ReportSummary } from '../lib/api';
+import { format, subMonths, subDays, subYears } from 'date-fns';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MOCK DATA
+// MOCK FALLBACK DATA
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MOCK_SUMMARY = {
+const MOCK_SUMMARY: ReportSummary = {
   totalRevenue: 47200000,
   platformFees: 4720000,
   activeVendors: 1840,
   activeCustomers: 12450,
+  monthlyRevenue: [
+    { month: 'Jul', revenue: 3100000, bookings: 200 },
+    { month: 'Aug', revenue: 3600000, bookings: 230 },
+    { month: 'Sep', revenue: 4100000, bookings: 260 },
+    { month: 'Oct', revenue: 4800000, bookings: 310 },
+    { month: 'Nov', revenue: 5200000, bookings: 340 },
+    { month: 'Dec', revenue: 4700000, bookings: 300 },
+    { month: 'Jan', revenue: 3900000, bookings: 250 },
+    { month: 'Feb', revenue: 4300000, bookings: 280 },
+    { month: 'Mar', revenue: 5100000, bookings: 330 },
+    { month: 'Apr', revenue: 4500000, bookings: 290 },
+    { month: 'May', revenue: 5600000, bookings: 360 },
+    { month: 'Jun', revenue: 6200000, bookings: 400 },
+  ],
+  topVendors: [
+    { id: 'v1', name: 'Royal Photography', category: 'Photography', bookings: 142, revenue: 8520000, rating: 4.9 },
+    { id: 'v2', name: 'Spice Kitchen Catering', category: 'Catering', bookings: 98, revenue: 7350000, rating: 4.8 },
+    { id: 'v3', name: 'Elegant Venues', category: 'Venue', bookings: 76, revenue: 6800000, rating: 4.7 },
+    { id: 'v4', name: 'Bloom Decorators', category: 'Decoration', bookings: 89, revenue: 5340000, rating: 4.8 },
+    { id: 'v5', name: 'Melody Band', category: 'Music', bookings: 112, revenue: 4480000, rating: 4.6 },
+    { id: 'v6', name: 'Bridal Boutique', category: 'Clothing', bookings: 64, revenue: 3840000, rating: 4.5 },
+    { id: 'v7', name: 'Mehendi Arts', category: 'Mehendi', bookings: 156, revenue: 3120000, rating: 4.9 },
+    { id: 'v8', name: 'Sweet Moments Cake', category: 'Catering', bookings: 83, revenue: 2490000, rating: 4.7 },
+  ],
+  categoryBreakdown: [
+    { category: 'Photography', bookings: 680, revenue: 20400000 },
+    { category: 'Catering', bookings: 520, revenue: 15600000 },
+    { category: 'Venue', bookings: 480, revenue: 14400000 },
+    { category: 'Decoration', bookings: 450, revenue: 13500000 },
+    { category: 'Music & DJ', bookings: 370, revenue: 11100000 },
+    { category: 'Clothing', bookings: 280, revenue: 8400000 },
+    { category: 'Mehendi', bookings: 210, revenue: 6300000 },
+    { category: 'Makeup', bookings: 130, revenue: 3900000 },
+  ],
 };
-
-const MOCK_MONTHLY_REVENUE = [
-  { month: 'Jul', revenue: 3100000 },
-  { month: 'Aug', revenue: 3600000 },
-  { month: 'Sep', revenue: 4100000 },
-  { month: 'Oct', revenue: 4800000 },
-  { month: 'Nov', revenue: 5200000 },
-  { month: 'Dec', revenue: 4700000 },
-  { month: 'Jan', revenue: 3900000 },
-  { month: 'Feb', revenue: 4300000 },
-  { month: 'Mar', revenue: 5100000 },
-  { month: 'Apr', revenue: 4500000 },
-  { month: 'May', revenue: 5600000 },
-  { month: 'Jun', revenue: 6200000 },
-];
-
-interface TopVendor {
-  rank: number;
-  name: string;
-  category: string;
-  bookings: number;
-  revenue: number;
-  rating: number;
-}
-
-const MOCK_TOP_VENDORS: TopVendor[] = [
-  { rank: 1, name: 'Royal Photography', category: 'Photography', bookings: 142, revenue: 8520000, rating: 4.9 },
-  { rank: 2, name: 'Spice Kitchen Catering', category: 'Catering', bookings: 98, revenue: 7350000, rating: 4.8 },
-  { rank: 3, name: 'Elegant Venues', category: 'Venue', bookings: 76, revenue: 6800000, rating: 4.7 },
-  { rank: 4, name: 'Bloom Decorators', category: 'Decoration', bookings: 89, revenue: 5340000, rating: 4.8 },
-  { rank: 5, name: 'Melody Band', category: 'Music', bookings: 112, revenue: 4480000, rating: 4.6 },
-  { rank: 6, name: 'Bridal Boutique', category: 'Clothing', bookings: 64, revenue: 3840000, rating: 4.5 },
-  { rank: 7, name: 'Mehendi Arts', category: 'Mehendi', bookings: 156, revenue: 3120000, rating: 4.9 },
-  { rank: 8, name: 'Sweet Moments Cake', category: 'Catering', bookings: 83, revenue: 2490000, rating: 4.7 },
-];
-
-const MOCK_CATEGORIES = [
-  { name: 'Photography', bookings: 680, percentage: 22 },
-  { name: 'Catering', bookings: 520, percentage: 17 },
-  { name: 'Venue', bookings: 480, percentage: 15 },
-  { name: 'Decoration', bookings: 450, percentage: 14 },
-  { name: 'Music & DJ', bookings: 370, percentage: 12 },
-  { name: 'Clothing', bookings: 280, percentage: 9 },
-  { name: 'Mehendi', bookings: 210, percentage: 7 },
-  { name: 'Makeup', bookings: 130, percentage: 4 },
-];
 
 interface ActivityItem {
   id: string;
@@ -88,13 +78,45 @@ const ACTIVITY_TAG_COLOR: Record<string, string> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getDateRange(range: string): { from?: string; to?: string } {
+  const now = new Date();
+  const to = format(now, 'yyyy-MM-dd');
+  switch (range) {
+    case 'last_30_days': return { from: format(subDays(now, 30), 'yyyy-MM-dd'), to };
+    case 'last_3_months': return { from: format(subMonths(now, 3), 'yyyy-MM-dd'), to };
+    case 'last_6_months': return { from: format(subMonths(now, 6), 'yyyy-MM-dd'), to };
+    case 'last_year': return { from: format(subYears(now, 1), 'yyyy-MM-dd'), to };
+    default: return {};
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // REPORTS PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function Reports() {
   const [dateRange, setDateRange] = useState<string>('last_6_months');
 
-  const maxRevenue = Math.max(...MOCK_MONTHLY_REVENUE.map((m) => m.revenue));
+  const params = getDateRange(dateRange);
+
+  const { data: summary, isLoading, isError } = useQuery({
+    queryKey: ['admin-reports', dateRange],
+    queryFn: () => reportsApi.getSummary(params.from ? params : undefined),
+    retry: 1,
+    staleTime: 60_000,
+  });
+
+  const isMock = isError;
+  const s = summary ?? MOCK_SUMMARY;
+  const monthlyRevenue = s.monthlyRevenue;
+  const topVendors = s.topVendors;
+  const categoryBreakdown = s.categoryBreakdown;
+  const totalCategoryBookings = categoryBreakdown.reduce((sum, c) => sum + c.bookings, 0);
+
+  const maxRevenue = Math.max(...monthlyRevenue.map((m) => m.revenue));
 
   return (
     <div>
@@ -117,56 +139,67 @@ export function Reports() {
         />
       </div>
 
+      {isMock && (
+        <Alert
+          message="API unavailable — showing demo data"
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16, fontSize: 12 }}
+        />
+      )}
+
       {/* Summary Cards */}
-      <Row gutter={16} style={{ marginBottom: 24 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Total Revenue"
-              value={MOCK_SUMMARY.totalRevenue / 100}
-              prefix={<DollarOutlined />}
-              formatter={(v) => `₹${(Number(v) / 100_000).toFixed(1)}L`}
-              valueStyle={{ color: '#10b981' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Platform Fees Earned"
-              value={MOCK_SUMMARY.platformFees / 100}
-              prefix={<RiseOutlined />}
-              formatter={(v) => `₹${(Number(v) / 100_000).toFixed(1)}L`}
-              valueStyle={{ color: '#c026d3' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Active Vendors"
-              value={MOCK_SUMMARY.activeVendors}
-              prefix={<ShopOutlined />}
-              valueStyle={{ color: '#7c3aed' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="Active Customers"
-              value={MOCK_SUMMARY.activeCustomers}
-              prefix={<TeamOutlined />}
-              valueStyle={{ color: '#0ea5e9' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <Spin spinning={isLoading}>
+        <Row gutter={16} style={{ marginBottom: 24 }}>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="Total Revenue"
+                value={s.totalRevenue / 100}
+                prefix={<DollarOutlined />}
+                formatter={(v) => `₹${(Number(v) / 100_000).toFixed(1)}L`}
+                valueStyle={{ color: '#10b981' }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="Platform Fees Earned"
+                value={s.platformFees / 100}
+                prefix={<RiseOutlined />}
+                formatter={(v) => `₹${(Number(v) / 100_000).toFixed(1)}L`}
+                valueStyle={{ color: '#c026d3' }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="Active Vendors"
+                value={s.activeVendors}
+                prefix={<ShopOutlined />}
+                valueStyle={{ color: '#7c3aed' }}
+              />
+            </Card>
+          </Col>
+          <Col span={6}>
+            <Card>
+              <Statistic
+                title="Active Customers"
+                value={s.activeCustomers}
+                prefix={<TeamOutlined />}
+                valueStyle={{ color: '#0ea5e9' }}
+              />
+            </Card>
+          </Col>
+        </Row>
+      </Spin>
 
       {/* Revenue Chart */}
       <Card title="Monthly Revenue" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 180, padding: '0 8px' }}>
-          {MOCK_MONTHLY_REVENUE.map((m) => (
+          {monthlyRevenue.map((m) => (
             <div key={m.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
               <span style={{ fontSize: 10, color: '#6b7280', marginBottom: 4 }}>
                 ₹{(m.revenue / 100_000).toFixed(0)}L
@@ -191,13 +224,13 @@ export function Reports() {
         {/* Top Vendors */}
         <Col span={14}>
           <Card title="Top Vendors by Revenue">
-            <Table<TopVendor>
-              dataSource={MOCK_TOP_VENDORS}
-              rowKey="rank"
+            <Table
+              dataSource={topVendors}
+              rowKey="id"
               size="small"
               pagination={false}
               columns={[
-                { title: '#', dataIndex: 'rank', width: 40 },
+                { title: '#', key: 'rank', render: (_: unknown, __: unknown, i: number) => i + 1, width: 40 },
                 { title: 'Vendor', dataIndex: 'name', render: (t: string) => <strong>{t}</strong> },
                 {
                   title: 'Category', dataIndex: 'category',
@@ -221,20 +254,23 @@ export function Reports() {
         {/* Category Breakdown */}
         <Col span={10}>
           <Card title="Bookings by Category" style={{ height: '100%' }}>
-            {MOCK_CATEGORIES.map((cat) => (
-              <div key={cat.name} style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, color: '#374151' }}>{cat.name}</span>
-                  <Space size={8}>
-                    <span style={{ fontSize: 12, color: '#6b7280' }}>{cat.bookings}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600 }}>{cat.percentage}%</span>
-                  </Space>
+            {categoryBreakdown.map((cat) => {
+              const percentage = totalCategoryBookings > 0 ? Math.round((cat.bookings / totalCategoryBookings) * 100) : 0;
+              return (
+                <div key={cat.category} style={{ marginBottom: 14 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontSize: 13, color: '#374151' }}>{cat.category}</span>
+                    <Space size={8}>
+                      <span style={{ fontSize: 12, color: '#6b7280' }}>{cat.bookings}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600 }}>{percentage}%</span>
+                    </Space>
+                  </div>
+                  <div style={{ height: 6, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${Math.min(percentage * 4.5, 100)}%`, background: '#c026d3', borderRadius: 3 }} />
+                  </div>
                 </div>
-                <div style={{ height: 6, background: '#f3f4f6', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${cat.percentage * 4.5}%`, background: '#c026d3', borderRadius: 3 }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </Card>
         </Col>
       </Row>
