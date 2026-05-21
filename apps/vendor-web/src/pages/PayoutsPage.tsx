@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Wallet, TrendingUp, Clock, AlertCircle, Building2, IndianRupee } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Wallet, TrendingUp, Clock, AlertCircle, Building2, IndianRupee, AlertTriangle } from 'lucide-react';
+import { payoutsApi, type PayoutRecord, type EarningsSummary } from '../lib/api';
 
-const EARNINGS_SUMMARY = {
+const MOCK_EARNINGS: EarningsSummary = {
   totalEarned: 1250000,
   pendingRelease: 285000,
   thisMonth: 180000,
   platformFees: 62500,
 };
 
-const PAYOUT_HISTORY = [
+const MOCK_PAYOUTS: PayoutRecord[] = [
   { id: 'PO-001', date: '10 Jan 2027', bookingNumber: 'WB-045', customer: 'Kavitha & Sanjay', amount: 900000, platformFee: 45000, netPayout: 855000, status: 'released' },
   { id: 'PO-002', date: '5 Jan 2027', bookingNumber: 'WB-044', customer: 'Ritu & Abhishek', amount: 500000, platformFee: 25000, netPayout: 475000, status: 'released' },
   { id: 'PO-003', date: '28 Dec 2026', bookingNumber: 'WB-043', customer: 'Priya & Rahul', amount: 150000, platformFee: 7500, netPayout: 142500, status: 'pending' },
@@ -40,7 +42,18 @@ function formatINRFull(paise: number): string {
 export function PayoutsPage() {
   const [statusFilter, setStatusFilter] = useState('All');
 
-  const filtered = PAYOUT_HISTORY.filter(
+  const { data, isError } = useQuery({
+    queryKey: ['vendor-payouts'],
+    queryFn: payoutsApi.list,
+    retry: 1,
+    staleTime: 60_000,
+  });
+
+  const earnings = data?.summary ?? MOCK_EARNINGS;
+  const payouts = data?.payouts ?? MOCK_PAYOUTS;
+  const isMock = isError || !data;
+
+  const filtered = payouts.filter(
     (p) => statusFilter === 'All' || p.status === statusFilter.toLowerCase().replace(' ', '_')
   );
 
@@ -48,16 +61,19 @@ export function PayoutsPage() {
     <div className="p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Payouts & Earnings</h1>
-        <p className="text-gray-500 text-sm">Track your earnings and payout history</p>
+        <p className="text-gray-500 text-sm">
+          {isMock && <span className="text-amber-600"><AlertTriangle size={13} className="inline mr-1 -mt-0.5" />API unavailable — showing demo data. </span>}
+          Track your earnings and payout history
+        </p>
       </div>
 
       {/* Earnings Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Total Earned', value: formatINR(EARNINGS_SUMMARY.totalEarned), icon: IndianRupee, color: 'text-green-600 bg-green-50' },
-          { label: 'Pending Release', value: formatINR(EARNINGS_SUMMARY.pendingRelease), icon: Clock, color: 'text-yellow-600 bg-yellow-50' },
-          { label: 'This Month', value: formatINR(EARNINGS_SUMMARY.thisMonth), icon: TrendingUp, color: 'text-brand-600 bg-brand-50' },
-          { label: 'Platform Fees', value: formatINR(EARNINGS_SUMMARY.platformFees), icon: Wallet, color: 'text-gray-600 bg-gray-50' },
+          { label: 'Total Earned', value: formatINR(earnings.totalEarned), icon: IndianRupee, color: 'text-green-600 bg-green-50' },
+          { label: 'Pending Release', value: formatINR(earnings.pendingRelease), icon: Clock, color: 'text-yellow-600 bg-yellow-50' },
+          { label: 'This Month', value: formatINR(earnings.thisMonth), icon: TrendingUp, color: 'text-brand-600 bg-brand-50' },
+          { label: 'Platform Fees', value: formatINR(earnings.platformFees), icon: Wallet, color: 'text-gray-600 bg-gray-50' },
         ].map((stat) => {
           const Icon = stat.icon;
           return (
@@ -104,7 +120,7 @@ export function PayoutsPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filtered.map((p) => {
-              const sc = STATUS_CONFIG[p.status];
+              const sc = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.pending;
               return (
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-4 text-sm text-gray-600">{p.date}</td>

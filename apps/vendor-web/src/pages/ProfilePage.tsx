@@ -1,13 +1,96 @@
-import { useState } from 'react';
-import { Camera, CheckCircle, Upload, MapPin, IndianRupee, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { Camera, CheckCircle, Upload, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { profileApi, type VendorProfile } from '../lib/api';
+
+const MOCK_PROFILE: VendorProfile = {
+  id: 'v1',
+  userId: 'u1',
+  businessName: 'Royal Grand Palace',
+  slug: 'royal-grand-palace',
+  category: 'Venue',
+  city: 'Hyderabad',
+  state: 'Telangana',
+  tagline: 'Premier wedding venue',
+  description: "Royal Grand Palace is Hyderabad's premier wedding venue with indoor and outdoor options for up to 2000 guests.",
+  avgRating: 4.8,
+  reviewCount: 47,
+  bookingCount: 120,
+  plusMember: true,
+  status: 'ACTIVE',
+  yearsExperience: 12,
+  teamSize: 25,
+  whatsappNumber: '+919876543210',
+  websiteUrl: 'https://royalgrandpalace.in',
+  instagramUrl: 'https://instagram.com/royalgrand',
+  gstNumber: '36AAACR1234F1Z5',
+  panNumber: 'AAACR1234F',
+  gstVerified: true,
+  panVerified: false,
+  packages: [],
+};
 
 export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'packages' | 'portfolio' | 'kyc'>('profile');
+  const queryClient = useQueryClient();
+
+  const { data: profile, isError } = useQuery({
+    queryKey: ['vendor-profile'],
+    queryFn: profileApi.getProfile,
+    retry: 1,
+    staleTime: 60_000,
+  });
+
+  const vendor = profile ?? MOCK_PROFILE;
+  const isMock = isError || !profile;
+
+  const [form, setForm] = useState({
+    businessName: vendor.businessName,
+    category: vendor.category,
+    description: vendor.description ?? '',
+    city: vendor.city,
+    yearsExperience: vendor.yearsExperience ?? 0,
+  });
+
+  useEffect(() => {
+    if (profile) {
+      setForm({
+        businessName: profile.businessName,
+        category: profile.category,
+        description: profile.description ?? '',
+        city: profile.city,
+        yearsExperience: profile.yearsExperience ?? 0,
+      });
+    }
+  }, [profile]);
+
+  const updateMutation = useMutation({
+    mutationFn: (body: Partial<VendorProfile>) => profileApi.updateProfile(body),
+    onSuccess: () => {
+      toast.success('Profile updated successfully!');
+      queryClient.invalidateQueries({ queryKey: ['vendor-profile'] });
+    },
+    onError: () => toast.error('Failed to update profile.'),
+  });
+
+  function handleSave() {
+    updateMutation.mutate({
+      businessName: form.businessName,
+      category: form.category,
+      description: form.description,
+      city: form.city,
+      yearsExperience: form.yearsExperience,
+    });
+  }
 
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-1">Vendor Profile</h1>
-      <p className="text-gray-500 text-sm mb-6">Manage your business information and offerings</p>
+      <p className="text-gray-500 text-sm mb-6">
+        {isMock && <span className="text-amber-600"><AlertTriangle size={13} className="inline mr-1 -mt-0.5" />API unavailable — showing demo data. </span>}
+        Manage your business information and offerings
+      </p>
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 border-b border-gray-200">
@@ -37,30 +120,68 @@ export function ProfilePage() {
               </button>
             </div>
             <div>
-              <h2 className="font-bold text-gray-900">Royal Grand Palace</h2>
+              <h2 className="font-bold text-gray-900">{vendor.businessName}</h2>
               <div className="flex items-center gap-2 mt-1">
-                <span className="badge bg-green-100 text-green-700 flex items-center gap-1"><CheckCircle size={10} /> KYC Verified</span>
-                <span className="badge bg-gold-100 text-gold-700">Premium</span>
+                {vendor.gstVerified && <span className="badge bg-green-100 text-green-700 flex items-center gap-1"><CheckCircle size={10} /> KYC Verified</span>}
+                {vendor.plusMember && <span className="badge bg-gold-100 text-gold-700">Premium</span>}
               </div>
             </div>
           </div>
 
           <div className="space-y-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label><input defaultValue="Royal Grand Palace" className="input-field" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select className="input-field">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+              <input
+                value={form.businessName}
+                onChange={(e) => setForm({ ...form, businessName: e.target.value })}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                className="input-field"
+              >
                 <option>Venue</option><option>Photography</option><option>Catering</option>
+                <option>Decoration</option><option>Music</option><option>Makeup</option>
               </select>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-              <textarea className="input-field h-24 resize-none" defaultValue="Royal Grand Palace is Hyderabad's premier wedding venue..." />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="input-field h-24 resize-none"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Base Price (₹)</label><input type="number" defaultValue="500000" className="input-field" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Years Experience</label><input type="number" defaultValue="12" className="input-field" /></div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <input
+                  value={form.city}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Years Experience</label>
+                <input
+                  type="number"
+                  value={form.yearsExperience}
+                  onChange={(e) => setForm({ ...form, yearsExperience: Number(e.target.value) })}
+                  className="input-field"
+                />
+              </div>
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Cities Served</label><input defaultValue="Hyderabad, Secunderabad" className="input-field" /></div>
-            <button className="btn-primary">Save Changes</button>
+            <button
+              onClick={handleSave}
+              disabled={updateMutation.isPending}
+              className="btn-primary"
+            >
+              {updateMutation.isPending ? 'Saving…' : 'Save Changes'}
+            </button>
           </div>
         </div>
       )}
@@ -71,23 +192,38 @@ export function ProfilePage() {
             <h3 className="font-semibold text-gray-900">Your Packages</h3>
             <button className="btn-primary flex items-center gap-2"><Plus size={16} /> Add Package</button>
           </div>
-          {[
-            { name: 'Grand Silver', price: '₹5,00,000', guests: '100–200', inclusions: 3 },
-            { name: 'Grand Gold', price: '₹9,00,000', guests: '200–500', inclusions: 6 },
-            { name: 'Grand Platinum', price: '₹15,00,000', guests: '500–2000', inclusions: 8 },
-          ].map((pkg) => (
-            <div key={pkg.name} className="card p-5 mb-3 flex items-center justify-between">
-              <div>
-                <h4 className="font-semibold text-gray-900">{pkg.name}</h4>
-                <p className="text-sm text-gray-500">{pkg.guests} guests · {pkg.inclusions} inclusions</p>
-                <p className="text-brand-700 font-bold mt-1">{pkg.price}</p>
-              </div>
-              <div className="flex gap-2">
-                <button className="btn-secondary text-xs py-2 px-3">Edit</button>
-                <button className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
-              </div>
-            </div>
-          ))}
+          {(vendor.packages.length > 0
+            ? vendor.packages.map((pkg) => (
+                <div key={pkg.id} className="card p-5 mb-3 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-gray-900">{pkg.name}</h4>
+                    <p className="text-sm text-gray-500">{pkg.packageType} · {pkg.inclusions.length} inclusions</p>
+                    <p className="text-brand-700 font-bold mt-1">₹{(pkg.priceFromPaise / 100).toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="btn-secondary text-xs py-2 px-3">Edit</button>
+                    <button className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))
+            : [
+                { name: 'Grand Silver', price: '₹5,00,000', guests: '100–200', inclusions: 3 },
+                { name: 'Grand Gold', price: '₹9,00,000', guests: '200–500', inclusions: 6 },
+                { name: 'Grand Platinum', price: '₹15,00,000', guests: '500–2000', inclusions: 8 },
+              ].map((pkg) => (
+                <div key={pkg.name} className="card p-5 mb-3 flex items-center justify-between">
+                  <div>
+                    <h4 className="font-semibold text-gray-900">{pkg.name}</h4>
+                    <p className="text-sm text-gray-500">{pkg.guests} guests · {pkg.inclusions} inclusions</p>
+                    <p className="text-brand-700 font-bold mt-1">{pkg.price}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="btn-secondary text-xs py-2 px-3">Edit</button>
+                    <button className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                  </div>
+                </div>
+              ))
+          )}
         </div>
       )}
 
@@ -118,8 +254,8 @@ export function ProfilePage() {
             ⚠️ Complete KYC to unlock premium features and increase booking trust.
           </div>
           {[
-            { label: 'GST Certificate', status: 'verified' },
-            { label: 'PAN Card', status: 'pending' },
+            { label: 'GST Certificate', status: vendor.gstVerified ? 'verified' : 'pending' },
+            { label: 'PAN Card', status: vendor.panVerified ? 'verified' : 'pending' },
             { label: 'Business Registration', status: 'not_submitted' },
             { label: 'Bank Account (for payouts)', status: 'verified' },
           ].map((doc) => (

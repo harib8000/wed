@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Star, MessageCircle, ThumbsUp, ArrowUpDown } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { Star, MessageCircle, ThumbsUp, ArrowUpDown, AlertTriangle } from 'lucide-react';
+import { reviewsApi, type VendorReview } from '../lib/api';
 
-const REVIEWS = [
+const MOCK_REVIEWS: VendorReview[] = [
   { id: '1', customer: 'Priya Sharma', rating: 5, date: '10 Jan 2027', eventType: 'Wedding', comment: 'Absolutely stunning venue! The Grand Gold package was worth every penny. The staff was incredibly helpful and made our day truly magical. Would highly recommend to everyone.', helpful: 12, reply: null },
   { id: '2', customer: 'Ananya Reddy', rating: 5, date: '28 Dec 2026', eventType: 'Reception', comment: 'Beautiful space and excellent coordination. The lighting setup was breathtaking. Our guests couldn\'t stop complimenting the venue.', helpful: 8, reply: 'Thank you so much, Ananya! It was a pleasure hosting your reception.' },
   { id: '3', customer: 'Meera Kumar', rating: 4, date: '15 Dec 2026', eventType: 'Wedding', comment: 'Great venue overall. The food was excellent and arrangements were good. Minor issue with parking space but the team handled it well.', helpful: 5, reply: null },
@@ -19,21 +22,44 @@ export function ReviewsPage() {
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const queryClient = useQueryClient();
 
-  const filtered = REVIEWS
+  const { data: apiReviews, isError } = useQuery({
+    queryKey: ['vendor-reviews'],
+    queryFn: reviewsApi.list,
+    retry: 1,
+    staleTime: 60_000,
+  });
+
+  const reviews = apiReviews ?? MOCK_REVIEWS;
+  const isMock = isError || !apiReviews;
+
+  const replyMutation = useMutation({
+    mutationFn: ({ reviewId, reply }: { reviewId: string; reply: string }) =>
+      reviewsApi.reply(reviewId, { reply }),
+    onSuccess: () => {
+      toast.success('Reply submitted!');
+      setReplyingTo(null);
+      setReplyText('');
+      queryClient.invalidateQueries({ queryKey: ['vendor-reviews'] });
+    },
+    onError: () => toast.error('Failed to submit reply.'),
+  });
+
+  const filtered = reviews
     .filter((r) => filter === null || r.rating === filter)
     .sort((a, b) => {
       if (sortBy === 'highest') return b.rating - a.rating;
       if (sortBy === 'lowest') return a.rating - b.rating;
-      return 0; // newest is default order
+      return 0;
     });
 
-  const totalReviews = REVIEWS.length;
-  const avgRating = totalReviews > 0 ? (REVIEWS.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1) : '0.0';
+  const totalReviews = reviews.length;
+  const avgRating = totalReviews > 0 ? (reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews).toFixed(1) : '0.0';
   const distribution = [5, 4, 3, 2, 1].map((star) => ({
     star,
-    count: REVIEWS.filter((r) => r.rating === star).length,
-    pct: Math.round((REVIEWS.filter((r) => r.rating === star).length / totalReviews) * 100),
+    count: reviews.filter((r) => r.rating === star).length,
+    pct: Math.round((reviews.filter((r) => r.rating === star).length / totalReviews) * 100),
   }));
 
   function renderStars(rating: number) {
@@ -51,7 +77,10 @@ export function ReviewsPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Reviews</h1>
-          <p className="text-gray-500 text-sm">Manage and respond to customer reviews</p>
+          <p className="text-gray-500 text-sm">
+            {isMock && <span className="text-amber-600"><AlertTriangle size={13} className="inline mr-1 -mt-0.5" />API unavailable — showing demo data. </span>}
+            Manage and respond to customer reviews
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <ArrowUpDown size={14} className="text-gray-400" />
@@ -167,7 +196,16 @@ export function ReviewsPage() {
                   className="input-field h-20 resize-none text-sm mb-2"
                 />
                 <div className="flex gap-2">
-                  <button className="btn-primary text-xs py-1.5 px-3">Submit Reply</button>
+                  <button
+                    onClick={() => {
+                      if (replyText.trim()) replyMutation.mutate({ reviewId: review.id, reply: replyText.trim() });
+                      else toast.error('Please write a reply first.');
+                    }}
+                    disabled={replyMutation.isPending}
+                    className="btn-primary text-xs py-1.5 px-3"
+                  >
+                    {replyMutation.isPending ? 'Submitting…' : 'Submit Reply'}
+                  </button>
                   <button
                     onClick={() => { setReplyingTo(null); setReplyText(''); }}
                     className="btn-secondary text-xs py-1.5 px-3"

@@ -1,7 +1,10 @@
-import { useState } from 'react';
-import { ChevronLeft, ChevronRight, Circle, Lock, CalendarDays } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+import { ChevronLeft, ChevronRight, Lock, CalendarDays, AlertTriangle } from 'lucide-react';
+import { calendarApi, type BookedDate } from '../lib/api';
 
-const BOOKED_DATES = [
+const MOCK_BOOKED: BookedDate[] = [
   { date: '2027-02-14', customer: 'Priya & Rahul', event: 'Wedding', slot: 'Full Day' },
   { date: '2027-02-22', customer: 'Ananya & Vikram', event: 'Reception', slot: 'Evening' },
   { date: '2027-03-05', customer: 'Meera & Arun', event: 'Wedding', slot: 'Full Day' },
@@ -9,9 +12,9 @@ const BOOKED_DATES = [
   { date: '2027-03-20', customer: 'Divya & Ravi', event: 'Wedding', slot: 'Full Day' },
 ];
 
-const BLOCKED_DATES = ['2027-02-10', '2027-02-11', '2027-03-01', '2027-03-25', '2027-03-26'];
+const MOCK_BLOCKED = ['2027-02-10', '2027-02-11', '2027-03-01', '2027-03-25', '2027-03-26'];
 
-const UPCOMING_EVENTS = [
+const MOCK_UPCOMING = [
   { date: '14 Feb 2027', customer: 'Priya & Rahul Sharma', event: 'Wedding', package: 'Grand Gold', slot: 'Full Day' },
   { date: '22 Feb 2027', customer: 'Ananya & Vikram Reddy', event: 'Reception', package: 'Silver Basic', slot: 'Evening' },
   { date: '5 Mar 2027', customer: 'Meera & Arun Kumar', event: 'Wedding', package: 'Platinum', slot: 'Full Day' },
@@ -37,7 +40,26 @@ function formatDateStr(year: number, month: number, day: number) {
 export function CalendarPage() {
   const [year, setYear] = useState(2027);
   const [month, setMonth] = useState(1); // February
-  const [blocked, setBlocked] = useState<string[]>(BLOCKED_DATES);
+  const [blocked, setBlocked] = useState<string[]>(MOCK_BLOCKED);
+
+  const { data, isError } = useQuery({
+    queryKey: ['vendor-availability'],
+    queryFn: calendarApi.getAvailability,
+    retry: 1,
+    staleTime: 60_000,
+  });
+
+  const bookedDates = data?.bookedDates ?? MOCK_BOOKED;
+  const isMock = isError || !data;
+
+  useEffect(() => {
+    if (data?.blockedDates) setBlocked(data.blockedDates);
+  }, [data?.blockedDates]);
+
+  const updateBlockedMutation = useMutation({
+    mutationFn: (dates: string[]) => calendarApi.updateBlockedDates(dates),
+    onError: () => toast.error('Failed to update availability.'),
+  });
 
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfMonth(year, month);
@@ -54,7 +76,7 @@ export function CalendarPage() {
 
   function getDateStatus(day: number) {
     const dateStr = formatDateStr(year, month, day);
-    const booked = BOOKED_DATES.find((b) => b.date === dateStr);
+    const booked = bookedDates.find((b) => b.date === dateStr);
     if (booked) return 'booked';
     if (blocked.includes(dateStr)) return 'blocked';
     return 'available';
@@ -62,18 +84,33 @@ export function CalendarPage() {
 
   function toggleBlock(day: number) {
     const dateStr = formatDateStr(year, month, day);
-    const booked = BOOKED_DATES.find((b) => b.date === dateStr);
-    if (booked) return; // Can't toggle booked dates
-    setBlocked((prev) =>
-      prev.includes(dateStr) ? prev.filter((d) => d !== dateStr) : [...prev, dateStr]
-    );
+    const booked = bookedDates.find((b) => b.date === dateStr);
+    if (booked) return;
+    const next = blocked.includes(dateStr)
+      ? blocked.filter((d) => d !== dateStr)
+      : [...blocked, dateStr];
+    setBlocked(next);
+    updateBlockedMutation.mutate(next);
   }
+
+  const upcomingEvents = bookedDates.length > 0 && !isMock
+    ? bookedDates.map((b) => ({
+        date: new Date(b.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
+        customer: b.customer,
+        event: b.event,
+        package: b.event,
+        slot: b.slot,
+      }))
+    : MOCK_UPCOMING;
 
   return (
     <div className="p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Availability Calendar</h1>
-        <p className="text-gray-500 text-sm">Manage your availability and view upcoming events</p>
+        <p className="text-gray-500 text-sm">
+          {isMock && <span className="text-amber-600"><AlertTriangle size={13} className="inline mr-1 -mt-0.5" />API unavailable — showing demo data. </span>}
+          Manage your availability and view upcoming events
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -155,7 +192,7 @@ export function CalendarPage() {
             Upcoming Events
           </h3>
           <div className="space-y-3">
-            {UPCOMING_EVENTS.map((event, idx) => (
+            {upcomingEvents.map((event, idx) => (
               <div key={idx} className="p-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-semibold text-brand-600">{event.date}</span>
@@ -174,7 +211,7 @@ export function CalendarPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Booked days</span>
                 <span className="font-semibold text-gray-900">
-                  {BOOKED_DATES.filter((b) => b.date.startsWith(formatDateStr(year, month, 1).slice(0, 7))).length}
+                  {bookedDates.filter((b) => b.date.startsWith(formatDateStr(year, month, 1).slice(0, 7))).length}
                 </span>
               </div>
               <div className="flex justify-between text-sm">
@@ -186,7 +223,7 @@ export function CalendarPage() {
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">Available days</span>
                 <span className="font-semibold text-green-600">
-                  {daysInMonth - BOOKED_DATES.filter((b) => b.date.startsWith(formatDateStr(year, month, 1).slice(0, 7))).length - blocked.filter((b) => b.startsWith(formatDateStr(year, month, 1).slice(0, 7))).length}
+                  {daysInMonth - bookedDates.filter((b) => b.date.startsWith(formatDateStr(year, month, 1).slice(0, 7))).length - blocked.filter((b) => b.startsWith(formatDateStr(year, month, 1).slice(0, 7))).length}
                 </span>
               </div>
             </div>
