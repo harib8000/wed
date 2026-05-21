@@ -17,7 +17,9 @@ import {
   Music,
 } from 'lucide-react';
 
-import type { RsvpStatus, MealPreference } from '@wedding-os/shared-types';
+// Local type definitions (matches @wedding-os/shared-types)
+type RsvpStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
+type MealPreference = 'veg' | 'non_veg' | 'jain' | 'vegan' | 'no_preference';
 
 /* ------------------------------------------------------------------ */
 /*  Event Info (mock)                                                   */
@@ -96,9 +98,9 @@ export default function InvitePage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h1>
           <p className="text-gray-600 mb-4">
             {rsvpStatus === 'accepted'
-              ? 'We're thrilled you'll be joining us! 🎉'
+              ? "We're thrilled you'll be joining us! 🎉"
               : rsvpStatus === 'declined'
-                ? 'We'll miss you! Thank you for letting us know. 💕'
+                ? "We'll miss you! Thank you for letting us know. 💕"
                 : 'No worries! We hope to see you there. 💫'}
           </p>
 

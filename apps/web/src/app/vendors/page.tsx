@@ -320,7 +320,7 @@ function VendorsPageInner() {
         rating: String(v.rating || v.avgRating || '4.5'),
         totalReviews: Number(v.totalReviews || v.total_reviews || 0),
         basePrice: Number(v.basePrice || v.base_price || v.startingPrice || 0),
-        coverImage: (v.coverImage || v.cover_image || v.portfolio?.[0]?.url || `https://images.unsplash.com/photo-1519741497674-611481863552?w=400&q=80`) as string,
+        coverImage: (v.coverImage || v.cover_image || (Array.isArray(v.portfolio) && v.portfolio.length > 0 ? (v.portfolio[0] as Record<string, unknown>)?.url : null) || `https://images.unsplash.com/photo-1519741497674-611481863552?w=400&q=80`) as string,
         featured: Boolean(v.featured),
       }));
     }

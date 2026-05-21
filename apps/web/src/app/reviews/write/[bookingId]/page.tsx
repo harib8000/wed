@@ -302,7 +302,7 @@ export default function WriteReviewPage() {
     try {
       const payload: Record<string, unknown> = {
         bookingId,
-        vendorId: booking.vendorId,
+        vendorId: booking?.vendorId ?? '',
         rating: overallRating,
         title: title.trim() || undefined,
         body: trimmedBody,

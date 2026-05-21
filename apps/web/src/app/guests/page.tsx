@@ -24,7 +24,29 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { AddGuestModal } from '@/components/guests/AddGuestModal';
 
-import type { Guest, RsvpStatus, GuestSide, MealPreference } from '@wedding-os/shared-types';
+// Local type definitions (matches @wedding-os/shared-types)
+type RsvpStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
+type GuestSide = 'bride' | 'groom' | 'mutual';
+type MealPreference = 'veg' | 'non_veg' | 'jain' | 'vegan' | 'no_preference';
+
+interface Guest {
+  id: string;
+  eventId: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  side: GuestSide;
+  rsvpStatus: RsvpStatus;
+  mealPreference: MealPreference;
+  plusOnes: number;
+  tableNumber?: string;
+  roomAllocation?: string;
+  inviteSentAt?: Date;
+  rsvpRespondedAt?: Date;
+  qrCode?: string;
+  notes?: string;
+  createdAt: Date;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Mock Data                                                          */

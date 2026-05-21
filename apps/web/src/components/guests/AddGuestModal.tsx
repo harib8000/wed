@@ -4,7 +4,9 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, UserPlus, Phone, Mail, Users, UtensilsCrossed, StickyNote } from 'lucide-react';
 
-import type { GuestSide, MealPreference } from '@wedding-os/shared-types';
+// Local type definitions (matches @wedding-os/shared-types)
+type GuestSide = 'bride' | 'groom' | 'mutual';
+type MealPreference = 'veg' | 'non_veg' | 'jain' | 'vegan' | 'no_preference';
 
 interface GuestFormData {
   name: string;
