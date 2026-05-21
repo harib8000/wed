@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users,
@@ -189,6 +190,32 @@ const MOCK_GUESTS: Guest[] = [
 ];
 
 /* ------------------------------------------------------------------ */
+/*  localStorage persistence                                           */
+/* ------------------------------------------------------------------ */
+
+const GUESTS_STORAGE_KEY = 'wedding_os_guests';
+
+function loadGuestsFromStorage(): Guest[] | null {
+  try {
+    const raw = localStorage.getItem(GUESTS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw, (key, value) => {
+      if (['createdAt', 'inviteSentAt', 'rsvpRespondedAt'].includes(key) && value) {
+        return new Date(value);
+      }
+      return value;
+    });
+    return Array.isArray(parsed) ? parsed : null;
+  } catch { return null; }
+}
+
+function saveGuestsToStorage(guests: Guest[]) {
+  try {
+    localStorage.setItem(GUESTS_STORAGE_KEY, JSON.stringify(guests));
+  } catch {}
+}
+
+/* ------------------------------------------------------------------ */
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
@@ -231,6 +258,8 @@ const RSVP_FILTERS: { value: RsvpFilter; label: string }[] = [
   { value: 'maybe', label: 'Maybe' },
 ];
 
+const RSVP_CYCLE: RsvpStatus[] = ['pending', 'accepted', 'maybe', 'declined'];
+
 const cardVariants = {
   hidden: { opacity: 0, y: 24 },
   visible: (i: number) => ({
@@ -252,12 +281,22 @@ const fadeIn = {
 /* ------------------------------------------------------------------ */
 
 export default function GuestsPage() {
-  const [guests, setGuests] = useState<Guest[]>(MOCK_GUESTS);
+  const [guests, setGuests] = useState<Guest[]>(() => {
+    if (typeof window === 'undefined') return MOCK_GUESTS;
+    return loadGuestsFromStorage() ?? MOCK_GUESTS;
+  });
   const [search, setSearch] = useState('');
   const [sideTab, setSideTab] = useState<SideTab>('all');
   const [rsvpFilter, setRsvpFilter] = useState<RsvpFilter>('all');
   const [showModal, setShowModal] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+
+  /* -- Persist guests to localStorage -------------------------------- */
+  const guestInitRef = useRef(false);
+  useEffect(() => {
+    if (!guestInitRef.current) { guestInitRef.current = true; return; }
+    saveGuestsToStorage(guests);
+  }, [guests]);
 
   /* -- Computed ---------------------------------------------------- */
   const stats = useMemo(() => {
@@ -312,6 +351,7 @@ export default function GuestsPage() {
       createdAt: new Date(),
     };
     setGuests((prev) => [newGuest, ...prev]);
+    toast.success(`${data.name} added to guest list!`, { duration: 2000 });
   }
 
   function handleExportCSV() {
@@ -328,6 +368,7 @@ export default function GuestsPage() {
     a.download = 'guest-list.csv';
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast.success(`Exported ${guests.length} guests to CSV`, { duration: 2000 });
   }
 
   function handleWhatsAppBulk() {
@@ -337,7 +378,26 @@ export default function GuestsPage() {
     );
     if (pendingGuests.length > 0) {
       window.open(`https://wa.me/91${pendingGuests[0].phone}?text=${msg}`, '_blank');
+      toast.success(`Opening WhatsApp for ${pendingGuests[0].name}`, { duration: 2000 });
+    } else {
+      toast.error('No pending guests with phone numbers', { duration: 2000 });
     }
+  }
+
+  function handleToggleRsvp(guestId: string) {
+    setGuests((prev) =>
+      prev.map((g) => {
+        if (g.id !== guestId) return g;
+        const currentIndex = RSVP_CYCLE.indexOf(g.rsvpStatus);
+        const nextStatus = RSVP_CYCLE[(currentIndex + 1) % RSVP_CYCLE.length];
+        toast.success(`${g.name}: ${RSVP_CONFIG[nextStatus].label}`, { duration: 2000 });
+        return {
+          ...g,
+          rsvpStatus: nextStatus,
+          rsvpRespondedAt: nextStatus !== 'pending' ? new Date() : undefined,
+        };
+      })
+    );
   }
 
   /* -- Stat cards ------------------------------------------------- */
@@ -558,10 +618,15 @@ export default function GuestsPage() {
                             <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">
                               {guest.name}
                             </h3>
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${rsvp.bg} ${rsvp.color}`}>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleRsvp(guest.id)}
+                              title="Click to change RSVP status"
+                              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition ${rsvp.bg} ${rsvp.color}`}
+                            >
                               <RsvpIcon className="w-3 h-3" />
                               {rsvp.label}
-                            </span>
+                            </button>
                           </div>
 
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1.5 text-xs text-gray-500">
@@ -609,6 +674,16 @@ export default function GuestsPage() {
                               Not invited
                             </span>
                           )}
+                          <button
+                            onClick={() => {
+                              setGuests((prev) => prev.filter((g) => g.id !== guest.id));
+                              toast.success(`${guest.name} removed`, { duration: 2000 });
+                            }}
+                            className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition"
+                            title="Remove guest"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </motion.div>

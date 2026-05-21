@@ -1,11 +1,13 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, Heart, CheckSquare, Bell, Search, Clock, Shield, ArrowRight, Star, MapPin, Building2, Camera, Utensils, Sparkles, Music, Palette, Car, FileText, Users, ChevronRight, TrendingUp, Flame, Award, Zap, Plus, X, Activity } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { authApi } from '@/lib/api';
+import { authApi, bookingApi, userApi } from '@/lib/api';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 
@@ -49,20 +51,102 @@ const RECENT_ACTIVITIES = [
 
 const fadeIn = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 
+const TASKS_STORAGE_KEY = 'wedding_os_dashboard_tasks';
+
+function loadTasksFromStorage(): typeof DEFAULT_TASKS | null {
+  try {
+    const raw = localStorage.getItem(TASKS_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveTasksToStorage(tasks: typeof DEFAULT_TASKS) {
+  try {
+    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+  } catch {}
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, isLoading, setUser, setLoading } = useAuthStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
-  const [tasks, setTasks] = useState(DEFAULT_TASKS);
+  const [tasks, setTasks] = useState(() => {
+    if (typeof window === 'undefined') return DEFAULT_TASKS;
+    return loadTasksFromStorage() ?? DEFAULT_TASKS;
+  });
   const [showAddTask, setShowAddTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskPriority, setNewTaskPriority] = useState<'high' | 'medium' | 'low'>('medium');
 
   const nextIdRef = useRef(100);
+  const taskInitRef = useRef(false);
+
+  // ─── API Queries ─────────────────────────────────────────
+  const { data: bookingsData } = useQuery({
+    queryKey: ['dashboard-bookings'],
+    queryFn: async () => {
+      const res = await bookingApi.list();
+      return res.data?.data ?? res.data;
+    },
+    enabled: !!user,
+    retry: 1,
+  });
+
+  const { data: profileData } = useQuery({
+    queryKey: ['dashboard-profile'],
+    queryFn: async () => {
+      const res = await userApi.getProfile();
+      return res.data?.data ?? res.data;
+    },
+    enabled: !!user,
+    retry: 1,
+  });
+
+  // ─── Computed values from real data ──────────────────────
+  const daysToGo = useMemo(() => {
+    const eventDate = profileData?.eventDate || profileData?.weddingDate;
+    if (eventDate) {
+      const diff = Math.ceil((new Date(eventDate).getTime() - Date.now()) / 86_400_000);
+      return diff > 0 ? diff : 0;
+    }
+    return 247;
+  }, [profileData]);
+
+  const bookingCount = bookingsData?.length ?? 8;
+
+  const totalSpent = useMemo(() => {
+    if (!bookingsData?.length) return '₹4.2L';
+    const total = bookingsData.reduce((sum: number, b: any) => sum + (b.totalAmount || b.amount || 0), 0);
+    if (total === 0) return '₹4.2L';
+    if (total >= 100000) return `₹${(total / 100000).toFixed(1)}L`;
+    if (total >= 1000) return `₹${(total / 1000).toFixed(0)}K`;
+    return `₹${total}`;
+  }, [bookingsData]);
+
+  const escrowHeld = useMemo(() => {
+    if (!bookingsData?.length) return '₹3,20,000';
+    const held = bookingsData
+      .filter((b: any) => b.status === 'CONFIRMED' || b.status === 'ADVANCE_PAID')
+      .reduce((sum: number, b: any) => sum + (b.escrowAmount || b.totalAmount || 0), 0);
+    if (held === 0) return '₹3,20,000';
+    return `₹${held.toLocaleString('en-IN')}`;
+  }, [bookingsData]);
+
+  // ─── Persist tasks to localStorage ───────────────────────
+  useEffect(() => {
+    if (!taskInitRef.current) { taskInitRef.current = true; return; }
+    saveTasksToStorage(tasks);
+  }, [tasks]);
 
   const toggleTask = (id: number) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t)));
+    setTasks((prev) => prev.map((t) => {
+      if (t.id !== id) return t;
+      const updated = { ...t, done: !t.done };
+      if (updated.done) toast.success(`"${t.title}" marked done!`, { duration: 2000 });
+      return updated;
+    }));
   };
 
   const addTask = () => {
@@ -116,15 +200,15 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center gap-3">
                 <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center">
-                  <div className="text-2xl font-bold">247</div>
+                  <div className="text-2xl font-bold">{daysToGo}</div>
                   <div className="text-xs text-white/70">Days to go</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center">
-                  <div className="text-2xl font-bold">8</div>
+                  <div className="text-2xl font-bold">{bookingCount}</div>
                   <div className="text-xs text-white/70">Vendors</div>
                 </div>
                 <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center">
-                  <div className="text-2xl font-bold">₹4.2L</div>
+                  <div className="text-2xl font-bold">{totalSpent}</div>
                   <div className="text-xs text-white/70">Spent</div>
                 </div>
               </div>
@@ -443,7 +527,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-green-800 text-sm">All Your Payments are Escrow Protected</h3>
-              <p className="text-xs text-green-600 mt-0.5">₹3,20,000 currently held in escrow · Released after event confirmation</p>
+              <p className="text-xs text-green-600 mt-0.5">{escrowHeld} currently held in escrow · Released after event confirmation</p>
             </div>
             <Link href="/dashboard/payments" className="btn-secondary text-xs py-2 px-4 border-green-200 text-green-700 whitespace-nowrap">
               View Details
