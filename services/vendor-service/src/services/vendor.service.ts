@@ -92,7 +92,8 @@ export const vendorService = {
         throw err;
       }
     }
-    // Unreachable, but satisfies TypeScript
+    // TypeScript cannot prove the loop always returns/throws; this line is unreachable at runtime
+    /* istanbul ignore next */
     throw new Error('Failed to generate unique slug');
   },
 
