@@ -137,12 +137,14 @@ export const paymentService = {
     return updatedPayment;
   },
 
-  async handleWebhook(event: string, payload: any) {
+  async handleWebhook(event: string, payload: Record<string, unknown>) {
     logger.info({ event }, 'Razorpay webhook received');
 
+    const paymentEntity = (payload.payment as Record<string, unknown> | undefined)?.entity as Record<string, unknown> | undefined;
+
     if (event === 'payment.captured') {
-      const { order_id, id: paymentId, signature } = payload.payment?.entity ?? {};
-      const notes = payload.payment?.entity?.notes ?? {};
+      const order_id = paymentEntity?.order_id as string | undefined;
+      const paymentId = paymentEntity?.id as string | undefined;
 
       if (order_id && paymentId) {
         const pmt = await prisma.payment.findUnique({ where: { razorpayOrderId: order_id } });
@@ -158,7 +160,7 @@ export const paymentService = {
     }
 
     if (event === 'payment.failed') {
-      const { order_id } = payload.payment?.entity ?? {};
+      const order_id = paymentEntity?.order_id as string | undefined;
       if (order_id) {
         await prisma.payment.updateMany({ where: { razorpayOrderId: order_id }, data: { status: 'FAILED' } });
       }
