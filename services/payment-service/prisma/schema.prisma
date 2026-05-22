@@ -86,6 +86,7 @@ model EscrowHold {
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
   @@index([vendorId, status])
+  @@index([bookingId])
   @@index([releaseScheduledAt])
   @@map("escrow_holds")
 }
