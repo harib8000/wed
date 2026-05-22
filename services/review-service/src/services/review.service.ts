@@ -66,18 +66,18 @@ export const reviewService = {
   },
 
   async getVendorReviews(vendorId: string, page = 1, limit = 20) {
-    const [reviews, total] = await Promise.all([
+    const whereClause = { vendorId, isPublished: true };
+    const [reviews, total, stats] = await Promise.all([
       prisma.review.findMany({
-        where: { vendorId, isPublished: true },
+        where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
-        select: { id: true, rating: true, title: true, body: true, qualityRating: true, valueRating: true, professionalismRating: true, punctualityRating: true, photos: true, vendorReply: true, vendorRepliedAt: true, helpfulCount: true, createdAt: true, customerId: true },
+        select: { id: true, rating: true, title: true, body: true, qualityRating: true, valueRating: true, professionalismRating: true, punctualityRating: true, photos: true, vendorReply: true, vendorRepliedAt: true, helpfulCount: true, createdAt: true },
       }),
-      prisma.review.count({ where: { vendorId, isPublished: true } }),
+      prisma.review.count({ where: whereClause }),
+      prisma.review.aggregate({ where: whereClause, _avg: { rating: true, qualityRating: true, valueRating: true, professionalismRating: true, punctualityRating: true }, _count: { id: true } }),
     ]);
-
-    const stats = await prisma.review.aggregate({ where: { vendorId, isPublished: true }, _avg: { rating: true, qualityRating: true, valueRating: true, professionalismRating: true, punctualityRating: true }, _count: { id: true } });
 
     return { reviews, total, page, limit, totalPages: Math.ceil(total / limit), stats };
   },
