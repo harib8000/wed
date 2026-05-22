@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { notificationService } from '../services/notification.service';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, requireInternalOrAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 
 // ── Zod Schemas ─────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ notificationRouter.post('/read-all', authenticate, async (req, res, next) => {
 
 // ── POST /internal/notify (called by other services) ─────────────────────────
 
-notificationRouter.post('/internal/notify', validate(InternalNotifySchema), async (req, res, next) => {
+notificationRouter.post('/internal/notify', requireInternalOrAdmin, validate(InternalNotifySchema), async (req, res, next) => {
   try {
     const { event, payload } = req.body;
     await notificationService.handleEvent(event, payload);

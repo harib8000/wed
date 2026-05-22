@@ -21,15 +21,62 @@ adminApi.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Response interceptor: handle 401 ─────────────────────────────────────────
+// ── Response interceptor: handle 401 with token refresh ──────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (token) resolve(token);
+    else reject(error);
+  });
+  failedQueue = [];
+};
+
 adminApi.interceptors.response.use(
   (res) => res,
-  (err: AxiosError) => {
-    if (err.response?.status === 401) {
+  async (err: AxiosError) => {
+    const originalRequest = err.config;
+    if (!originalRequest || err.response?.status !== 401) {
+      return Promise.reject(err);
+    }
+
+    // Don't retry the refresh call itself
+    if (originalRequest.url?.includes('/auth/refresh')) {
       Cookies.remove('admin_token');
       window.location.href = '/login';
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
+
+    if (isRefreshing) {
+      return new Promise<string>((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return adminApi(originalRequest);
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+      const newToken = data?.data?.accessToken;
+      if (newToken) {
+        Cookies.set('admin_token', newToken, { expires: 1 / 96, sameSite: 'lax' });
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        processQueue(null, newToken);
+        return adminApi(originalRequest);
+      }
+      throw new Error('No access token in refresh response');
+    } catch (refreshErr) {
+      processQueue(refreshErr, null);
+      Cookies.remove('admin_token');
+      window.location.href = '/login';
+      return Promise.reject(refreshErr);
+    } finally {
+      isRefreshing = false;
+    }
   },
 );
 

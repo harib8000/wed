@@ -189,6 +189,11 @@ export const paymentService = {
   async refund(paymentId: string, reason: string, adminNote?: string) {
     const payment = await prisma.payment.findUnique({ where: { id: paymentId }, include: { escrowHold: true } });
     if (!payment) throw new NotFoundError('Payment', paymentId);
+    if (payment.status === 'REFUNDED') {
+      // Idempotent: already refunded — return existing refund record
+      const existingRefund = await prisma.refund.findFirst({ where: { paymentId } });
+      return { payment, refund: existingRefund };
+    }
     if (payment.status !== 'CAPTURED') throw new ConflictError('Payment has not been captured yet');
 
     // Cancel scheduled escrow release job

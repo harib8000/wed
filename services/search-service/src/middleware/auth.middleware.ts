@@ -2,7 +2,6 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { readFileSync } from 'fs';
 import { config } from '../config';
-import { logger } from '../utils/logger';
 
 interface JwtPayload {
   sub?: string;

@@ -25,13 +25,13 @@ services:
   redis:
     image: redis:7-alpine
     container_name: weddingos-redis
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass redis_dev_password
     ports:
       - '6379:6379'
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ['CMD', 'redis-cli', '-a', 'redis_dev_password', 'ping']
       interval: 5s
       timeout: 3s
       retries: 10

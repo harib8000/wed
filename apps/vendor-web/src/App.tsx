@@ -12,8 +12,8 @@ import { PayoutsPage } from './pages/PayoutsPage';
 import { useAuthStore } from './store/authStore';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuthStore();
-  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  const { isAuthenticated, user } = useAuthStore();
+  if (!isAuthenticated || (user && user.role !== 'vendor')) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 

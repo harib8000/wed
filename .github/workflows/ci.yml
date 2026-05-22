@@ -89,6 +89,10 @@ jobs:
           pnpm --filter auth-service exec prisma generate
           pnpm --filter booking-service exec prisma generate
           pnpm --filter payment-service exec prisma generate
+          pnpm --filter user-service exec prisma generate
+          pnpm --filter execution-service exec prisma generate
+          pnpm --filter media-service exec prisma generate
+          pnpm --filter search-service exec prisma generate
 
       - name: Run service tests
         env:

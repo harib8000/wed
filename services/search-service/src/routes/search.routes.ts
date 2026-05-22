@@ -1,6 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { searchService } from '../services/search.service';
+import { requireInternalOrAdmin } from '../middleware/auth.middleware';
 
 const router = Router();
 
@@ -47,7 +48,7 @@ router.get('/autocomplete', async (req: Request, res: Response, next: NextFuncti
 });
 
 // POST /search/vendors/index — internal endpoint to index a vendor
-router.post('/vendors/index', async (req: Request, res: Response, next: NextFunction) => {
+router.post('/vendors/index', requireInternalOrAdmin, async (req: Request, res: Response, next: NextFunction) => {
   try {
     await searchService.indexVendor(req.body);
     res.json({ success: true });

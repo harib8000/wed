@@ -49,7 +49,9 @@ async function syncToEs(vendor: Vendor & { packages?: VendorPackage[]; tags?: { 
     tags: vendor.tags?.map((t) => t.tag) ?? [],
     priceFromPaise: minPrice,
     updatedAt: vendor.updatedAt.toISOString(),
-  }).catch((err) => logger.error({ err }, 'ES sync error'));
+  }).catch((err) => {
+    logger.error({ err, vendorId: vendor.id }, 'ES sync failed — search index may be stale');
+  });
 }
 
 export const vendorService = {
