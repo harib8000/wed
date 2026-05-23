@@ -242,6 +242,81 @@ export interface Review {
   createdAt: Date;
 }
 
+// ─── Guest Management Types ──────────────────────────────────────────────────
+
+export type RsvpStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
+export type GuestSide = 'bride' | 'groom' | 'mutual';
+export type MealPreference = 'veg' | 'non_veg' | 'jain' | 'vegan' | 'no_preference';
+
+export interface Guest {
+  id: string;
+  eventId: string;
+  name: string;
+  phone?: string;
+  email?: string;
+  side: GuestSide;
+  rsvpStatus: RsvpStatus;
+  mealPreference: MealPreference;
+  plusOnes: number;
+  tableNumber?: string;
+  roomAllocation?: string;
+  inviteSentAt?: Date;
+  rsvpRespondedAt?: Date;
+  qrCode?: string;
+  notes?: string;
+  createdAt: Date;
+}
+
+export interface GuestListSummary {
+  total: number;
+  accepted: number;
+  declined: number;
+  pending: number;
+  maybe: number;
+  totalWithPlusOnes: number;
+  brideSide: number;
+  groomSide: number;
+}
+
+// ─── Trust Score Types ───────────────────────────────────────────────────────
+
+export interface TrustScore {
+  vendorId: string;
+  overallScore: number; // 0-100
+  punctualityScore: number;
+  completionRate: number;
+  disputeRate: number;
+  reviewQuality: number;
+  cancellationRate: number;
+  responseSpeed: number; // avg hours
+  totalEventsCompleted: number;
+  badge: TrustBadge;
+  updatedAt: Date;
+}
+
+export type TrustBadge = 'new' | 'rising' | 'trusted' | 'verified_pro' | 'elite';
+
+// ─── Dispute Types ───────────────────────────────────────────────────────────
+
+export type DisputeStatus = 'open' | 'under_review' | 'resolved_customer' | 'resolved_vendor' | 'closed';
+export type DisputeReason = 'no_show' | 'poor_quality' | 'late_arrival' | 'wrong_items' | 'overcharging' | 'damage' | 'other';
+
+export interface Dispute {
+  id: string;
+  bookingId: string;
+  raisedBy: string; // userId
+  againstVendorId: string;
+  reason: DisputeReason;
+  description: string;
+  evidenceUrls: string[];
+  status: DisputeStatus;
+  adminNotes?: string;
+  resolutionSummary?: string;
+  refundAmount?: number;
+  createdAt: Date;
+  resolvedAt?: Date;
+}
+
 // ─── API Response Types ──────────────────────────────────────────────────────
 
 export interface ApiSuccessResponse<T = unknown> {

@@ -43,7 +43,14 @@ export type DomainEventType =
   // User events
   | 'user.profile_updated'
   | 'user.kyc_approved'
-  | 'user.kyc_rejected';
+  | 'user.kyc_rejected'
+  // Guest events
+  | 'guest.invited'
+  | 'guest.rsvp_accepted'
+  | 'guest.rsvp_declined'
+  // Dispute events
+  | 'dispute.opened'
+  | 'dispute.resolved';
 
 export interface DomainEvent<T = unknown> {
   id: string;

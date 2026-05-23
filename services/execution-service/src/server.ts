@@ -3,6 +3,7 @@ import http from 'http';
 import { Server as SocketIO } from 'socket.io';
 import helmet from 'helmet';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
 import { executionRouter } from './routes/execution.routes';
 import { requestId } from './middleware/requestId';
@@ -59,6 +60,7 @@ async function bootstrap() {
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({ origin: config.ALLOWED_ORIGINS, credentials: true }));
   app.use(express.json({ limit: '10kb' }));
+  app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
   app.use(requestId);
   app.use(pinoHttp({ logger }));
   app.use('/execution', executionRouter);

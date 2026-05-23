@@ -21,15 +21,62 @@ adminApi.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Response interceptor: handle 401 ─────────────────────────────────────────
+// ── Response interceptor: handle 401 with token refresh ──────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (token) resolve(token);
+    else reject(error);
+  });
+  failedQueue = [];
+};
+
 adminApi.interceptors.response.use(
   (res) => res,
-  (err: AxiosError) => {
-    if (err.response?.status === 401) {
+  async (err: AxiosError) => {
+    const originalRequest = err.config;
+    if (!originalRequest || err.response?.status !== 401) {
+      return Promise.reject(err);
+    }
+
+    // Don't retry the refresh call itself
+    if (originalRequest.url?.includes('/auth/refresh')) {
       Cookies.remove('admin_token');
       window.location.href = '/login';
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
+
+    if (isRefreshing) {
+      return new Promise<string>((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return adminApi(originalRequest);
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+      const newToken = data?.data?.accessToken;
+      if (newToken) {
+        Cookies.set('admin_token', newToken, { expires: 1 / 96, sameSite: 'lax' });
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        processQueue(null, newToken);
+        return adminApi(originalRequest);
+      }
+      throw new Error('No access token in refresh response');
+    } catch (refreshErr) {
+      processQueue(refreshErr, null);
+      Cookies.remove('admin_token');
+      window.location.href = '/login';
+      return Promise.reject(refreshErr);
+    } finally {
+      isRefreshing = false;
+    }
   },
 );
 
@@ -174,4 +221,55 @@ export const usersApi = {
     adminApi
       .get<PaginatedResponse<{ users: AdminUser[] }>>('/admin/users', { params })
       .then((r) => r.data),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DISPUTES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Dispute {
+  id: string;
+  bookingId: string;
+  bookingNumber: string;
+  customerName: string;
+  vendorName: string;
+  reason: string;
+  description: string;
+  status: 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED_CUSTOMER' | 'RESOLVED_VENDOR' | 'CLOSED';
+  evidenceUrls: string[];
+  refundAmountPaise: number | null;
+  adminNotes: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+}
+
+export const disputesApi = {
+  list: (params: { page?: number; limit?: number; status?: string }) =>
+    adminApi
+      .get<PaginatedResponse<{ disputes: Dispute[] }>>('/admin/disputes', { params })
+      .then((r) => r.data),
+
+  resolve: (disputeId: string, body: { status: string; refundAmountPaise?: number; adminNotes: string }) =>
+    adminApi.post(`/admin/disputes/${disputeId}/resolve`, body).then((r) => r.data),
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REPORTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface ReportSummary {
+  totalRevenue: number;
+  platformFees: number;
+  activeVendors: number;
+  activeCustomers: number;
+  monthlyRevenue: Array<{ month: string; revenue: number; bookings: number }>;
+  topVendors: Array<{ id: string; name: string; category: string; bookings: number; revenue: number; rating: number }>;
+  categoryBreakdown: Array<{ category: string; bookings: number; revenue: number }>;
+}
+
+export const reportsApi = {
+  getSummary: (params?: { from?: string; to?: string }) =>
+    adminApi
+      .get<{ success: boolean; data: ReportSummary }>('/admin/reports/summary', { params })
+      .then((r) => r.data.data),
 };

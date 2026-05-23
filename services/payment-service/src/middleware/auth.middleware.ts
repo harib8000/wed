@@ -18,8 +18,10 @@ interface JwtPayload {
 function getPublicKey(): string {
   if (config.JWT_PUBLIC_KEY) return config.JWT_PUBLIC_KEY.replace(/\\n/g, '\n');
   if (config.JWT_PUBLIC_KEY_PATH) return readFileSync(config.JWT_PUBLIC_KEY_PATH, 'utf8');
-  // Dev fallback: accept HS256 symmetric with hardcoded secret
-  return 'dev-secret-do-not-use-in-production';
+  if (config.NODE_ENV === 'production') {
+    throw new Error('JWT_PUBLIC_KEY or JWT_PUBLIC_KEY_PATH must be set in production');
+  }
+  return process.env.JWT_DEV_SECRET ?? 'dev-secret-change-me';
 }
 
 declare global {

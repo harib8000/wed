@@ -200,6 +200,16 @@ plugins:
       fault_tolerant: true
       hide_client_headers: false
 
+  # JWT authentication (global — auth routes are exempted via consumers)
+  - name: key-auth
+    config:
+      key_names:
+        - apikey
+        - X-API-Key
+      hide_credentials: true
+    service: auth-service
+    enabled: false
+
   # CORS
   - name: cors
     config:
@@ -233,3 +243,9 @@ plugins:
     config:
       allowed_payload_size: 10
       size_unit: megabytes
+
+  # HTTP logging — structured request/response logs
+  - name: file-log
+    config:
+      path: /dev/stdout
+      reopen: false

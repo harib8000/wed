@@ -33,11 +33,14 @@ Future<void> _initNativeServices() async {
 
 Future<bool> _tryFirebaseInit() async {
   try {
-    // ignore: depend_on_referenced_packages
+    // Ensure bindings are ready before Firebase init
     WidgetsBinding.instance;
     // Firebase.initializeApp will be called in notification_service on native
+    // This function validates that bindings are ready for later Firebase init
+    debugPrint('Firebase bindings ready — deferred init will run in notification_service');
     return true;
-  } catch (_) {
+  } catch (e) {
+    debugPrint('Firebase pre-init check failed: $e');
     return false;
   }
 }

@@ -177,4 +177,74 @@ export const analyticsApi = {
     vendorApi.get<{ success: boolean; data: Array<{ name: string; count: number; revenue: number }> }>(
       '/vendors/me/analytics/packages',
     ).then((r) => r.data.data),
+
+  getMonthlyBreakdown: () =>
+    vendorApi.get<{ success: boolean; data: Array<{ month: string; revenue: number; bookings: number; enquiries: number }> }>(
+      '/vendors/me/analytics/monthly',
+    ).then((r) => r.data.data),
+};
+
+/** Reviews for the logged-in vendor */
+export interface VendorReview {
+  id: string;
+  customer: string;
+  rating: number;
+  date: string;
+  eventType: string;
+  comment: string;
+  helpful: number;
+  reply: string | null;
+}
+
+export const reviewsApi = {
+  list: () =>
+    vendorApi.get<{ success: boolean; data: { reviews: VendorReview[] } }>('/reviews/vendor/me')
+      .then((r) => r.data.data.reviews),
+
+  reply: (reviewId: string, body: { reply: string }) =>
+    vendorApi.post(`/reviews/${reviewId}/reply`, body).then((r) => r.data),
+};
+
+/** Payouts & earnings for the logged-in vendor */
+export interface PayoutRecord {
+  id: string;
+  date: string;
+  bookingNumber: string;
+  customer: string;
+  amount: number;
+  platformFee: number;
+  netPayout: number;
+  status: string;
+}
+
+export interface EarningsSummary {
+  totalEarned: number;
+  pendingRelease: number;
+  thisMonth: number;
+  platformFees: number;
+}
+
+export const payoutsApi = {
+  list: () =>
+    vendorApi.get<{ success: boolean; data: { payouts: PayoutRecord[]; summary: EarningsSummary } }>(
+      '/payments/vendor/me/payouts',
+    ).then((r) => r.data.data),
+};
+
+/** Calendar / availability for the logged-in vendor */
+export interface BookedDate {
+  date: string;
+  customer: string;
+  event: string;
+  slot: string;
+}
+
+export const calendarApi = {
+  getAvailability: () =>
+    vendorApi.get<{ success: boolean; data: { bookedDates: BookedDate[]; blockedDates: string[] } }>(
+      '/vendors/me/availability',
+    ).then((r) => r.data.data),
+
+  updateBlockedDates: (blockedDates: string[]) =>
+    vendorApi.put('/vendors/me/availability', { blockedDates }).then((r) => r.data),
 };

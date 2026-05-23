@@ -93,7 +93,7 @@ authRouter.post(
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        path: '/auth/refresh',
+        path: '/',
       });
 
       logger.info({ userId: user.id, phone: user.phone }, 'User logged in');
@@ -183,7 +183,7 @@ authRouter.post(
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: 30 * 24 * 60 * 60 * 1000,
-        path: '/auth/refresh',
+        path: '/',
       });
 
       res.status(200).json({
@@ -221,7 +221,7 @@ authRouter.post('/logout', authenticate, async (req: Request, res: Response, nex
     await userService.revokeSession(req.user!.id, accessToken, refreshToken);
 
     // Clear cookie
-    res.clearCookie('refreshToken', { path: '/auth/refresh' });
+    res.clearCookie('refreshToken', { path: '/' });
 
     res.status(200).json({
       success: true,

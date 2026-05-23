@@ -1,16 +1,44 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
-import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, SearchX, Clock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Star, MapPin, CheckCircle, Shield, MessageCircle, Calendar, ArrowLeft, Heart, SearchX, Clock, Info } from 'lucide-react';
 import AvailabilityCalendar from '@/components/vendors/AvailabilityCalendar';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { addToRecentlyViewed } from '@/components/vendors/RecentlyViewed';
 import { ShareButton } from '@/components/vendors/ShareButton';
+import { QuickEnquiry } from '@/components/vendors/QuickEnquiry';
+import { vendorApi } from '@/lib/api';
 
 const fadeIn = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.4 } };
 const stagger = { animate: { transition: { staggerChildren: 0.1 } } };
+
+/* ─── Wishlist helpers ─── */
+function getWishlist(): string[] {
+  if (typeof window === 'undefined') return [];
+  try { return JSON.parse(localStorage.getItem('wishlist') || '[]'); } catch { return []; }
+}
+function toggleWishlist(vendorId: string): boolean {
+  const list = getWishlist();
+  const idx = list.indexOf(vendorId);
+  if (idx >= 0) { list.splice(idx, 1); } else { list.push(vendorId); }
+  localStorage.setItem('wishlist', JSON.stringify(list));
+  window.dispatchEvent(new Event('storage'));
+  return idx < 0;
+}
+
+/* ─── Demo Mode Badge ─── */
+function DemoModeBadge() {
+  return (
+    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-xs font-medium">
+      <Info size={12} />
+      Demo mode — showing sample data
+    </div>
+  );
+}
 
 // Mock vendor detail
 const MOCK_VENDOR = {
@@ -41,6 +69,59 @@ const VENDOR_MAP: Record<string, typeof MOCK_VENDOR> = {
   'vendor-2': { ...MOCK_VENDOR, id: '2', businessName: 'Srikanth Photography', category: 'Photography', rating: 4.8, totalReviews: 189, totalBookings: 156, basePrice: 80000, description: 'Award-winning wedding photography studio specializing in candid, traditional, and cinematic styles. Capturing your most precious moments with a team of 8 professional photographers across Hyderabad.', yearsExperience: 8, teamSize: 8, packages: [{ id: 'p1', name: 'Essential', price: 40000, priceType: 'fixed', description: '1 photographer, 200 edited photos', inclusions: ['1 Photographer', '200 Edited Photos', '8-hour coverage', 'Online Gallery'], minGuests: 0, maxGuests: 500 }, { id: 'p2', name: 'Premium', price: 80000, priceType: 'fixed', description: '2 photographers + pre-wedding shoot', inclusions: ['2 Photographers', '500 Edited Photos', 'Pre-wedding Shoot', 'Photo Album', '12-hour coverage'], minGuests: 0, maxGuests: 1000 }, { id: 'p3', name: 'Cinematic', price: 150000, priceType: 'fixed', description: 'Full team with drone + film', inclusions: ['3 Photographers', 'Drone Coverage', 'Cinematic Film', '1000+ Photos', 'Premium Album', 'Multi-day coverage'], minGuests: 0, maxGuests: 2000 }], tags: ['Candid', 'Traditional', 'Cinematic', 'Drone', 'Pre-wedding'] },
   'vendor-3': { ...MOCK_VENDOR, id: '3', businessName: 'Flavours Catering Co.', category: 'Catering', rating: 4.7, totalReviews: 312, totalBookings: 420, basePrice: 800, description: 'Hyderabad\'s finest multi-cuisine catering service with live counters, traditional Hyderabadi Biryani, and 200+ menu options. Serving weddings from 100 to 5000 guests.', yearsExperience: 15, teamSize: 120, packages: [{ id: 'p1', name: 'Classic', price: 800, priceType: 'per_plate', description: 'Standard buffet menu', inclusions: ['15 Items Buffet', 'Welcome Drinks', 'Basic Setup', 'Service Staff'], minGuests: 100, maxGuests: 500 }, { id: 'p2', name: 'Royal', price: 1200, priceType: 'per_plate', description: 'Premium multi-cuisine', inclusions: ['25 Items Buffet', 'Live Counters', 'Premium Beverages', 'Themed Setup', 'Dedicated Manager'], minGuests: 200, maxGuests: 2000 }, { id: 'p3', name: 'Grand Feast', price: 2000, priceType: 'per_plate', description: 'Ultimate luxury dining', inclusions: ['40+ Items', 'Live Counters', 'Biryani Counter', 'Dessert Bar', 'Ice Cream Station', 'Luxury Crockery'], minGuests: 300, maxGuests: 5000 }], tags: ['Multi-cuisine', 'Live Counters', 'Biryani', 'Vegetarian', 'Non-veg'] },
 };
+
+type VendorDetail = typeof MOCK_VENDOR;
+type Review = typeof MOCK_REVIEWS[0];
+type Package = typeof MOCK_VENDOR['packages'][0];
+
+/* ─── Normalize API responses ─── */
+function normalizeVendor(raw: Record<string, unknown>): VendorDetail {
+  return {
+    id: String(raw.id || raw._id || ''),
+    businessName: String(raw.businessName || raw.business_name || 'Unnamed Vendor'),
+    category: String(raw.category || 'Venue'),
+    city: String(raw.city || (raw.citiesServed as string[])?.[0] || 'Hyderabad'),
+    rating: Number(raw.rating || raw.avgRating || 4.5),
+    totalReviews: Number(raw.totalReviews || raw.total_reviews || 0),
+    totalBookings: Number(raw.totalBookings || raw.total_bookings || 0),
+    verificationStatus: String(raw.verificationStatus || raw.verification_status || 'pending'),
+    description: String(raw.description || ''),
+    yearsExperience: Number(raw.yearsExperience || raw.years_experience || 0),
+    teamSize: Number(raw.teamSize || raw.team_size || 0),
+    basePrice: Number(raw.basePrice || raw.base_price || raw.startingPrice || 0),
+    currency: String(raw.currency || 'INR'),
+    citiesServed: (raw.citiesServed || raw.cities_served || ['Hyderabad']) as string[],
+    packages: Array.isArray(raw.packages) ? raw.packages.map((p: Record<string, unknown>) => ({
+      id: String(p.id || p._id || ''),
+      name: String(p.name || ''),
+      price: Number(p.price || 0),
+      priceType: String(p.priceType || p.price_type || 'fixed'),
+      description: String(p.description || ''),
+      inclusions: (p.inclusions || []) as string[],
+      minGuests: Number(p.minGuests || p.min_guests || 0),
+      maxGuests: Number(p.maxGuests || p.max_guests || 0),
+    })) : [],
+    portfolio: Array.isArray(raw.portfolio) ? raw.portfolio.map((p: Record<string, unknown>, i: number) => ({
+      id: Number(p.id ?? i),
+      url: String(p.url || p.mediaUrl || p.media_url || ''),
+    })) : MOCK_VENDOR.portfolio,
+    tags: (raw.tags || []) as string[],
+  };
+}
+
+function normalizeReviews(raw: unknown[]): Review[] {
+  return raw.map((r: unknown, i: number) => {
+    const rev = r as Record<string, unknown>;
+    return {
+      id: Number(rev.id || rev._id || i + 1),
+      customerName: String(rev.customerName || rev.customer_name || 'Anonymous'),
+      rating: Number(rev.rating || 5),
+      date: String(rev.date || rev.createdAt || rev.created_at || 'Recently'),
+      body: String(rev.body || rev.text || rev.comment || ''),
+      tags: (rev.tags || []) as string[],
+    };
+  });
+}
 
 function LoadingSkeleton() {
   return (
@@ -117,15 +198,93 @@ function VendorNotFound() {
 }
 
 export default function VendorDetailPage({ params }: { params: { id: string } }) {
-  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+  const [wishlisted, setWishlisted] = useState(false);
+  const [showEnquiry, setShowEnquiry] = useState(false);
 
+  // Init wishlist state
   useEffect(() => {
-    const timer = setTimeout(() => setIsLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+    setWishlisted(getWishlist().includes(params.id));
+  }, [params.id]);
 
-  const v = VENDOR_MAP[params.id];
-  const isNotFound = !v;
+  const handleToggleWishlist = useCallback(() => {
+    const nowLiked = toggleWishlist(params.id);
+    setWishlisted(nowLiked);
+  }, [params.id]);
+
+  // Fetch vendor details from API
+  const { data: vendorResult, isLoading: vendorLoading } = useQuery({
+    queryKey: ['vendor', params.id],
+    queryFn: async () => {
+      try {
+        const res = await vendorApi.getById(params.id);
+        const raw = res.data.data || res.data;
+        return { vendor: normalizeVendor(raw), isDemo: false };
+      } catch {
+        // Fallback to mock data
+        const mock = VENDOR_MAP[params.id];
+        if (mock) return { vendor: mock, isDemo: true };
+        return null;
+      }
+    },
+    retry: 0,
+    staleTime: 60_000,
+  });
+
+  // Fetch packages from API (if vendor loaded from API, packages may be separate)
+  const { data: packagesResult } = useQuery({
+    queryKey: ['vendor-packages', params.id],
+    queryFn: async () => {
+      try {
+        const res = await vendorApi.getPackages(params.id);
+        const raw = res.data.data || res.data;
+        if (Array.isArray(raw) && raw.length > 0) {
+          return raw.map((p: Record<string, unknown>) => ({
+            id: String(p.id || p._id || ''),
+            name: String(p.name || ''),
+            price: Number(p.price || 0),
+            priceType: String(p.priceType || p.price_type || 'fixed'),
+            description: String(p.description || ''),
+            inclusions: (p.inclusions || []) as string[],
+            minGuests: Number(p.minGuests || p.min_guests || 0),
+            maxGuests: Number(p.maxGuests || p.max_guests || 0),
+          }));
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!vendorResult && !vendorResult.isDemo,
+    retry: 0,
+  });
+
+  // Fetch reviews from API
+  const { data: reviewsResult } = useQuery({
+    queryKey: ['vendor-reviews', params.id],
+    queryFn: async () => {
+      try {
+        const res = await vendorApi.getReviews(params.id, { limit: 10 });
+        const raw = res.data.data?.reviews || res.data.data || res.data;
+        if (Array.isArray(raw) && raw.length > 0) {
+          return { reviews: normalizeReviews(raw), isDemo: false };
+        }
+        return { reviews: MOCK_REVIEWS, isDemo: true };
+      } catch {
+        return { reviews: MOCK_REVIEWS, isDemo: true };
+      }
+    },
+    retry: 0,
+    staleTime: 60_000,
+  });
+
+  const isDemo = !vendorResult || vendorResult.isDemo;
+  const v = vendorResult?.vendor ?? null;
+  const reviews = reviewsResult?.reviews ?? MOCK_REVIEWS;
+  const packages: Package[] = useMemo(() => {
+    if (packagesResult && packagesResult.length > 0) return packagesResult;
+    return v?.packages ?? [];
+  }, [packagesResult, v]);
 
   // Track recently viewed vendors
   useEffect(() => {
@@ -142,23 +301,30 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
     }
   }, [params.id, v]);
 
-  if (isLoading) return <LoadingSkeleton />;
-  if (isNotFound) return <VendorNotFound />;
+  if (vendorLoading) return <LoadingSkeleton />;
+  if (!v) return <VendorNotFound />;
 
   const similarVendors = Object.entries(VENDOR_MAP)
     .filter(([key]) => key !== params.id)
     .slice(0, 3)
     .map(([key, vendor]) => ({ key, ...vendor }));
 
+  const formatPrice = (price: number) => {
+    if (price >= 100000) return `₹${(price / 100000).toFixed(1)}L`;
+    if (price >= 1000) return `₹${(price / 1000).toFixed(0)}K`;
+    return `₹${price}`;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="pt-16">
-        {/* Back */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        {/* Back + Demo badge */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <Link href="/vendors" className="flex items-center gap-2 text-sm text-gray-600 hover:text-brand-600 transition-colors" aria-label="Back to vendors list">
             <ArrowLeft size={16} /> Back to Vendors
           </Link>
+          {isDemo && <DemoModeBadge />}
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
@@ -200,7 +366,13 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors" aria-label="Save to wishlist"><Heart size={18} className="text-gray-400" /></button>
+                    <button
+                      onClick={handleToggleWishlist}
+                      className="p-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
+                      aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}
+                    >
+                      <Heart size={18} className={wishlisted ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+                    </button>
                     <ShareButton title={v.businessName} text={`Check out ${v.businessName} on WeddingOS — ${v.category} in ${v.city}`} />
                   </div>
                 </div>
@@ -216,7 +388,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
               <motion.div className="card p-6" {...fadeIn}>
                 <h2 className="text-xl font-bold font-heading mb-4">Packages & Pricing</h2>
                 <div className="space-y-4">
-                  {v.packages.map((pkg, i) => (
+                  {packages.map((pkg, i) => (
                     <div key={pkg.id} className={`border-2 rounded-xl p-4 transition-colors ${i === 1 ? 'border-brand-500 bg-brand-50/50' : 'border-gray-200 hover:border-gray-300'}`}>
                       {i === 1 && <span className="badge bg-brand-600 text-white text-xs mb-2">Most Popular</span>}
                       <div className="flex items-start justify-between mb-2">
@@ -226,8 +398,8 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                           <p className="text-xs text-gray-400 mt-1">{pkg.minGuests}–{pkg.maxGuests} guests</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold text-brand-700">₹{(pkg.price / 100000).toFixed(1)}L</p>
-                          <p className="text-xs text-gray-400">onwards</p>
+                          <p className="text-lg font-bold text-brand-700">{formatPrice(pkg.price)}</p>
+                          <p className="text-xs text-gray-400">{pkg.priceType === 'per_plate' ? '/plate' : 'onwards'}</p>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-1">
@@ -252,8 +424,8 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                   vendorId={params.id}
                   vendorCategory={v.category.toLowerCase()}
                   onSlotSelect={(date: string, slot: string) => {
-                    const searchParams = new URLSearchParams({ date, slot, package: v.packages[1]?.id || v.packages[0]?.id });
-                    window.location.href = `/checkout/${v.id}?${searchParams.toString()}`;
+                    const searchParams = new URLSearchParams({ date, slot, package: packages[1]?.id || packages[0]?.id });
+                    router.push(`/checkout/${params.id}?${searchParams.toString()}`);
                   }}
                 />
               </motion.div>
@@ -269,7 +441,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                   </div>
                 </div>
                 <div className="space-y-4">
-                  {MOCK_REVIEWS.map((r) => (
+                  {reviews.map((r) => (
                     <div key={r.id} className="border-b border-gray-100 last:border-0 pb-4 last:pb-0">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -301,17 +473,20 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
             <motion.div className="lg:col-span-1" {...fadeIn}>
               <div className="card p-6 sticky top-24">
                 <div className="text-center mb-4">
-                  <p className="text-3xl font-bold text-brand-700">₹{(v.basePrice / 100000).toFixed(1)}L</p>
+                  <p className="text-3xl font-bold text-brand-700">{formatPrice(v.basePrice)}</p>
                   <p className="text-sm text-gray-500">Starting price · Customizable</p>
                 </div>
 
                 <div className="space-y-3 mb-6">
-                  <Link href={`/checkout/${v.id}`} className="btn-primary w-full text-center block">
+                  <Link href={`/checkout/${params.id}`} className="btn-primary w-full text-center block">
                     📩 Send Enquiry
                   </Link>
-                  <Link href={`/chat?vendor=${v.id}`} className="btn-secondary w-full flex items-center justify-center gap-2">
-                    <MessageCircle size={16} /> Chat with Vendor
-                  </Link>
+                  <button
+                    onClick={() => setShowEnquiry(true)}
+                    className="btn-secondary w-full flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle size={16} /> Quick Enquiry
+                  </button>
                   <a href="#availability" className="btn-secondary w-full flex items-center justify-center gap-2">
                     <Calendar size={16} /> Check Availability
                   </a>
@@ -359,7 +534,7 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
                           <strong>{sv.rating}</strong>
                           <span className="text-gray-400">({sv.totalReviews})</span>
                         </div>
-                        <p className="text-sm font-semibold text-brand-700">₹{(sv.basePrice / 100000).toFixed(1)}L</p>
+                        <p className="text-sm font-semibold text-brand-700">{formatPrice(sv.basePrice)}</p>
                       </div>
                     </div>
                   </Link>
@@ -370,6 +545,16 @@ export default function VendorDetailPage({ params }: { params: { id: string } })
         </div>
       </div>
       <Footer />
+      {/* Quick Enquiry Modal */}
+      {showEnquiry && (
+        <QuickEnquiry
+          vendorName={v.businessName}
+          vendorId={params.id}
+          category={v.category}
+          isOpen={showEnquiry}
+          onClose={() => setShowEnquiry(false)}
+        />
+      )}
     </div>
   );
 }

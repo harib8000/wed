@@ -11,6 +11,8 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
+import { vendorApi } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import clsx from 'clsx';
 
@@ -105,6 +107,7 @@ export default function WishlistPage() {
   const [filter, setFilter] = useState('All');
   const [sort, setSort] = useState<SortOption>('recent');
   const [sortOpen, setSortOpen] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sortRef = useRef<HTMLDivElement>(null);
 
@@ -135,6 +138,38 @@ export default function WishlistPage() {
     }
     setIsLoading(false);
   }, [user]);
+
+  // Attempt to enrich wishlist items with fresh vendor data
+  const { data: enrichedItems } = useQuery({
+    queryKey: ['wishlist-enrich', items.map(i => i.vendorId)],
+    queryFn: async () => {
+      const results = await Promise.allSettled(
+        items.map(async (item) => {
+          try {
+            const res = await vendorApi.getById(item.vendorId);
+            const vendor = res.data?.data ?? res.data;
+            if (!vendor) return item;
+            return {
+              ...item,
+              vendorName: vendor.businessName || vendor.name || item.vendorName,
+              vendorRating: vendor.rating ?? item.vendorRating,
+              vendorReviews: vendor.reviewCount ?? vendor.reviews ?? item.vendorReviews,
+              vendorCity: vendor.city || item.vendorCity,
+            };
+          } catch {
+            return item;
+          }
+        })
+      );
+      return results.map(r => r.status === 'fulfilled' ? r.value : items[0]);
+    },
+    enabled: items.length > 0,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: false,
+  });
+
+  // Use enriched items if available, otherwise use stored items
+  const displayItems = enrichedItems ?? items;
 
   // Persist whenever items change (skip initial load)
   const hasInitialized = useRef(false);
@@ -190,18 +225,42 @@ export default function WishlistPage() {
 
   const shareWishlist = useCallback(async () => {
     const url = `${window.location.origin}/wishlist`;
+    const shareData = {
+      title: 'My Wedding Vendor Wishlist',
+      text: `Check out my wishlist of ${items.length} wedding vendors on Wedding OS!`,
+      url,
+    };
     try {
-      await navigator.clipboard.writeText(url);
-      toast.success('Link copied!', { duration: 2000, position: 'bottom-center' });
-    } catch {
-      toast.error('Could not copy link');
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+        toast.success('Shared successfully!', { duration: 2000 });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Link copied to clipboard!', { duration: 2000, position: 'bottom-center' });
+      }
+    } catch (err: unknown) {
+      if ((err as Error)?.name !== 'AbortError') {
+        try {
+          await navigator.clipboard.writeText(url);
+          toast.success('Link copied!', { duration: 2000, position: 'bottom-center' });
+        } catch {
+          toast.error('Could not share');
+        }
+      }
     }
+  }, [items.length]);
+
+  const clearAll = useCallback(() => {
+    setItems([]);
+    saveToStorage([]);
+    setShowClearConfirm(false);
+    toast.success('Wishlist cleared', { duration: 2000 });
   }, []);
 
   const categories = ['All', ...Array.from(new Set(
-    (items.length > 0 ? items : MOCK_WISHLIST).map(i => i.vendorCategory),
+    (displayItems.length > 0 ? displayItems : MOCK_WISHLIST).map(i => i.vendorCategory),
   ))];
-  const filtered = filter === 'All' ? items : items.filter(i => i.vendorCategory === filter);
+  const filtered = filter === 'All' ? displayItems : displayItems.filter(i => i.vendorCategory === filter);
   const sorted = sortItems(filtered, sort);
 
   return (
@@ -216,14 +275,26 @@ export default function WishlistPage() {
                 <Heart className="w-6 h-6 fill-white" />
                 <h1 className="text-2xl font-bold">Wishlist</h1>
               </div>
-              <button
-                onClick={shareWishlist}
-                aria-label="Share wishlist link"
-                className="flex items-center gap-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white px-3.5 py-2 rounded-xl text-sm font-medium transition-all"
-              >
-                <Share2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Share</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={shareWishlist}
+                  aria-label="Share wishlist link"
+                  className="flex items-center gap-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white px-3.5 py-2 rounded-xl text-sm font-medium transition-all"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Share</span>
+                </button>
+                {items.length > 0 && (
+                  <button
+                    onClick={() => setShowClearConfirm(true)}
+                    aria-label="Clear all wishlist items"
+                    className="flex items-center gap-2 bg-white/15 hover:bg-red-500/30 backdrop-blur-sm text-white px-3.5 py-2 rounded-xl text-sm font-medium transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="hidden sm:inline">Clear All</span>
+                  </button>
+                )}
+              </div>
             </div>
             <p className="text-white/70 text-sm">{items.length} vendor{items.length !== 1 ? 's' : ''} saved</p>
           </div>
@@ -403,6 +474,49 @@ export default function WishlistPage() {
             </div>
           )}
         </div>
+
+        {/* Clear All Confirmation Dialog */}
+        <AnimatePresence>
+          {showClearConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+              onClick={() => setShowClearConfirm(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+              >
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-6 h-6 text-red-500" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Clear Wishlist?</h3>
+                <p className="text-sm text-gray-500 text-center mb-6">
+                  This will remove all {items.length} vendor{items.length !== 1 ? 's' : ''} from your wishlist. This action cannot be undone.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowClearConfirm(false)}
+                    className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={clearAll}
+                    className="flex-1 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
       <Footer />
     </>

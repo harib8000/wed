@@ -119,10 +119,10 @@
 
 ## 🟢 LOW — Code Quality (Future Improvements)
 
-- [ ] **B-03** Shared packages exist but most services don't import them
-- [ ] **B-04** Inconsistent error handling patterns across services  
-- [ ] **W-13** Multiple `as any` type assertions in web pages
-- [ ] **W-14** Hardcoded localhost URLs in `next.config.js`
+- [x] **B-03** Shared packages exist but most services don't import them
+- [x] **B-04** Inconsistent error handling patterns across services  
+- [x] **W-13** Multiple `as any` type assertions in web pages
+- [x] **W-14** Hardcoded localhost URLs in `next.config.js`
 
 ---
 

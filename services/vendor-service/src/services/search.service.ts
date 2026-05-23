@@ -19,8 +19,8 @@ export const searchService = {
   async search(params: VendorSearchParams) {
     const { q, category, city, minRating, minPricePaise, maxPricePaise, plusMembersOnly, page = 1, limit = 20, sortBy = 'relevance' } = params;
 
-    const must: any[] = [{ term: { status: 'ACTIVE' } }];
-    const filter: any[] = [];
+    const must: Record<string, unknown>[] = [{ term: { status: 'ACTIVE' } }];
+    const filter: Record<string, unknown>[] = [];
 
     if (q) {
       must.push({
@@ -40,7 +40,7 @@ export const searchService = {
       filter.push({ range: { priceFromPaise: { ...(minPricePaise && { gte: minPricePaise }), ...(maxPricePaise && { lte: maxPricePaise }) } } });
     }
 
-    const sortMap: Record<string, any> = {
+    const sortMap: Record<string, Record<string, unknown>[]> = {
       rating: [{ avgRating: 'desc' }, { reviewCount: 'desc' }],
       price_asc: [{ priceFromPaise: { order: 'asc', missing: '_last' } }],
       price_desc: [{ priceFromPaise: { order: 'desc', missing: '_last' } }],

@@ -18,6 +18,8 @@ import { Navbar } from '@/components/layout/Navbar';
 import { useAuthStore } from '@/store/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
+import toast from 'react-hot-toast';
+import { io, Socket } from 'socket.io-client';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -216,8 +218,11 @@ function ChatPageInner() {
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(true);
+  const [conversations, setConversations] = useState(CONVERSATIONS);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   // Load messages when vendor changes
   useEffect(() => {
@@ -237,6 +242,38 @@ function ChatPageInner() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
+
+  // Socket.IO connection attempt
+  useEffect(() => {
+    const socket = io(process.env.NEXT_PUBLIC_CHAT_URL || 'http://localhost:4010', {
+      transports: ['websocket'],
+      timeout: 5000,
+      autoConnect: true,
+      auth: {
+        token: typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null,
+      },
+    });
+
+    socket.on('connect', () => {
+      setIsDemoMode(false);
+      socketRef.current = socket;
+      toast.success('Connected to chat service', { duration: 2000 });
+    });
+
+    socket.on('connect_error', () => {
+      setIsDemoMode(true);
+      socket.disconnect();
+    });
+
+    socket.on('message:receive', (msg: Message) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, []);
 
   // Group messages by date
   const groupedMessages = useMemo(() => {
@@ -302,12 +339,27 @@ function ChatPageInner() {
       ...prev.map((m) => (m.id === userMsg.id ? { ...m, status: 'read' as const } : m)),
       vendorReply,
     ]);
-  }, [newMessage]);
+
+    // Update conversation list
+    if (vendorId) {
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.vendorId === vendorId
+            ? { ...c, lastMessage: vendorReply.text, lastMessageAt: vendorReply.sentAt }
+            : c
+        )
+      );
+    }
+  }, [newMessage, vendorId]);
 
   const selectConversation = useCallback(
     (vid: string) => {
       router.push(`/chat?vendorId=${vid}`);
       setSidebarOpen(false);
+      // Clear unread count for selected conversation
+      setConversations((prev) =>
+        prev.map((c) => (c.vendorId === vid ? { ...c, unread: 0 } : c))
+      );
     },
     [router],
   );
@@ -333,7 +385,7 @@ function ChatPageInner() {
             <h2 className="text-lg font-bold text-gray-900">Messages</h2>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-            {CONVERSATIONS.map((c) => (
+            {conversations.map((c) => (
               <ConversationItem
                 key={c.vendorId}
                 conversation={c}
@@ -373,7 +425,7 @@ function ChatPageInner() {
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-                  {CONVERSATIONS.map((c) => (
+                  {conversations.map((c) => (
                     <ConversationItem
                       key={c.vendorId}
                       conversation={c}
@@ -468,6 +520,14 @@ function ChatPageInner() {
                   </div>
                 </div>
               </div>
+
+              {/* ---- Demo mode banner ---- */}
+              {isDemoMode && (
+                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-center gap-2 text-xs text-amber-700">
+                  <span className="inline-block w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                  Demo mode — real-time chat coming soon
+                </div>
+              )}
 
               {/* ---- Messages ---- */}
               <div className="flex-1 overflow-y-auto px-4 py-4 bg-[#f0f2f5]">

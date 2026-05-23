@@ -96,107 +96,110 @@ export const notificationService = {
   },
 
   // ── Internal endpoint called by other services ─────────────────────────────
-  async handleEvent(event: string, eventPayload: any) {
+  async handleEvent(event: string, eventPayload: Record<string, unknown>) {
+    const s = (v: unknown): string => String(v ?? '');
+    const n = (v: unknown): number => Number(v) || 0;
+
     // Event routing — each event type maps to notification recipients
-    const mapping: Record<string, (p: any) => NotifyPayload[]> = {
+    const mapping: Record<string, (p: Record<string, unknown>) => NotifyPayload[]> = {
       'booking.enquiry_created': (p) => [{
-        userId: p.vendorId,
+        userId: s(p.vendorId),
         channels: ['PUSH', 'IN_APP'],
         event,
         title: 'New Booking Enquiry!',
         body: `You have a new booking enquiry. Please review and respond.`,
-        data: { bookingId: p.bookingId },
+        data: { bookingId: s(p.bookingId) },
       }],
       'booking.quote_sent': (p) => [{
-        userId: p.customerId,
+        userId: s(p.customerId),
         channels: ['PUSH', 'IN_APP'],
         event,
         title: 'Quote Received',
         body: `Your vendor has sent a quote. Review it now.`,
-        data: { bookingId: p.bookingId },
+        data: { bookingId: s(p.bookingId) },
       }],
       'booking.confirmed': (p) => [
-        { userId: p.customerId, channels: ['PUSH', 'SMS', 'IN_APP'], event, title: 'Booking Confirmed! 🎉', body: `Your wedding booking is confirmed. Check your timeline.`, data: { bookingId: p.bookingId } },
-        { userId: p.vendorId, channels: ['PUSH', 'IN_APP'], event, title: 'Booking Confirmed', body: `A booking has been confirmed. Advance payment received.`, data: { bookingId: p.bookingId } },
+        { userId: s(p.customerId), channels: ['PUSH', 'SMS', 'IN_APP'], event, title: 'Booking Confirmed! 🎉', body: `Your wedding booking is confirmed. Check your timeline.`, data: { bookingId: s(p.bookingId) } },
+        { userId: s(p.vendorId), channels: ['PUSH', 'IN_APP'], event, title: 'Booking Confirmed', body: `A booking has been confirmed. Advance payment received.`, data: { bookingId: s(p.bookingId) } },
       ],
       'booking.cancelled': (p) => [{
-        userId: p.actorRole === 'customer' ? p.vendorId : p.customerId,
+        userId: s(p.actorRole) === 'customer' ? s(p.vendorId) : s(p.customerId),
         channels: ['PUSH', 'IN_APP'],
         event,
         title: 'Booking Cancelled',
-        body: `A booking has been cancelled. ${p.reason ?? ''}`,
-        data: { bookingId: p.bookingId },
+        body: `A booking has been cancelled. ${s(p.reason)}`,
+        data: { bookingId: s(p.bookingId) },
       }],
 
       // ── Payment events ────────────────────────────────────────────────────
       'payment.captured': (p) => [
-        { userId: p.customerId, channels: ['PUSH', 'IN_APP'] as const, event, title: 'Payment Successful ✅', body: `₹${(p.amount / 100).toLocaleString('en-IN')} paid securely via escrow.`, data: { bookingId: p.bookingId } },
-        { userId: p.vendorId, channels: ['PUSH', 'IN_APP'] as const, event, title: 'Payment Received', body: `Advance payment received for booking. Funds held in escrow.`, data: { bookingId: p.bookingId } },
+        { userId: s(p.customerId), channels: ['PUSH', 'IN_APP'] as const, event, title: 'Payment Successful ✅', body: `₹${(n(p.amount) / 100).toLocaleString('en-IN')} paid securely via escrow.`, data: { bookingId: s(p.bookingId) } },
+        { userId: s(p.vendorId), channels: ['PUSH', 'IN_APP'] as const, event, title: 'Payment Received', body: `Advance payment received for booking. Funds held in escrow.`, data: { bookingId: s(p.bookingId) } },
       ],
       'payment.failed': (p) => [{
-        userId: p.customerId,
+        userId: s(p.customerId),
         channels: ['PUSH', 'IN_APP', 'SMS'] as const,
         event,
         title: 'Payment Failed ⚠️',
         body: 'Your payment could not be processed. Please try again.',
-        data: { bookingId: p.bookingId },
+        data: { bookingId: s(p.bookingId) },
       }],
       'payment.refunded': (p) => [{
-        userId: p.customerId,
+        userId: s(p.customerId),
         channels: ['PUSH', 'IN_APP', 'SMS'] as const,
         event,
         title: 'Refund Initiated 💸',
-        body: `₹${(p.amount / 100).toLocaleString('en-IN')} refund will be credited in 5-7 business days.`,
-        data: { bookingId: p.bookingId },
+        body: `₹${(n(p.amount) / 100).toLocaleString('en-IN')} refund will be credited in 5-7 business days.`,
+        data: { bookingId: s(p.bookingId) },
       }],
       'escrow.released': (p) => [
-        { userId: p.vendorId, channels: ['PUSH', 'IN_APP', 'SMS'] as const, event, title: 'Payment Released! 🎉', body: `₹${(p.vendorPayout / 100).toLocaleString('en-IN')} has been transferred to your account.`, data: { bookingId: p.bookingId } },
-        { userId: p.customerId, channels: ['PUSH', 'IN_APP'] as const, event, title: 'Escrow Released', body: 'Payment has been released to your vendor. Thank you!', data: { bookingId: p.bookingId } },
+        { userId: s(p.vendorId), channels: ['PUSH', 'IN_APP', 'SMS'] as const, event, title: 'Payment Released! 🎉', body: `₹${(n(p.vendorPayout) / 100).toLocaleString('en-IN')} has been transferred to your account.`, data: { bookingId: s(p.bookingId) } },
+        { userId: s(p.customerId), channels: ['PUSH', 'IN_APP'] as const, event, title: 'Escrow Released', body: 'Payment has been released to your vendor. Thank you!', data: { bookingId: s(p.bookingId) } },
       ],
 
       // ── Review events ─────────────────────────────────────────────────────
       'review.created': (p) => [{
-        userId: p.vendorId,
+        userId: s(p.vendorId),
         channels: ['PUSH', 'IN_APP'] as const,
         event,
         title: 'New Review Posted ⭐',
-        body: `${p.customerName ?? 'A customer'} left you a ${p.rating}-star review.`,
-        data: { vendorId: p.vendorId, reviewId: p.reviewId },
+        body: `${s(p.customerName) || 'A customer'} left you a ${s(p.rating)}-star review.`,
+        data: { vendorId: s(p.vendorId), reviewId: s(p.reviewId) },
       }],
 
       // ── Execution / timeline events ───────────────────────────────────────
       'event.task_due_reminder': (p) => [{
-        userId: p.customerId,
+        userId: s(p.customerId),
         channels: ['PUSH', 'IN_APP'] as const,
         event,
-        title: `📋 Task Due: ${p.taskTitle}`,
-        body: `${p.daysLeft === 0 ? 'Due today!' : `${p.daysLeft}d left`} — ${p.taskTitle}`,
-        data: { timelineId: p.timelineId, taskId: p.taskId },
+        title: `📋 Task Due: ${s(p.taskTitle)}`,
+        body: `${n(p.daysLeft) === 0 ? 'Due today!' : `${n(p.daysLeft)}d left`} — ${s(p.taskTitle)}`,
+        data: { timelineId: s(p.timelineId), taskId: s(p.taskId) },
       }],
       'event.vendor_check_in': (p) => [
-        { userId: p.customerId, channels: ['PUSH', 'IN_APP'] as const, event, title: `${p.vendorName} Checked In ✅`, body: `${p.vendorCategory} vendor is on the premises.`, data: { bookingId: p.bookingId } },
+        { userId: s(p.customerId), channels: ['PUSH', 'IN_APP'] as const, event, title: `${s(p.vendorName)} Checked In ✅`, body: `${s(p.vendorCategory)} vendor is on the premises.`, data: { bookingId: s(p.bookingId) } },
       ],
       'event.completed': (p) => [
-        { userId: p.customerId, channels: ['PUSH', 'IN_APP', 'SMS'] as const, event, title: 'Wedding Complete! 🎊', body: 'Your wedding event is complete. Please review your vendors.', data: { bookingId: p.bookingId } },
-        { userId: p.vendorId, channels: ['PUSH', 'IN_APP'] as const, event, title: 'Event Completed', body: 'The wedding event is marked complete. Escrow will be released shortly.', data: { bookingId: p.bookingId } },
+        { userId: s(p.customerId), channels: ['PUSH', 'IN_APP', 'SMS'] as const, event, title: 'Wedding Complete! 🎊', body: 'Your wedding event is complete. Please review your vendors.', data: { bookingId: s(p.bookingId) } },
+        { userId: s(p.vendorId), channels: ['PUSH', 'IN_APP'] as const, event, title: 'Event Completed', body: 'The wedding event is marked complete. Escrow will be released shortly.', data: { bookingId: s(p.bookingId) } },
       ],
 
       // ── Vendor KYC ────────────────────────────────────────────────────────
       'vendor.kyc_approved': (p) => [{
-        userId: p.vendorId,
+        userId: s(p.vendorId),
         channels: ['PUSH', 'IN_APP', 'SMS'] as const,
         event,
         title: 'KYC Approved ✅',
         body: 'Your vendor profile is now verified. You can start accepting bookings.',
-        data: { vendorId: p.vendorId },
+        data: { vendorId: s(p.vendorId) },
       }],
       'vendor.kyc_rejected': (p) => [{
-        userId: p.vendorId,
+        userId: s(p.vendorId),
         channels: ['PUSH', 'IN_APP'] as const,
         event,
         title: 'KYC Rejected',
-        body: `KYC verification failed: ${p.reason ?? 'Please resubmit your documents.'}`,
-        data: { vendorId: p.vendorId },
+        body: `KYC verification failed: ${s(p.reason) || 'Please resubmit your documents.'}`,
+        data: { vendorId: s(p.vendorId) },
       }],
     };
 

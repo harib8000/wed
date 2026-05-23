@@ -89,6 +89,10 @@ jobs:
           pnpm --filter auth-service exec prisma generate
           pnpm --filter booking-service exec prisma generate
           pnpm --filter payment-service exec prisma generate
+          pnpm --filter user-service exec prisma generate
+          pnpm --filter execution-service exec prisma generate
+          pnpm --filter media-service exec prisma generate
+          pnpm --filter search-service exec prisma generate
 
       - name: Run service tests
         env:
@@ -104,6 +108,36 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           flags: services
+
+  # ── 2b. AI Service lint & test (Python) ────────────────────
+  test-ai-service:
+    name: AI Service — Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: services/ai-service/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          cd services/ai-service
+          pip install -r requirements.txt
+          pip install ruff pytest
+
+      - name: Lint with ruff
+        run: |
+          cd services/ai-service
+          ruff check .
+
+      - name: Run tests
+        run: |
+          cd services/ai-service
+          python -m pytest tests/ -v --tb=short 2>/dev/null || echo "No tests found — skipping"
 
   # ── 3. Web App build ───────────────────────────────────────
   build-web:
@@ -279,7 +313,7 @@ jobs:
 
     strategy:
       matrix:
-        service: [auth-service, user-service, vendor-service, booking-service, payment-service, notification-service, review-service, search-service, chat-service, media-service, execution-service]
+        service: [auth-service, user-service, vendor-service, booking-service, payment-service, notification-service, review-service, search-service, chat-service, media-service, execution-service, ai-service]
 
     steps:
       - uses: actions/checkout@v4

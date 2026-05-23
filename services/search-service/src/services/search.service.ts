@@ -24,8 +24,8 @@ export const searchService = {
     if (limit < 1 || limit > 100) throw new ValidationError('Limit must be between 1 and 100', 'limit');
     if (page < 1) throw new ValidationError('Page must be at least 1', 'page');
 
-    const must: any[] = [{ term: { verificationStatus: 'verified' } }];
-    const filter: any[] = [];
+    const must: Record<string, unknown>[] = [{ term: { verificationStatus: 'verified' } }];
+    const filter: Record<string, unknown>[] = [];
 
     if (query) {
       must.push({
@@ -46,7 +46,7 @@ export const searchService = {
       filter.push({ range: { basePrice: { ...(minPrice !== undefined && { gte: minPrice }), ...(maxPrice !== undefined && { lte: maxPrice }) } } });
     }
 
-    const sort: any[] = [];
+    const sort: Record<string, unknown>[] = [];
     if (sortBy === 'rating') sort.push({ rating: 'desc' }, { totalReviews: 'desc' });
     else if (sortBy === 'price_asc') sort.push({ basePrice: 'asc' });
     else if (sortBy === 'price_desc') sort.push({ basePrice: 'desc' });
@@ -90,7 +90,7 @@ export const searchService = {
     }
   },
 
-  async indexVendor(vendor: any): Promise<void> {
+  async indexVendor(vendor: Record<string, unknown>): Promise<void> {
     try {
       await esClient.index({ index: 'vendors', id: vendor.id, document: { ...vendor, updatedAt: new Date().toISOString() } });
     } catch (err) { logger.warn({ err, vendorId: vendor.id }, 'Failed to index vendor (non-fatal)'); }

@@ -51,17 +51,16 @@ export function DashboardHome() {
 
   const s = stats ?? MOCK_STATS;
   const chart = chartData ?? MOCK_CHART;
-  const pending = recentBookings?.data.bookings ?? MOCK_PENDING;
+  const pending = recentBookings?.data?.bookings ?? MOCK_PENDING;
   const isMock = statsError;
 
   const STAT_CARDS = [
     { label: 'Total Bookings', value: String(s.totalBookings), icon: Calendar, change: s.pendingEnquiries > 0 ? `${s.pendingEnquiries} pending` : '+12%', color: 'text-brand-600 bg-brand-50' },
     { label: 'Revenue This Month', value: formatINR(s.revenueThisMonth), icon: DollarSign, change: '+8%', color: 'text-green-600 bg-green-50' },
-    { label: 'Avg. Rating', value: s.avgRating.toFixed(1), icon: Star, change: `${s.reviewCount ?? 0} reviews`, color: 'text-yellow-600 bg-yellow-50' },
+    { label: 'Avg. Rating', value: s.avgRating.toFixed(1), icon: Star, change: `${(s as VendorStats & { reviewCount?: number }).reviewCount ?? 0} reviews`, color: 'text-yellow-600 bg-yellow-50' },
     { label: 'Response Rate', value: `${s.responseRate}%`, icon: Clock, change: s.responseRate >= 90 ? 'Excellent' : 'Needs work', color: 'text-blue-600 bg-blue-50' },
   ];
 
-export function DashboardHome() {
   return (
     <div className="p-8">
       <div className="mb-6">

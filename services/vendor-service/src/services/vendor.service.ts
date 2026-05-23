@@ -14,13 +14,15 @@ function publishEvent(type: DomainEventType, aggregateId: string, payload: Recor
   } catch { /* Event bus not initialized (e.g., in tests) */ }
 }
 
+import { randomBytes } from 'crypto';
+
 function buildSlug(name: string, city: string): string {
   const base = `${name} ${city}`
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-');
-  const suffix = Math.random().toString(36).slice(2, 7);
+  const suffix = randomBytes(6).toString('hex').slice(0, 8);
   return `${base}-${suffix}`;
 }
 
@@ -49,7 +51,9 @@ async function syncToEs(vendor: Vendor & { packages?: VendorPackage[]; tags?: { 
     tags: vendor.tags?.map((t) => t.tag) ?? [],
     priceFromPaise: minPrice,
     updatedAt: vendor.updatedAt.toISOString(),
-  }).catch((err) => logger.error({ err }, 'ES sync error'));
+  }).catch((err) => {
+    logger.error({ err, vendorId: vendor.id }, 'ES sync failed — search index may be stale');
+  });
 }
 
 export const vendorService = {
@@ -60,21 +64,37 @@ export const vendorService = {
     state: string;
     pincode: string;
   }) {
-    const slug = buildSlug(data.businessName, data.city);
-    const vendor = await prisma.vendor.create({
-      data: {
-        userId,
-        businessName: data.businessName,
-        slug,
-        category: data.category as VendorCategory,
-        city: data.city,
-        state: data.state,
-        pincode: data.pincode,
-      },
-    });
-    await syncToEs(vendor);
-    publishEvent('vendor.registered', vendor.id, { vendorId: vendor.id, userId, businessName: data.businessName, category: data.category, city: data.city });
-    return vendor;
+    // Retry slug generation on collision (unique constraint)
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const slug = buildSlug(data.businessName, data.city);
+        const vendor = await prisma.vendor.create({
+          data: {
+            userId,
+            businessName: data.businessName,
+            slug,
+            category: data.category as VendorCategory,
+            city: data.city,
+            state: data.state,
+            pincode: data.pincode,
+          },
+        });
+        await syncToEs(vendor);
+        publishEvent('vendor.registered', vendor.id, { vendorId: vendor.id, userId, businessName: data.businessName, category: data.category, city: data.city });
+        return vendor;
+      } catch (err: unknown) {
+        const prismaErr = err as { code?: string };
+        if (prismaErr.code === 'P2002' && attempt < maxRetries - 1) {
+          logger.warn({ attempt, businessName: data.businessName }, 'Slug collision — retrying');
+          continue;
+        }
+        throw err;
+      }
+    }
+    // TypeScript cannot prove the loop always returns/throws; this line is unreachable at runtime
+    /* istanbul ignore next */
+    throw new Error('Failed to generate unique slug');
   },
 
   async getBySlug(slug: string) {

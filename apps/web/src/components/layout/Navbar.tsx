@@ -52,11 +52,10 @@ export function Navbar() {
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6">
             {(isAuthenticated && user ? [
-              { label: 'Venues', href: '/vendors?category=venue' },
-              { label: 'Photography', href: '/vendors?category=photography' },
-              { label: 'Catering', href: '/vendors?category=catering' },
               { label: 'All Services', href: '/vendors' },
               { label: 'My Bookings', href: '/bookings' },
+              { label: 'Guests', href: '/guests' },
+              { label: 'Timeline', href: '/timeline' },
             ] : [
               { label: 'Find Vendors', href: '/vendors' },
               { label: 'How it Works', href: '/#how-it-works' },
