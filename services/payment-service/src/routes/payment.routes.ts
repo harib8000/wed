@@ -11,7 +11,10 @@ import { z } from 'zod';
 
 export const paymentRouter = Router();
 const meta = (req: Request) => ({ requestId: req.headers['x-request-id'], timestamp: new Date().toISOString() });
-const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] ?? char));
+const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => {
+  const map: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+  return map[char] ?? '';
+});
 const formatInvoiceCurrency = (amount: number) => amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const CreateOrderSchema = z.object({
