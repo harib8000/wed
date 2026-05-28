@@ -12,7 +12,7 @@ const SearchQuerySchema = z.object({
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
   minRating: z.coerce.number().min(0).max(5).optional(),
-  sortBy: z.string().optional(),
+  sortBy: z.enum(['rating', 'price_asc', 'price_desc', 'reviews']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   featured: z.enum(['true', 'false']).optional().transform(v => v === 'true' ? true : v === 'false' ? false : undefined),

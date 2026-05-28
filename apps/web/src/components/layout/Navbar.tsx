@@ -1,14 +1,24 @@
 'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Menu, X, Search, Bell } from 'lucide-react';
+import { Menu, X, Search, Bell, MapPin, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/lib/api';
 import { clsx } from 'clsx';
 
+const ALL_CITIES = [
+  'Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Jaipur',
+  'Lucknow', 'Ahmedabad', 'Visakhapatnam', 'Bhopal', 'Indore', 'Chandigarh', 'Coimbatore',
+  'Kochi', 'Nagpur', 'Patna', 'Surat', 'Vadodara', 'Thiruvananthapuram', 'Guwahati',
+  'Bhubaneswar', 'Mangalore', 'Mysore', 'Udaipur', 'Jodhpur', 'Dehradun', 'Ranchi', 'Amritsar',
+];
+
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const [selectedCity, setSelectedCity] = useState('Hyderabad');
+  const [citySearch, setCitySearch] = useState('');
   const { user, isAuthenticated, logout, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
@@ -16,6 +26,34 @@ export function Navbar() {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  // Load selected city
+  useEffect(() => {
+    const saved = localStorage.getItem('wedding_os_selected_city');
+    if (saved) setSelectedCity(saved);
+    const handler = () => {
+      const c = localStorage.getItem('wedding_os_selected_city');
+      if (c) setSelectedCity(c);
+    };
+    window.addEventListener('storage', handler);
+    window.addEventListener('locationChanged', handler);
+    return () => {
+      window.removeEventListener('storage', handler);
+      window.removeEventListener('locationChanged', handler);
+    };
+  }, []);
+
+  const handleCitySelect = (city: string) => {
+    setSelectedCity(city);
+    localStorage.setItem('wedding_os_selected_city', city);
+    setCityDropdownOpen(false);
+    setCitySearch('');
+    window.dispatchEvent(new Event('locationChanged'));
+  };
+
+  const filteredCities = citySearch
+    ? ALL_CITIES.filter((c) => c.toLowerCase().includes(citySearch.toLowerCase()))
+    : ALL_CITIES;
 
   useEffect(() => {
     // Hydrate user from token on mount
@@ -48,6 +86,64 @@ export function Navbar() {
               Wedding OS
             </span>
           </Link>
+
+          {/* City Selector */}
+          <div className="relative hidden sm:block">
+            <button
+              onClick={() => setCityDropdownOpen(!cityDropdownOpen)}
+              className={clsx(
+                'flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full transition-all',
+                scrolled
+                  ? 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+                  : 'text-white/90 bg-white/10 hover:bg-white/20 backdrop-blur-sm'
+              )}
+            >
+              <MapPin size={14} />
+              <span>{selectedCity}</span>
+              <ChevronDown size={12} />
+            </button>
+
+            {cityDropdownOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => { setCityDropdownOpen(false); setCitySearch(''); }} />
+                <div className="absolute top-full mt-2 left-0 w-72 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                  <div className="p-3 border-b border-gray-100">
+                    <input
+                      type="text"
+                      placeholder="Search city..."
+                      value={citySearch}
+                      onChange={(e) => setCitySearch(e.target.value)}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="max-h-60 overflow-y-auto p-2">
+                    <button
+                      onClick={() => handleCitySelect('All India')}
+                      className={clsx(
+                        'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+                        selectedCity === 'All India' ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                      )}
+                    >
+                      🇮🇳 All India
+                    </button>
+                    {filteredCities.map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => handleCitySelect(c)}
+                        className={clsx(
+                          'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+                          selectedCity === c ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                        )}
+                      >
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6">

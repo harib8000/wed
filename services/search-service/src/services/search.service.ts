@@ -5,6 +5,7 @@ import { logger } from '../utils/logger';
 interface EsTotal { value: number; relation: string; }
 interface EsAggBucket { key: string; doc_count: number; }
 interface EsAggResult { buckets: EsAggBucket[]; }
+interface SearchHitSource extends Record<string, unknown> {}
 
 export const searchService = {
   async searchVendors(params: {
@@ -96,7 +97,7 @@ export const searchService = {
         from: (page - 1) * limit,
         size: limit,
         query: { bool: { must, filter } },
-        sort,
+        sort: sort as never,
         aggs: {
           categories: { terms: { field: 'category', size: 20 } },
           cities: { terms: { field: 'citiesServed', size: 20 } },
@@ -104,7 +105,7 @@ export const searchService = {
         },
       });
 
-      const hits = result.hits.hits.map((h) => ({ ...h._source, _score: h._score }));
+      const hits = result.hits.hits.map((h) => ({ ...((h._source as SearchHitSource | undefined) ?? {}), _score: h._score }));
       const total = typeof result.hits.total === 'number' ? result.hits.total : (result.hits.total as EsTotal)?.value || 0;
 
       return {
@@ -128,7 +129,7 @@ export const searchService = {
 
   async indexVendor(vendor: Record<string, unknown>): Promise<void> {
     try {
-      await esClient.index({ index: 'vendors', id: vendor.id, document: { ...vendor, updatedAt: new Date().toISOString() } });
+      await esClient.index({ index: 'vendors', id: String(vendor.id), document: { ...vendor, updatedAt: new Date().toISOString() } });
     } catch (err) { logger.warn({ err, vendorId: vendor.id }, 'Failed to index vendor (non-fatal)'); }
   },
 

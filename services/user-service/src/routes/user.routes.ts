@@ -23,7 +23,14 @@ function meta(req: Request) {
 
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
-const defaultChecklistTemplates = [
+type ChecklistTemplate = {
+  title: string;
+  category: string;
+  monthsBefore?: number;
+  weeksBefore?: number;
+};
+
+const defaultChecklistTemplates: ChecklistTemplate[] = [
   { title: 'Book wedding venue', category: 'venue', monthsBefore: 6 },
   { title: 'Finalize catering', category: 'catering', monthsBefore: 4 },
   { title: 'Book photographer', category: 'photography', monthsBefore: 5 },
@@ -43,7 +50,9 @@ const defaultChecklistTemplates = [
 
 function parseWeddingDate(value: string) {
   const date = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime())) throw new ValidationError('Invalid weddingDate', 'weddingDate');
+  if (Number.isNaN(date.getTime()) || formatDate(date) !== value) {
+    throw new ValidationError('Invalid weddingDate', 'weddingDate');
+  }
   return date;
 }
 
@@ -261,7 +270,7 @@ userRouter.post(
         where: { userId: req.user!.id },
         select: { title: true },
       });
-      const existingTitles = new Set(existingItems.map((item) => item.title));
+      const existingTitles = new Set(existingItems.map((item: { title: string }) => item.title));
 
       const tasksToCreate = defaultChecklistTemplates
         .filter((template) => !existingTitles.has(template.title))
@@ -293,7 +302,7 @@ userRouter.post(
       res.status(201).json({
         success: true,
         data: {
-          items: items.map((item, index) => ({ ...item, dueDate: tasksToCreate[index].dueDate })),
+          items: items.map((item: Record<string, unknown>, index: number) => ({ ...item, dueDate: tasksToCreate[index].dueDate })),
           totalGenerated: items.length,
         },
         meta: meta(req),
