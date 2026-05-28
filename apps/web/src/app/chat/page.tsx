@@ -350,8 +350,10 @@ function ChatPageInner() {
   });
 
   useEffect(() => {
-    if (conversationsQuery.data?.items) {
-      setConversations(conversationsQuery.data.items.length > 0 ? conversationsQuery.data.items : CONVERSATIONS);
+    if (conversationsQuery.data) {
+      // Only use mock CONVERSATIONS as fallback when the API itself failed (isMock: true).
+      // When the API succeeds but returns an empty list, show the empty state.
+      setConversations(conversationsQuery.data.isMock ? CONVERSATIONS : conversationsQuery.data.items);
     }
   }, [conversationsQuery.data]);
 
@@ -359,13 +361,14 @@ function ChatPageInner() {
     if (!vendorId) return null;
     const existing = conversations.find((conversation) => conversation.vendorId === vendorId);
     if (existing) return existing;
-    const vendor = VENDORS[vendorId];
-    if (!vendor) return null;
+    // Build a placeholder conversation from the VENDORS map (used only for known demo vendors).
+    const knownVendor = VENDORS[vendorId];
+    if (!knownVendor) return null;
     return {
       id: `demo-${vendorId}`,
       bookingId: `demo-${vendorId}`,
       vendorId,
-      vendorName: vendor.name,
+      vendorName: knownVendor.name,
       lastMessage: 'Start the conversation',
       lastMessageAt: new Date().toISOString(),
       unread: 0,

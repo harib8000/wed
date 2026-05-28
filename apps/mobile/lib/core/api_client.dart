@@ -157,4 +157,15 @@ class ApiClient {
 
   static Future<Response> updateChecklistItem(String id, Map<String, dynamic> data) =>
       dio.patch('/users/me/checklist/$id', data: data);
+
+  // ─── Vendor Dashboard ───────────────────────────────────────────────────────
+
+  static Future<Response> getVendorDashboard() =>
+      dio.get('/bookings/vendor/dashboard');
+
+  static Future<Response> getVendorPaymentStats() =>
+      dio.get('/payments/vendor/stats');
+
+  static Future<Response> getVendorBookings({String? status}) =>
+      dio.get('/bookings', queryParameters: status != null ? {'status': status} : null);
 }

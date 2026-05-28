@@ -297,9 +297,83 @@ paymentRouter.get('/admin/stats', authenticate, requireRole('admin'), async (req
   } catch (err) { next(err); }
 });
 
-// ── Admin: disputes ───────────────────────────────────────────────────────────
+// ── Vendor: revenue stats ─────────────────────────────────────────────────────
 
-const DisputeListSchema = z.object({
+paymentRouter.get('/vendor/stats', authenticate, requireRole('vendor'), async (req, res, next) => {
+  try {
+    const vendorId = req.user!.id;
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const sixMonthsAgo = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+
+    const [todayEarnings, weekEarnings, monthEarnings, totalEarnings, pendingEscrow, recentReleased] = await Promise.all([
+      prisma.escrowHold.aggregate({
+        where: { vendorId, status: 'RELEASED_TO_VENDOR', releasedAt: { gte: startOfDay } },
+        _sum: { vendorPayoutPaise: true },
+      }),
+      prisma.escrowHold.aggregate({
+        where: { vendorId, status: 'RELEASED_TO_VENDOR', releasedAt: { gte: startOfWeek } },
+        _sum: { vendorPayoutPaise: true },
+      }),
+      prisma.escrowHold.aggregate({
+        where: { vendorId, status: 'RELEASED_TO_VENDOR', releasedAt: { gte: startOfMonth } },
+        _sum: { vendorPayoutPaise: true },
+      }),
+      prisma.escrowHold.aggregate({
+        where: { vendorId, status: 'RELEASED_TO_VENDOR' },
+        _sum: { vendorPayoutPaise: true },
+      }),
+      prisma.escrowHold.aggregate({
+        where: { vendorId, status: 'HELD' },
+        _sum: { vendorPayoutPaise: true },
+      }),
+      prisma.escrowHold.findMany({
+        where: { vendorId, status: 'RELEASED_TO_VENDOR', releasedAt: { gte: sixMonthsAgo } },
+        select: { releasedAt: true, vendorPayoutPaise: true },
+        orderBy: { releasedAt: 'asc' },
+      }),
+    ]);
+
+    // Build monthly revenue map in JS (avoids raw SQL schema dependencies)
+    const monthlyMap: Record<string, number> = {};
+    for (const hold of recentReleased) {
+      if (!hold.releasedAt) continue;
+      const key = hold.releasedAt.toLocaleString('en-US', { month: 'short' });
+      monthlyMap[key] = (monthlyMap[key] ?? 0) + hold.vendorPayoutPaise;
+    }
+    const monthly = Object.entries(monthlyMap).map(([month, revenuePaise]) => ({ month, revenuePaise }));
+
+    // Calculate month-over-month growth
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthEarnings = await prisma.escrowHold.aggregate({
+      where: { vendorId, status: 'RELEASED_TO_VENDOR', releasedAt: { gte: prevMonthStart, lt: startOfMonth } },
+      _sum: { vendorPayoutPaise: true },
+    });
+    const prevMonth = prevMonthEarnings._sum.vendorPayoutPaise ?? 0;
+    const thisMonth = monthEarnings._sum.vendorPayoutPaise ?? 0;
+    const monthOverMonthGrowth = prevMonth > 0
+      ? Math.round(((thisMonth - prevMonth) / prevMonth) * 1000) / 10
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        todayPaise: todayEarnings._sum.vendorPayoutPaise ?? 0,
+        weekPaise: weekEarnings._sum.vendorPayoutPaise ?? 0,
+        monthPaise: thisMonth,
+        totalPaise: totalEarnings._sum.vendorPayoutPaise ?? 0,
+        pendingPaise: pendingEscrow._sum.vendorPayoutPaise ?? 0,
+        monthOverMonthGrowth,
+        monthly,
+      },
+      meta: meta(req),
+    });
+  } catch (err) { next(err); }
+});
+
+// ── Admin: disputes ───────────────────────────────────────────────────────────const DisputeListSchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
   status: z.string().optional(),

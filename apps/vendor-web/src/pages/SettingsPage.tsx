@@ -15,6 +15,7 @@ import {
   Zap,
   Settings,
 } from 'lucide-react';
+import { settingsApi } from '../lib/api';
 
 type Channel = 'email' | 'sms' | 'push';
 
@@ -143,7 +144,13 @@ export function SettingsPage() {
   }
 
   function handleSaveNotifications() {
-    toast.success('Notification preferences updated.');
+    const emailNotif = notificationPreferences.some((p) => p.channels.email);
+    const smsNotif = notificationPreferences.some((p) => p.channels.sms);
+    const pushNotif = notificationPreferences.some((p) => p.channels.push);
+    settingsApi
+      .updateNotifications({ emailNotif, smsNotif, pushNotif })
+      .then(() => toast.success('Notification preferences updated.'))
+      .catch(() => toast.error('Failed to save preferences. Please try again.'));
   }
 
   function handleSaveAutoResponse() {

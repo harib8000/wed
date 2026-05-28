@@ -88,6 +88,13 @@ export function BookingsPage() {
     onError: () => toast.error('Failed to decline booking.'),
   });
 
+  const saveNoteMutation = useMutation({
+    mutationFn: ({ bookingId, note }: { bookingId: string; note: string }) =>
+      bookingApi.saveNote(bookingId, note),
+    onSuccess: () => toast.success('Note saved.'),
+    onError: () => toast.error('Failed to save note. Please try again.'),
+  });
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -315,10 +322,11 @@ export function BookingsPage() {
                     className="input-field h-20 resize-none text-sm"
                   />
                   <button
-                    onClick={() => toast.success('Notes saved locally')}
+                    onClick={() => saveNoteMutation.mutate({ bookingId: b.id, note: bookingNotes[b.id] ?? '' })}
+                    disabled={saveNoteMutation.isPending}
                     className="btn-secondary text-xs py-1.5 px-3 mt-2"
                   >
-                    Save Notes
+                    {saveNoteMutation.isPending ? 'Saving…' : 'Save Notes'}
                   </button>
                 </div>
 

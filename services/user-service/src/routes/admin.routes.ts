@@ -30,6 +30,19 @@ async function internalGet<T>(url: string, token: string): Promise<T | null> {
   }
 }
 
+async function internalGetFull<T>(url: string, token: string): Promise<{ data: T | null; meta: Record<string, unknown> }> {
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) return { data: null, meta: {} };
+    const json = (await res.json()) as { success: boolean; data: T; meta: Record<string, unknown> };
+    return { data: json.data ?? null, meta: json.meta ?? {} };
+  } catch {
+    return { data: null, meta: {} };
+  }
+}
+
 // ── Schemas ───────────────────────────────────────────────────────────────────
 
 const AdminUserListSchema = z.object({
@@ -96,7 +109,7 @@ adminRouter.get('/list', authenticate, requireRole('admin'), async (req: Request
 adminRouter.get('/stats', authenticate, requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.headers.authorization?.slice(7) ?? '';
-    const [totalUsers, vendorStats, bookingStats, paymentStats] = await Promise.all([
+    const [totalUsers, vendorStats, bookingStats, paymentStats, disputesFull, reviewStats] = await Promise.all([
       prisma.userProfile.count(),
       internalGet<{ total: number; active: number; pendingKyc: number }>(
         `${config.VENDOR_SERVICE_URL}/vendors/admin/stats`,
@@ -110,7 +123,17 @@ adminRouter.get('/stats', authenticate, requireRole('admin'), async (req: Reques
         `${config.PAYMENT_SERVICE_URL}/payments/admin/stats`,
         token,
       ),
+      internalGetFull<{ disputes: unknown[] }>(
+        `${config.PAYMENT_SERVICE_URL}/payments/admin/disputes?limit=1&status=OPEN`,
+        token,
+      ),
+      internalGet<{ avgRating: number; totalReviews: number }>(
+        `${config.REVIEW_SERVICE_URL}/reviews/admin/stats`,
+        token,
+      ),
     ]);
+
+    const openDisputes = (disputesFull.meta as Record<string, unknown> & { total?: number })?.total ?? 0;
 
     res.json({
       success: true,
@@ -121,8 +144,8 @@ adminRouter.get('/stats', authenticate, requireRole('admin'), async (req: Reques
         totalBookings: bookingStats?.total ?? 0,
         revenueThisMonth: paymentStats?.revenueThisMonth ?? 0,
         revenueTotal: paymentStats?.revenueTotal ?? 0,
-        openDisputes: 0,  // TODO: wire once disputes list endpoint returns meta.total
-        avgRating: 4.5,   // TODO: wire to review-service aggregate
+        openDisputes,
+        avgRating: reviewStats?.avgRating ?? 0,
       },
       meta: meta(req),
     });
@@ -147,7 +170,7 @@ adminRouter.get('/revenue/monthly', authenticate, requireRole('admin'), async (r
 adminRouter.get('/reports/summary', authenticate, requireRole('admin'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const token = req.headers.authorization?.slice(7) ?? '';
-    const [totalUsers, vendorStats, paymentStats] = await Promise.all([
+    const [totalUsers, vendorStats, paymentStats, topVendorsData, categoryData] = await Promise.all([
       prisma.userProfile.count(),
       internalGet<{ total: number; active: number }>(
         `${config.VENDOR_SERVICE_URL}/vendors/admin/stats`,
@@ -155,6 +178,14 @@ adminRouter.get('/reports/summary', authenticate, requireRole('admin'), async (r
       ),
       internalGet<{ revenueTotal: number; monthly: Array<{ month: string; revenue: number; bookings: number }> }>(
         `${config.PAYMENT_SERVICE_URL}/payments/admin/stats`,
+        token,
+      ),
+      internalGet<{ topVendors: Array<{ vendorId: string; bookingCount: number; revenuePaise: number }> }>(
+        `${config.BOOKING_SERVICE_URL}/bookings/admin/top-vendors?limit=5`,
+        token,
+      ),
+      internalGet<{ categoryBreakdown: Array<{ category: string; count: number }> }>(
+        `${config.BOOKING_SERVICE_URL}/bookings/admin/category-breakdown`,
         token,
       ),
     ]);
@@ -167,8 +198,8 @@ adminRouter.get('/reports/summary', authenticate, requireRole('admin'), async (r
         activeVendors: vendorStats?.active ?? 0,
         activeCustomers: totalUsers,
         monthlyRevenue: paymentStats?.monthly ?? [],
-        topVendors: [],
-        categoryBreakdown: [],
+        topVendors: topVendorsData?.topVendors ?? [],
+        categoryBreakdown: categoryData?.categoryBreakdown ?? [],
       },
       meta: meta(req),
     });

@@ -150,3 +150,146 @@ bookingRouter.get('/admin/stats', authenticate, requireRole('admin'), async (req
     res.json({ success: true, data: { total, enquiry, confirmed, completed, cancelled }, meta: meta(req) });
   } catch (err) { next(err); }
 });
+
+// ── Admin: top vendors by booking count ──────────────────────────────────────
+
+bookingRouter.get('/admin/top-vendors', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const limit = Math.min(Number(req.query.limit ?? 5), 20);
+    const rows = await prisma.booking.groupBy({
+      by: ['vendorId'],
+      where: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
+      _count: { id: true },
+      _sum: { finalAmountPaise: true, quotedAmountPaise: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: limit,
+    });
+    const topVendors = rows.map((r) => ({
+      vendorId: r.vendorId,
+      bookingCount: r._count.id,
+      revenuePaise: r._sum.finalAmountPaise ?? r._sum.quotedAmountPaise ?? 0,
+    }));
+    res.json({ success: true, data: { topVendors }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── Admin: category breakdown ─────────────────────────────────────────────────
+
+bookingRouter.get('/admin/category-breakdown', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const rows = await prisma.booking.groupBy({
+      by: ['eventType'],
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+    });
+    const categoryBreakdown = rows.map((r) => ({
+      category: r.eventType,
+      count: r._count.id,
+    }));
+    res.json({ success: true, data: { categoryBreakdown }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── Vendor: dashboard analytics ───────────────────────────────────────────────
+
+bookingRouter.get('/vendor/dashboard', authenticate, requireRole('vendor'), async (req, res, next) => {
+  try {
+    const vendorId = req.user!.id;
+    const sixMonthsAgo = new Date(Date.now() - 180 * 24 * 60 * 60 * 1000);
+
+    const [statusCounts, recentBookings, periodBookings] = await Promise.all([
+      prisma.booking.groupBy({
+        by: ['status'],
+        where: { vendorId },
+        _count: { id: true },
+        _sum: { finalAmountPaise: true, quotedAmountPaise: true },
+      }),
+      prisma.booking.findMany({
+        where: { vendorId },
+        orderBy: { updatedAt: 'desc' },
+        take: 10,
+        select: {
+          id: true, bookingNumber: true, status: true, eventDate: true,
+          eventType: true, quotedAmountPaise: true, finalAmountPaise: true,
+          updatedAt: true, createdAt: true,
+        },
+      }),
+      prisma.booking.findMany({
+        where: { vendorId, status: { in: ['CONFIRMED', 'COMPLETED'] }, eventDate: { gte: sixMonthsAgo } },
+        select: { eventDate: true, finalAmountPaise: true, quotedAmountPaise: true },
+        orderBy: { eventDate: 'asc' },
+      }),
+    ]);
+
+    const countMap: Record<string, number> = {};
+    let totalRevenuePaise = 0;
+    for (const r of statusCounts) {
+      countMap[r.status] = r._count.id;
+      if (r.status === 'CONFIRMED' || r.status === 'COMPLETED') {
+        totalRevenuePaise += r._sum.finalAmountPaise ?? r._sum.quotedAmountPaise ?? 0;
+      }
+    }
+    const totalEnquiries = Object.values(countMap).reduce((a, b) => a + b, 0);
+    const confirmedCount = (countMap['CONFIRMED'] ?? 0) + (countMap['ADVANCE_PAID'] ?? 0) + (countMap['CHECKIN'] ?? 0);
+    const completedCount = countMap['COMPLETED'] ?? 0;
+    const quotedCount = countMap['QUOTE_SENT'] ?? 0;
+    const cancelledCount = (countMap['CANCELLED_BY_CUSTOMER'] ?? 0) + (countMap['CANCELLED_BY_VENDOR'] ?? 0);
+    const activeCount = (countMap['ENQUIRY'] ?? 0) + quotedCount + (countMap['QUOTE_ACCEPTED'] ?? 0) + (countMap['ADVANCE_PENDING'] ?? 0);
+    const avgBookingValuePaise = (confirmedCount + completedCount) > 0
+      ? Math.round(totalRevenuePaise / (confirmedCount + completedCount))
+      : 0;
+    const conversionRate = totalEnquiries > 0
+      ? Math.round(((confirmedCount + completedCount) / totalEnquiries) * 1000) / 10
+      : 0;
+
+    // Build monthly revenue map
+    const monthlyMap: Record<string, { revenuePaise: number; bookingCount: number }> = {};
+    for (const b of periodBookings) {
+      const monthKey = new Date(b.eventDate).toLocaleString('en-US', { month: 'short' });
+      if (!monthlyMap[monthKey]) monthlyMap[monthKey] = { revenuePaise: 0, bookingCount: 0 };
+      monthlyMap[monthKey].revenuePaise += b.finalAmountPaise ?? b.quotedAmountPaise ?? 0;
+      monthlyMap[monthKey].bookingCount += 1;
+    }
+    const monthly = Object.entries(monthlyMap).map(([month, data]) => ({ month, ...data }));
+
+    const stats = {
+      totalEnquiries,
+      quotedCount,
+      confirmedCount,
+      completedCount,
+      cancelledCount,
+      activeCount,
+      conversionRate,
+      avgBookingValuePaise,
+    };
+
+    const recentActivity = recentBookings.map((b) => ({
+      id: b.id,
+      bookingNumber: b.bookingNumber,
+      status: b.status,
+      eventDate: b.eventDate,
+      eventType: b.eventType,
+      amountPaise: b.finalAmountPaise ?? b.quotedAmountPaise ?? 0,
+      updatedAt: b.updatedAt,
+    }));
+
+    res.json({ success: true, data: { stats, recentActivity, monthly }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── Vendor: save internal note on booking ─────────────────────────────────────
+
+const VendorNoteSchema = z.object({ note: z.string().max(1000) });
+
+bookingRouter.patch('/:id/vendor-note', authenticate, requireRole('vendor'), validate(VendorNoteSchema), async (req, res, next) => {
+  try {
+    const booking = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    if (!booking) throw new NotFoundError('Booking', req.params.id);
+    if (booking.vendorId !== req.user!.id) throw new ForbiddenError();
+    const updated = await prisma.booking.update({
+      where: { id: req.params.id },
+      data: { vendorQuoteNote: req.body.note },
+    });
+    res.json({ success: true, data: { booking: updated }, meta: meta(req) });
+  } catch (err) { next(err); }
+});

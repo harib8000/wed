@@ -219,6 +219,14 @@ export const bookingApi = {
 
   reject: (bookingId: string, reason?: string) =>
     vendorApi.post(`/bookings/${bookingId}/cancel`, { reason }).then((r) => r.data),
+
+  saveNote: (bookingId: string, note: string) =>
+    vendorApi.patch(`/bookings/${bookingId}/vendor-note`, { note }).then((r) => r.data),
+
+  getDashboard: () =>
+    vendorApi.get<{ success: boolean; data: { stats: Record<string, number>; recentActivity: unknown[]; monthly: unknown[] } }>(
+      '/bookings/vendor/dashboard',
+    ).then((r) => r.data.data),
 };
 
 /** Analytics */
@@ -303,4 +311,17 @@ export const calendarApi = {
 
   updateBlockedDates: (blockedDates: string[]) =>
     vendorApi.put('/vendors/me/availability', { blockedDates }).then((r) => r.data),
+};
+
+/** Notification preferences */
+export interface NotifPrefs {
+  emailNotif?: boolean;
+  smsNotif?: boolean;
+  pushNotif?: boolean;
+  whatsappNotif?: boolean;
+}
+
+export const settingsApi = {
+  updateNotifications: (prefs: NotifPrefs) =>
+    vendorApi.put('/users/me/notifications', prefs).then((r) => r.data),
 };
