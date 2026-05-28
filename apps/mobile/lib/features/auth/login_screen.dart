@@ -15,10 +15,14 @@ class _RoleConfig {
   final String label;
   final String title;
   final String subtitle;
+  final String tagline;
   final String demoName;
   final String demoSubtitle;
   final IconData icon;
+  final IconData illustrationIcon;
   final Color color;
+  final Color bgGradientStart;
+  final Color bgGradientEnd;
   final void Function(WidgetRef ref, BuildContext context) onDemoLogin;
 
   const _RoleConfig({
@@ -26,10 +30,14 @@ class _RoleConfig {
     required this.label,
     required this.title,
     required this.subtitle,
+    required this.tagline,
     required this.demoName,
     required this.demoSubtitle,
     required this.icon,
+    required this.illustrationIcon,
     required this.color,
+    required this.bgGradientStart,
+    required this.bgGradientEnd,
     required this.onDemoLogin,
   });
 }
@@ -40,10 +48,14 @@ final _roles = [
     label: 'Couple / Customer',
     title: 'Couple Sign In',
     subtitle: 'Plan your dream wedding with verified vendors',
+    tagline: 'Plan · Book · Celebrate',
     demoName: 'Demo Couple Login',
     demoSubtitle: 'Browse vendors, book & pay',
     icon: Icons.favorite,
+    illustrationIcon: Icons.favorite_rounded,
     color: const Color(0xFFDB2777),
+    bgGradientStart: const Color(0xFFFDF2F8),
+    bgGradientEnd: const Color(0xFFFCE7F3),
     onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoCustomerLogin();
       ctx.go('/');
@@ -54,10 +66,14 @@ final _roles = [
     label: 'Vendor / Seller',
     title: 'Vendor Sign In',
     subtitle: 'Manage bookings, packages & grow your business',
+    tagline: 'List · Manage · Grow',
     demoName: 'Demo Vendor Login',
     demoSubtitle: 'Manage bookings & services',
     icon: Icons.storefront,
+    illustrationIcon: Icons.camera_alt_rounded,
     color: const Color(0xFF059669),
+    bgGradientStart: const Color(0xFFECFDF5),
+    bgGradientEnd: const Color(0xFFD1FAE5),
     onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoVendorLogin();
       ctx.go('/');
@@ -68,10 +84,14 @@ final _roles = [
     label: 'Wedding Coordinator',
     title: 'Coordinator Sign In',
     subtitle: 'Manage timelines, tasks & vendor coordination',
+    tagline: 'Organize · Coordinate · Execute',
     demoName: 'Demo Coordinator Login',
     demoSubtitle: 'Manage events & timelines',
     icon: Icons.groups,
+    illustrationIcon: Icons.assignment_rounded,
     color: const Color(0xFF4F46E5),
+    bgGradientStart: const Color(0xFFEEF2FF),
+    bgGradientEnd: const Color(0xFFE0E7FF),
     onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoCoordinatorLogin();
       ctx.go('/');
@@ -82,10 +102,14 @@ final _roles = [
     label: 'Platform Admin',
     title: 'Admin Sign In',
     subtitle: 'Vendor verification, disputes & platform analytics',
+    tagline: 'Verify · Monitor · Manage',
     demoName: 'Demo Admin Login',
     demoSubtitle: 'Platform administration',
     icon: Icons.shield,
+    illustrationIcon: Icons.dashboard_rounded,
     color: const Color(0xFFD97706),
+    bgGradientStart: const Color(0xFFFEF3C7),
+    bgGradientEnd: const Color(0xFFFDE68A),
     onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoAdminLogin();
       ctx.go('/');
@@ -102,7 +126,8 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with TickerProviderStateMixin {
   _RoleConfig? _selectedRole;
   final _phoneController = TextEditingController();
   final _otpControllers = List.generate(6, (_) => TextEditingController());
@@ -118,10 +143,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _localAuth = LocalAuthentication();
   bool _biometricAvailable = false;
 
+  // Staggered card entrance animations
+  late final AnimationController _staggerController;
+  late final List<Animation<double>> _cardAnimations;
+
   @override
   void initState() {
     super.initState();
     _checkBiometrics();
+    _staggerController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+    _cardAnimations = List.generate(_roles.length, (i) {
+      final start = i * 0.15;
+      final end = start + 0.4;
+      return CurvedAnimation(
+        parent: _staggerController,
+        curve: Interval(start.clamp(0.0, 1.0), end.clamp(0.0, 1.0),
+            curve: Curves.easeOutCubic),
+      );
+    });
+    _staggerController.forward();
   }
 
   Future<void> _checkBiometrics() async {
@@ -163,6 +206,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _staggerController.dispose();
     _phoneController.dispose();
     for (final c in _otpControllers) {
       c.dispose();
@@ -273,7 +317,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 48),
+              const SizedBox(height: 32),
 
               // Logo
               Center(
@@ -302,18 +346,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textMuted, fontSize: 14, height: 1.5),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 28),
 
-              // ─── Role Cards ─────────────────────
-              ..._roles.map((role) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _RoleCard(
-                  config: role,
-                  onTap: () => setState(() => _selectedRole = role),
-                ),
-              )),
+              // ─── Illustrated Role Cards ─────────────────────
+              ...List.generate(_roles.length, (i) {
+                final role = _roles[i];
+                return AnimatedBuilder(
+                  animation: _cardAnimations[i],
+                  builder: (context, child) {
+                    return Transform.translate(
+                      offset: Offset(0, 30 * (1 - _cardAnimations[i].value)),
+                      child: Opacity(
+                        opacity: _cardAnimations[i].value,
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: _IllustratedRoleCard(
+                      config: role,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        setState(() => _selectedRole = role);
+                      },
+                    ),
+                  ),
+                );
+              }),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // ─── Demo Divider ───────────────────
               Row(
@@ -336,7 +398,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   label: role.demoName,
                   subtitle: role.demoSubtitle,
                   color: role.color,
-                  onTap: () => role.onDemoLogin(ref, context),
+                  onTap: () {
+                    HapticFeedback.mediumImpact();
+                    role.onDemoLogin(ref, context);
+                  },
                 ),
               )),
 
@@ -359,6 +424,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               _TrustBadge(icon: Icons.account_balance_wallet, title: 'Escrow Payments', subtitle: 'Pay only when satisfied with the work'),
               const SizedBox(height: 10),
               _TrustBadge(icon: Icons.support_agent, title: 'Dedicated Support', subtitle: '24/7 planning assistance for your wedding'),
+
+              const SizedBox(height: 24),
+
+              // Branded tagline
+              Center(
+                child: Text(
+                  '✨ Connecting Dreams to Celebrations ✨',
+                  style: TextStyle(
+                    color: AppColors.brand.withOpacity(0.7),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
             ],
           ),
         ),
@@ -585,16 +666,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             decoration: BoxDecoration(border: Border(right: BorderSide(color: AppColors.border))),
-            child: const Text('+91', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('🇮🇳', style: TextStyle(fontSize: 18)),
+                const SizedBox(width: 6),
+                const Text('+91', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+              ],
+            ),
           ),
           Expanded(
             child: TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10)],
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 1),
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10), _PhoneNumberFormatter()],
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 1.5),
               decoration: const InputDecoration(
-                hintText: 'Enter phone number',
+                hintText: '98765 43210',
                 border: InputBorder.none,
                 contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
@@ -606,90 +694,154 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildOtpInput() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(6, (i) {
-        return Container(
-          width: 48,
-          height: 56,
-          margin: EdgeInsets.only(right: i < 5 ? 8 : 0),
-          child: TextField(
-            controller: _otpControllers[i],
-            focusNode: _otpFocusNodes[i],
-            keyboardType: TextInputType.number,
-            textAlign: TextAlign.center,
-            maxLength: 1,
-            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            decoration: InputDecoration(
-              counterText: '',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _selectedRole?.color ?? AppColors.brand, width: 2)),
-            ),
-            onChanged: (v) {
-              if (v.isNotEmpty && i < 5) _otpFocusNodes[i + 1].requestFocus();
-              if (v.isEmpty && i > 0) _otpFocusNodes[i - 1].requestFocus();
-              if (_otp.length == 6) _verifyOtp();
-            },
-          ),
-        );
-      }),
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(6, (i) {
+            return Container(
+              width: 48,
+              height: 56,
+              margin: EdgeInsets.only(right: i < 5 ? 8 : 0),
+              child: TextField(
+                controller: _otpControllers[i],
+                focusNode: _otpFocusNodes[i],
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                maxLength: 1,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                decoration: InputDecoration(
+                  counterText: '',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.border)),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: _selectedRole?.color ?? AppColors.brand, width: 2)),
+                  filled: true,
+                  fillColor: _otpControllers[i].text.isNotEmpty
+                      ? (_selectedRole?.color ?? AppColors.brand).withOpacity(0.05)
+                      : Colors.white,
+                ),
+                onChanged: (v) {
+                  HapticFeedback.selectionClick();
+                  if (v.isNotEmpty && i < 5) _otpFocusNodes[i + 1].requestFocus();
+                  if (v.isEmpty && i > 0) _otpFocusNodes[i - 1].requestFocus();
+                  setState(() {}); // Update fill color
+                  if (_otp.length == 6) {
+                    HapticFeedback.mediumImpact();
+                    _verifyOtp();
+                  }
+                },
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 12),
+        // Paste OTP button
+        TextButton.icon(
+          onPressed: _pasteOtp,
+          icon: Icon(Icons.content_paste, size: 16, color: AppColors.textMuted),
+          label: Text('Paste OTP', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+        ),
+      ],
     );
+  }
+
+  Future<void> _pasteOtp() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    if (data?.text == null) return;
+    final digits = data!.text!.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.length < 6) return;
+    for (int i = 0; i < 6; i++) {
+      _otpControllers[i].text = digits[i];
+    }
+    HapticFeedback.mediumImpact();
+    setState(() {});
+    _verifyOtp();
   }
 }
 
-// ─── Role Card Widget ───────────────────────────────────────────────────────────
+// ─── Illustrated Role Card Widget (Full-Width with Illustration) ────────────
 
-class _RoleCard extends StatelessWidget {
+class _IllustratedRoleCard extends StatelessWidget {
   final _RoleConfig config;
   final VoidCallback onTap;
-  const _RoleCard({required this.config, required this.onTap});
+  const _IllustratedRoleCard({required this.config, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: config.color.withOpacity(0.2)),
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [config.bgGradientStart, config.bgGradientEnd],
+            ),
+            border: Border.all(color: config.color.withOpacity(0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: config.color.withOpacity(0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Row(
             children: [
+              // Illustration circle
               Container(
-                width: 48,
-                height: 48,
+                width: 64,
+                height: 64,
                 decoration: BoxDecoration(
-                  color: config.color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
+                  color: config.color.withOpacity(0.15),
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(config.icon, color: config.color, size: 24),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(config.illustrationIcon, color: config.color.withOpacity(0.3), size: 40),
+                    Icon(config.icon, color: config.color, size: 28),
+                  ],
+                ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       config.label,
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: config.color),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: config.color),
                     ),
-                    const SizedBox(height: 2),
+                    const SizedBox(height: 4),
                     Text(
                       config.subtitle,
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 12, height: 1.4),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: config.color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        config.tagline,
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: config.color),
+                      ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.arrow_forward_ios, size: 14, color: config.color),
+              Icon(Icons.arrow_forward_ios, size: 16, color: config.color.withOpacity(0.6)),
             ],
           ),
         ),
@@ -798,6 +950,25 @@ class _TrustBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Phone Number Formatter (98765 43210) ───────────────────────────────────────
+
+class _PhoneNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digits = newValue.text.replaceAll(' ', '');
+    if (digits.length <= 5) return newValue;
+
+    final formatted = '${digits.substring(0, 5)} ${digits.substring(5)}';
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
     );
   }
 }
