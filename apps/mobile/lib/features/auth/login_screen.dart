@@ -200,7 +200,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     } catch (_) {}
   }
 
-  String get _phone => _phoneController.text.trim();
+  String get _phone => _phoneController.text.replaceAll(' ', '').trim();
   String get _otp => _otpControllers.map((c) => c.text).join();
 
   @override
