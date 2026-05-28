@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, CheckCircle2, AlertTriangle, Phone, MessageCircle, MapPin, CalendarDays, ChevronRight, Sparkles } from 'lucide-react';
+import { Clock, CheckCircle2, AlertTriangle, Phone, MessageCircle, MapPin, CalendarDays, ChevronRight, Sparkles, UserCircle, Plus } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 
@@ -18,6 +18,7 @@ interface TimelineEntry {
   status: EntryStatus;
   vendorCheckedIn: boolean;
   note?: string;
+  assignee?: string;
 }
 
 type EventFunction = 'Mehendi' | 'Haldi' | 'Wedding' | 'Reception';
@@ -164,9 +165,14 @@ function DelayAlert({ entries }: { entries: TimelineEntry[] }) {
   );
 }
 
-function TimelineCard({ entry, index }: { entry: TimelineEntry; index: number }) {
+function TimelineCard({ entry, index, onAssign, onAddNote }: { entry: TimelineEntry; index: number; onAssign: (id: string, assignee: string) => void; onAddNote: (id: string, note: string) => void }) {
   const cfg = STATUS_CONFIG[entry.status];
   const StatusIcon = cfg.icon;
+  const [showAssign, setShowAssign] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteText, setNoteText] = useState(entry.note ?? '');
+
+  const FAMILY_MEMBERS = ['Rahul', 'Priya', 'Mom', 'Dad', 'Brother', 'Sister', 'Cousin', 'Wedding Planner'];
 
   return (
     <motion.div
@@ -230,8 +236,8 @@ function TimelineCard({ entry, index }: { entry: TimelineEntry; index: number })
           </div>
         </div>
 
-        {/* Quick contact buttons */}
-        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
+        {/* Quick contact + assignment buttons */}
+        <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100">
           <a
             href={`https://wa.me/${entry.vendorPhone.replace('+', '')}`}
             target="_blank"
@@ -248,12 +254,69 @@ function TimelineCard({ entry, index }: { entry: TimelineEntry; index: number })
             <Phone className="w-3.5 h-3.5" />
             Call
           </a>
+          {entry.assignee ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 text-xs font-medium">
+              <UserCircle className="w-3.5 h-3.5" />
+              {entry.assignee}
+            </span>
+          ) : (
+            <button
+              onClick={() => setShowAssign(!showAssign)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-500 text-xs font-medium hover:bg-gray-100 transition-colors"
+            >
+              <UserCircle className="w-3.5 h-3.5" />
+              Assign
+            </button>
+          )}
+          {!entry.note && (
+            <button
+              onClick={() => setShowNoteInput(!showNoteInput)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gray-50 text-gray-500 text-xs font-medium hover:bg-gray-100 transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+              Note
+            </button>
+          )}
           <div className="flex-1" />
           <span className="text-xs text-gray-400 hidden sm:inline-flex items-center gap-1">
             <MapPin className="w-3 h-3" />
             Hyderabad
           </span>
         </div>
+
+        {/* Assign dropdown */}
+        {showAssign && (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {FAMILY_MEMBERS.map((name) => (
+              <button
+                key={name}
+                onClick={() => { onAssign(entry.id, name); setShowAssign(false); }}
+                className="px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 hover:bg-purple-100 transition"
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Note input */}
+        {showNoteInput && (
+          <div className="mt-2 flex gap-2">
+            <input
+              type="text"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+              placeholder="Add a note..."
+              className="flex-1 px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-rose-200"
+            />
+            <button
+              onClick={() => { if (noteText.trim()) { onAddNote(entry.id, noteText.trim()); setShowNoteInput(false); } }}
+              className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-medium hover:bg-rose-600 transition"
+            >
+              Save
+            </button>
+          </div>
+        )}
       </div>
     </motion.div>
   );
@@ -262,7 +325,22 @@ function TimelineCard({ entry, index }: { entry: TimelineEntry; index: number })
 // ─── Main Page ─────────────────────────────────────────────
 export default function TimelinePage() {
   const [activeTab, setActiveTab] = useState<EventFunction>('Wedding');
-  const entries = MOCK_TIMELINE[activeTab];
+  const [timelineData, setTimelineData] = useState(MOCK_TIMELINE);
+  const entries = timelineData[activeTab];
+
+  const handleAssign = (id: string, assignee: string) => {
+    setTimelineData((prev) => ({
+      ...prev,
+      [activeTab]: prev[activeTab].map((e) => e.id === id ? { ...e, assignee } : e),
+    }));
+  };
+
+  const handleAddNote = (id: string, note: string) => {
+    setTimelineData((prev) => ({
+      ...prev,
+      [activeTab]: prev[activeTab].map((e) => e.id === id ? { ...e, note } : e),
+    }));
+  };
 
   const completedCount = entries.filter(e => e.status === 'completed').length;
   const totalCount = entries.length;
@@ -356,7 +434,7 @@ export default function TimelinePage() {
             className="space-y-4"
           >
             {entries.map((entry, idx) => (
-              <TimelineCard key={entry.id} entry={entry} index={idx} />
+              <TimelineCard key={entry.id} entry={entry} index={idx} onAssign={handleAssign} onAddNote={handleAddNote} />
             ))}
           </motion.div>
         </AnimatePresence>
