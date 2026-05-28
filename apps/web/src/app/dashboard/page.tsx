@@ -159,18 +159,37 @@ function saveTasksToStorage(tasks: typeof DEFAULT_TASKS) {
   }
 }
 
-function getCountdownBreakdown(dateString?: string | null) {
+const DEFAULT_WEDDING_DATE = '2027-02-14T00:00:00';
+const COUNTDOWN_MILESTONES = [
+  { label: '1 year', threshold: 365 },
+  { label: '6 months', threshold: 180 },
+  { label: '100 days', threshold: 100 },
+  { label: '30 days', threshold: 30 },
+  { label: '1 week', threshold: 7 },
+] as const;
+
+function getCountdownBreakdown(dateString?: string | null, now = Date.now()) {
   if (!dateString) return null;
   const targetDate = new Date(dateString);
   if (Number.isNaN(targetDate.getTime())) return null;
 
-  const totalDays = Math.max(0, Math.ceil((targetDate.getTime() - Date.now()) / 86_400_000));
-  const months = Math.floor(totalDays / 30);
-  const remainingAfterMonths = totalDays % 30;
-  const weeks = Math.floor(remainingAfterMonths / 7);
-  const days = remainingAfterMonths % 7;
+  const diffMs = targetDate.getTime() - now;
+  const safeMs = Math.max(diffMs, 0);
 
-  return { totalDays, months, weeks, days };
+  return {
+    totalDays: Math.floor(safeMs / 86_400_000),
+    days: Math.floor(safeMs / 86_400_000),
+    hours: Math.floor((safeMs % 86_400_000) / 3_600_000),
+    minutes: Math.floor((safeMs % 3_600_000) / 60_000),
+    seconds: Math.floor((safeMs % 60_000) / 1_000),
+    targetDate,
+    isComplete: diffMs <= 0,
+  };
+}
+
+function getCountdownMilestone(totalDays: number, isComplete: boolean) {
+  if (isComplete) return 'Celebrate';
+  return COUNTDOWN_MILESTONES.find((milestone) => totalDays >= milestone.threshold)?.label ?? '1 week';
 }
 
 function getProgressTone(progress: number) {
@@ -214,6 +233,7 @@ export default function DashboardPage() {
   const [showBudgetForm, setShowBudgetForm] = useState(false);
   const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
   const [budgetForm, setBudgetForm] = useState<BudgetFormState>(DEFAULT_BUDGET_FORM);
+  const [countdownNow, setCountdownNow] = useState(() => Date.now());
 
   const nextIdRef = useRef(100);
   const taskInitRef = useRef(false);
@@ -267,19 +287,25 @@ export default function DashboardPage() {
     return () => window.removeEventListener('locationChanged', handleLocationChange as EventListener);
   }, []);
 
-  const profile = profileData?.profile ?? profileData;
-  const countdownTargetDate = preferences?.weddingDate || profile?.eventDate || profile?.weddingDate || null;
-  const countdown = useMemo(() => getCountdownBreakdown(countdownTargetDate), [countdownTargetDate]);
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setCountdownNow(Date.now()), 1_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
 
-  const smartDaysToGo = useMemo(() => {
-    if (countdown) return countdown.totalDays;
-    const eventDate = profile?.eventDate || profile?.weddingDate;
-    if (eventDate) {
-      const diff = Math.ceil((new Date(eventDate).getTime() - Date.now()) / 86_400_000);
-      return diff > 0 ? diff : 0;
-    }
-    return 247;
-  }, [countdown, profile]);
+  const profile = profileData?.profile ?? profileData;
+  const hasPersonalWeddingDate = Boolean(preferences?.weddingDate || profile?.eventDate || profile?.weddingDate);
+  const countdownTargetDate = preferences?.weddingDate || profile?.eventDate || profile?.weddingDate || DEFAULT_WEDDING_DATE;
+  const countdown = useMemo(() => getCountdownBreakdown(countdownTargetDate, countdownNow), [countdownNow, countdownTargetDate]);
+  const activeMilestone = useMemo(
+    () => getCountdownMilestone(countdown?.totalDays ?? 0, countdown?.isComplete ?? false),
+    [countdown?.isComplete, countdown?.totalDays]
+  );
+  const formattedWeddingDate = useMemo(
+    () => countdown?.targetDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) ?? '14 February 2027',
+    [countdown]
+  );
+
+  const smartDaysToGo = useMemo(() => countdown?.totalDays ?? 247, [countdown?.totalDays]);
 
   const daysToGoDisplay = countdown ? String(countdown.totalDays) : '—';
 
@@ -558,48 +584,85 @@ export default function DashboardPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.45 }} className="mb-8 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-            <div className="card overflow-hidden bg-gradient-to-br from-white to-brand-50/70 p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-700">
-                    <PartyPopper size={14} /> Wedding Countdown
+            <motion.div
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.5, delay: 0.05 }}
+              className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-brand-600 via-fuchsia-600 to-purple-600 p-6 text-white shadow-xl"
+            >
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.28),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.16),transparent_32%)]" />
+              <div className="relative">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/90 backdrop-blur">
+                      <PartyPopper size={14} /> Your Wedding Day
+                    </div>
+                    <h2 className="mt-4 font-heading text-3xl font-bold sm:text-4xl">
+                      {countdown?.isComplete ? 'Congratulations! 🎉' : 'The countdown is on'}
+                    </h2>
+                    <p className="mt-2 max-w-2xl text-sm text-white/80">
+                      {countdown?.isComplete
+                        ? 'Wishing you a beautiful celebration and a lifetime of happiness together.'
+                        : 'Track every passing second until your big day and stay ahead of every planning milestone.'}
+                    </p>
                   </div>
-                  {countdown ? (
-                    <>
-                      <h2 className="mt-4 font-heading text-3xl font-bold text-gray-900">{countdown.totalDays} days to your wedding! 🎊</h2>
-                      <p className="mt-2 text-sm text-gray-500">Here&apos;s the time left to lock in your dream vendors and finish planning.</p>
-                    </>
-                  ) : (
-                    <>
-                      <h2 className="mt-4 font-heading text-3xl font-bold text-gray-900">Set your wedding date</h2>
-                      <p className="mt-2 text-sm text-gray-500">Add your date to unlock countdowns, reminders, and smart planning suggestions.</p>
-                    </>
-                  )}
+                  <div className="inline-flex items-center gap-2 rounded-2xl bg-white/15 px-4 py-2 text-sm font-medium text-white shadow-lg backdrop-blur">
+                    <Calendar size={16} />
+                    <span>{formattedWeddingDate}</span>
+                  </div>
                 </div>
-                <div className="hidden h-14 w-14 items-center justify-center rounded-2xl bg-brand-600 text-white shadow-lg sm:flex">
-                  <Calendar size={28} />
-                </div>
-              </div>
 
-              {countdown ? (
-                <div className="mt-6 grid grid-cols-3 gap-3">
+                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
-                    { label: 'Months', value: countdown.months },
-                    { label: 'Weeks', value: countdown.weeks },
-                    { label: 'Days', value: countdown.days },
+                    { label: 'Days', value: countdown?.days ?? 0 },
+                    { label: 'Hrs', value: countdown?.hours ?? 0 },
+                    { label: 'Min', value: countdown?.minutes ?? 0 },
+                    { label: 'Sec', value: countdown?.seconds ?? 0 },
                   ].map((item) => (
-                    <div key={item.label} className="rounded-2xl bg-white p-4 text-center shadow-sm ring-1 ring-brand-100">
-                      <div className="text-2xl font-bold text-gray-900">{item.value}</div>
-                      <div className="mt-1 text-xs font-medium uppercase tracking-wide text-gray-500">{item.label}</div>
+                    <div key={item.label} className="rounded-2xl border border-white/15 bg-white/10 p-4 text-center shadow-lg backdrop-blur">
+                      <div className="text-3xl font-black tracking-tight sm:text-4xl">{String(item.value).padStart(2, '0')}</div>
+                      <div className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-white/70">{item.label}</div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <Link href="/profile" className="btn-primary mt-6 inline-flex items-center gap-2">
-                  <Calendar size={16} /> Set your wedding date
-                </Link>
-              )}
-            </div>
+
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {COUNTDOWN_MILESTONES.map((milestone) => {
+                    const isActive = activeMilestone === milestone.label;
+                    const isUnlocked = (countdown?.totalDays ?? 0) <= milestone.threshold;
+                    return (
+                      <span
+                        key={milestone.label}
+                        className={`rounded-full px-3 py-1 text-xs font-semibold backdrop-blur ${
+                          isActive
+                            ? 'bg-white text-brand-700 shadow-lg'
+                            : isUnlocked
+                              ? 'bg-white/20 text-white'
+                              : 'bg-white/10 text-white/70'
+                        }`}
+                      >
+                        {milestone.label}!
+                      </span>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm font-semibold text-white">
+                      🎯 Milestone: {countdown?.isComplete ? 'Celebrate the day!' : `${activeMilestone} away!`}
+                    </div>
+                    <div className="text-sm text-white/80">📅 {formattedWeddingDate}</div>
+                  </div>
+                  {!hasPersonalWeddingDate ? (
+                    <div className="mt-3 text-xs text-white/75">
+                      Using your default planning date for now. <Link href="/profile" className="font-semibold text-white underline underline-offset-2">Add your actual wedding date</Link>.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </motion.div>
 
             <div className="card p-6">
               <div className="flex items-center justify-between gap-3">

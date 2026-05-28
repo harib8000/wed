@@ -261,6 +261,7 @@ export const reviewsApi = {
 /** Payouts & earnings for the logged-in vendor */
 export interface PayoutRecord {
   id: string;
+  paymentId?: string;
   date: string;
   bookingNumber: string;
   customer: string;

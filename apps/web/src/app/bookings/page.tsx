@@ -23,6 +23,7 @@ interface Booking {
   eventType: string;
   eventCity: string;
   status: BookingStatus;
+  paymentId?: string;
   quotedAmountPaise?: number;
   finalAmountPaise?: number;
   advanceAmountPaise?: number;
@@ -32,9 +33,9 @@ interface Booking {
 
 // ─── Mock fallback data ─────────────────────────────────────
 const MOCK_BOOKINGS: Booking[] = [
-  { id: 'b1', bookingNumber: 'WOS-001', vendorId: 'v1', vendorName: 'Royal Grand Palace', vendorCategory: 'Venue', vendorImage: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=400&q=80', eventDate: '2025-03-15', eventType: 'WEDDING', eventCity: 'Hyderabad', status: 'CONFIRMED', quotedAmountPaise: 50000000, finalAmountPaise: 50000000, advanceAmountPaise: 15000000, createdAt: '2025-01-01' },
+  { id: 'b1', bookingNumber: 'WOS-001', vendorId: 'v1', vendorName: 'Royal Grand Palace', vendorCategory: 'Venue', vendorImage: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=400&q=80', eventDate: '2025-03-15', eventType: 'WEDDING', eventCity: 'Hyderabad', status: 'CONFIRMED', paymentId: 'b1', quotedAmountPaise: 50000000, finalAmountPaise: 50000000, advanceAmountPaise: 15000000, createdAt: '2025-01-01' },
   { id: 'b2', bookingNumber: 'WOS-002', vendorId: 'v2', vendorName: 'Srikanth Photography', vendorCategory: 'Photography', vendorImage: 'https://images.unsplash.com/photo-1537907690979-13c0f6a4c7f4?w=400&q=80', eventDate: '2025-03-15', eventType: 'WEDDING', eventCity: 'Hyderabad', status: 'QUOTE_SENT', quotedAmountPaise: 12000000, createdAt: '2025-01-05' },
-  { id: 'b3', bookingNumber: 'WOS-003', vendorId: 'v3', vendorName: 'Flavours Catering Co.', vendorCategory: 'Catering', vendorImage: 'https://images.unsplash.com/photo-1555244162-803834f70033?w=400&q=80', eventDate: '2025-03-15', eventType: 'WEDDING', eventCity: 'Hyderabad', status: 'ADVANCE_PAID', quotedAmountPaise: 24000000, finalAmountPaise: 24000000, advanceAmountPaise: 7200000, createdAt: '2025-01-08' },
+  { id: 'b3', bookingNumber: 'WOS-003', vendorId: 'v3', vendorName: 'Flavours Catering Co.', vendorCategory: 'Catering', vendorImage: 'https://images.unsplash.com/photo-1555244162-803834f70033?w=400&q=80', eventDate: '2025-03-15', eventType: 'WEDDING', eventCity: 'Hyderabad', status: 'ADVANCE_PAID', paymentId: 'b3', quotedAmountPaise: 24000000, finalAmountPaise: 24000000, advanceAmountPaise: 7200000, createdAt: '2025-01-08' },
   { id: 'b4', bookingNumber: 'WOS-004', vendorId: 'v4', vendorName: 'Blooms & Dreams Decor', vendorCategory: 'Decor', vendorImage: 'https://images.unsplash.com/photo-1478146059778-26028b07395a?w=400&q=80', eventDate: '2025-03-14', eventType: 'WEDDING', eventCity: 'Hyderabad', status: 'ENQUIRY', createdAt: '2025-01-10' },
 ];
 
@@ -64,6 +65,7 @@ const TABS: { label: string; value: string }[] = [
 
 const ACTIVE_STATUSES: BookingStatus[] = ['CONFIRMED', 'ADVANCE_PAID', 'IN_PROGRESS', 'QUOTE_ACCEPTED'];
 const PENDING_STATUSES: BookingStatus[] = ['ENQUIRY', 'QUOTE_SENT'];
+const PAYMENT_SERVICE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4005';
 
 function formatCurrency(paise: number) {
   return `₹${(paise / 100).toLocaleString('en-IN')}`;
@@ -87,10 +89,12 @@ function StatusBadge({ status }: { status: BookingStatus }) {
 function BookingCard({ booking }: { booking: Booking }) {
   const CategoryIcon = CATEGORY_ICONS[booking.vendorCategory] ?? Building2;
   const showAmount = booking.quotedAmountPaise || booking.finalAmountPaise;
+  const hasPayment = Boolean(booking.paymentId || booking.advanceAmountPaise || booking.finalAmountPaise);
+  const invoiceId = booking.paymentId ?? booking.id;
 
   return (
-    <Link href={`/bookings/${booking.id}`} className="block group">
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+      <Link href={`/bookings/${booking.id}`} className="block group">
         <div className="flex gap-0">
           {/* Vendor image */}
           <div className="relative w-28 sm:w-36 flex-shrink-0">
@@ -128,25 +132,6 @@ function BookingCard({ booking }: { booking: Booking }) {
                 {booking.eventCity}
               </span>
             </div>
-
-            {showAmount && (
-              <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                <div>
-                  <p className="text-xs text-gray-400">
-                    {booking.finalAmountPaise ? 'Final Amount' : 'Quoted Amount'}
-                  </p>
-                  <p className="font-bold text-brand-600 text-sm">
-                    {formatCurrency(booking.finalAmountPaise ?? booking.quotedAmountPaise!)}
-                  </p>
-                </div>
-                {booking.advanceAmountPaise && (
-                  <div className="text-right">
-                    <p className="text-xs text-gray-400">Advance Paid</p>
-                    <p className="font-semibold text-green-600 text-sm">{formatCurrency(booking.advanceAmountPaise)}</p>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Arrow */}
@@ -154,8 +139,43 @@ function BookingCard({ booking }: { booking: Booking }) {
             <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors" />
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {(showAmount || hasPayment) && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-t border-gray-50">
+          <div className="flex items-center gap-4">
+            {showAmount && (
+              <div>
+                <p className="text-xs text-gray-400">
+                  {booking.finalAmountPaise ? 'Final Amount' : 'Quoted Amount'}
+                </p>
+                <p className="font-bold text-brand-600 text-sm">
+                  {formatCurrency(booking.finalAmountPaise ?? booking.quotedAmountPaise!)}
+                </p>
+              </div>
+            )}
+            {booking.advanceAmountPaise && (
+              <div>
+                <p className="text-xs text-gray-400">Advance Paid</p>
+                <p className="font-semibold text-green-600 text-sm">{formatCurrency(booking.advanceAmountPaise)}</p>
+              </div>
+            )}
+          </div>
+
+          {hasPayment && (
+            <a
+              href={`${PAYMENT_SERVICE_URL}/payments/${invoiceId}/invoice`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-100"
+              onClick={(event) => event.stopPropagation()}
+            >
+              📄 Invoice
+            </a>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
