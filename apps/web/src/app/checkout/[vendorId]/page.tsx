@@ -135,6 +135,10 @@ function CheckoutPageInner() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<{ package?: string; eventDate?: string }>({});
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponApplied, setCouponApplied] = useState('');
+  const [couponError, setCouponError] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -161,7 +165,31 @@ function CheckoutPageInner() {
   }, [vendor, searchParams]);
 
   const advance = selectedPackage ? Math.round(selectedPackage.priceFromPaise * 0.3) : 0;
-  const platformFee = selectedPackage ? Math.round(selectedPackage.priceFromPaise * 0.10 * 1.18) : 0; // 10% + 18% GST
+  const platformFee = selectedPackage ? Math.round(selectedPackage.priceFromPaise * 0.10) : 0;
+  const gst = selectedPackage ? Math.round(platformFee * 0.18) : 0;
+  const discountAmount = selectedPackage ? Math.round(selectedPackage.priceFromPaise * couponDiscount) : 0;
+  const advanceAfterDiscount = Math.max(0, advance - Math.round(discountAmount * 0.3));
+
+  const handleApplyCoupon = () => {
+    setCouponError('');
+    const code = couponCode.trim().toUpperCase();
+    if (!code) { setCouponError('Please enter a coupon code'); return; }
+    const COUPONS: Record<string, { discount: number; label: string }> = {
+      'WEDDING10': { discount: 0.10, label: '10% off' },
+      'FIRST20': { discount: 0.20, label: '20% off (first booking)' },
+      'FESTIVE5': { discount: 0.05, label: '5% festive discount' },
+    };
+    const coupon = COUPONS[code];
+    if (coupon) {
+      setCouponDiscount(coupon.discount);
+      setCouponApplied(coupon.label);
+      setCouponError('');
+    } else {
+      setCouponDiscount(0);
+      setCouponApplied('');
+      setCouponError('Invalid coupon code');
+    }
+  };
 
   const handleSubmit = async () => {
     const errors: { package?: string; eventDate?: string } = {};
@@ -391,6 +419,39 @@ function CheckoutPageInner() {
             </div>
           </div>
 
+          {/* ── Coupon / Promo Code ── */}
+          <div>
+            <h2 className="font-semibold text-gray-900 mb-3">4. Promo Code</h2>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={couponCode}
+                  onChange={(e) => { setCouponCode(e.target.value.toUpperCase()); if (couponApplied) { setCouponApplied(''); setCouponDiscount(0); } }}
+                  placeholder="Enter promo code"
+                  className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300 uppercase"
+                />
+                <button
+                  onClick={handleApplyCoupon}
+                  className="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-xl transition"
+                >
+                  Apply
+                </button>
+              </div>
+              {couponApplied && (
+                <div className="mt-2 flex items-center gap-2 text-green-600 text-sm">
+                  <Check className="w-4 h-4" /> {couponApplied} applied! You save {formatCurrency(discountAmount)}
+                </div>
+              )}
+              {couponError && (
+                <p className="mt-2 text-red-500 text-xs flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" /> {couponError}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-2">Try: WEDDING10, FIRST20, FESTIVE5</p>
+            </div>
+          </div>
+
           {/* ── Escrow safety note ── */}
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 flex items-start gap-3">
             <Shield className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
@@ -410,19 +471,29 @@ function CheckoutPageInner() {
                   <span>{formatCurrency(selectedPackage.priceFromPaise)}</span>
                 </div>
                 <div className="flex justify-between text-gray-400 text-xs">
-                  <span>Platform fee (incl. GST)</span>
+                  <span>Platform fee (10%)</span>
                   <span>{formatCurrency(platformFee)}</span>
                 </div>
+                <div className="flex justify-between text-gray-400 text-xs">
+                  <span>GST (18% on platform fee)</span>
+                  <span>{formatCurrency(gst)}</span>
+                </div>
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-green-600 text-xs">
+                    <span>Discount ({couponApplied})</span>
+                    <span>-{formatCurrency(discountAmount)}</span>
+                  </div>
+                )}
                 <div className="border-t border-gray-100 pt-3 flex justify-between font-bold text-gray-900">
                   <span>Total Value</span>
-                  <span>{formatCurrency(selectedPackage.priceFromPaise)}</span>
+                  <span>{formatCurrency(selectedPackage.priceFromPaise + platformFee + gst - discountAmount)}</span>
                 </div>
                 <div className="bg-brand-50 rounded-xl p-3 flex justify-between">
                   <div>
                     <p className="font-semibold text-brand-700">Pay Now (30% Advance)</p>
                     <p className="text-xs text-brand-500 mt-0.5">Balance paid on event day</p>
                   </div>
-                  <p className="font-bold text-brand-700 text-lg">{formatCurrency(advance)}</p>
+                  <p className="font-bold text-brand-700 text-lg">{formatCurrency(advanceAfterDiscount)}</p>
                 </div>
               </div>
             </div>
@@ -443,7 +514,7 @@ function CheckoutPageInner() {
             className="w-full bg-brand-600 hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-semibold text-base flex items-center justify-center gap-2 transition shadow-lg shadow-brand-200"
           >
             <Lock className="w-4 h-4" />
-            {isSubmitting ? 'Processing...' : selectedPackage ? `Pay ${formatCurrency(advance)} Securely` : 'Select a Package to Continue'}
+            {isSubmitting ? 'Processing...' : selectedPackage ? `Pay ${formatCurrency(advanceAfterDiscount)} Securely` : 'Select a Package to Continue'}
           </button>
 
           <p className="text-center text-xs text-gray-400">

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowLeft, Calendar, MapPin, Phone, CheckCircle2, Circle, Clock, Shield, AlertTriangle, ChevronRight, Building2, Camera, MessageSquare, XCircle, Star } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Phone, CheckCircle2, Circle, Clock, Shield, AlertTriangle, ChevronRight, Building2, Camera, MessageSquare, XCircle, Star, FileText, Flag, ChevronDown } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuthStore } from '@/store/authStore';
 import { bookingApi, paymentApi } from '@/lib/api';
@@ -97,6 +97,10 @@ export default function BookingDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [acceptingQuote, setAcceptingQuote] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [showContract, setShowContract] = useState(false);
+  const [showDispute, setShowDispute] = useState(false);
+  const [disputeCategory, setDisputeCategory] = useState('');
+  const [disputeDescription, setDisputeDescription] = useState('');
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -327,8 +331,136 @@ export default function BookingDetailPage() {
             </div>
           )}
 
+          {/* ── Contract / Agreement Viewer ── */}
+          {booking.quotedAmountPaise && booking.status !== 'ENQUIRY' && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <button
+                onClick={() => setShowContract(!showContract)}
+                className="w-full flex items-center justify-between"
+              >
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-brand-600" />
+                  <h2 className="font-semibold text-gray-900">Booking Agreement</h2>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showContract ? 'rotate-180' : ''}`} />
+              </button>
+              {showContract && (
+                <div className="mt-4 bg-gray-50 rounded-xl p-4 text-sm space-y-3 border border-gray-100">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Agreement #</span>
+                    <span className="font-medium">{booking.bookingNumber}-AGR</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Service Provider</span>
+                    <span className="font-medium">{booking.vendorName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Service Category</span>
+                    <span className="font-medium">{booking.vendorCategory}</span>
+                  </div>
+                  {booking.packageName && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Package</span>
+                      <span className="font-medium">{booking.packageName}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Agreed Amount</span>
+                    <span className="font-medium">{formatCurrency(booking.quotedAmountPaise)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Event Date</span>
+                    <span className="font-medium">{formatDate(booking.eventDate)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Event Location</span>
+                    <span className="font-medium">{booking.eventCity}</span>
+                  </div>
+                  {booking.vendorQuoteNote && (
+                    <div className="border-t border-gray-200 pt-3">
+                      <p className="text-gray-500 text-xs mb-1">Service Terms</p>
+                      <p className="text-gray-700">{booking.vendorQuoteNote}</p>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-200 pt-3">
+                    <p className="text-gray-500 text-xs mb-1">Payment Terms</p>
+                    <p className="text-gray-700">30% advance due upon acceptance. Remaining 70% payable on or before the event date. All payments held in escrow for buyer protection.</p>
+                  </div>
+                  <div className="border-t border-gray-200 pt-3">
+                    <p className="text-gray-500 text-xs mb-1">Cancellation Policy</p>
+                    <p className="text-gray-700">Full refund if cancelled 30+ days before event. 50% refund 15-30 days before. No refund within 15 days of the event.</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ── Dispute / Report Issue ── */}
+          {['ADVANCE_PAID', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status) && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              {!showDispute ? (
+                <button
+                  onClick={() => setShowDispute(true)}
+                  className="w-full flex items-center gap-2 text-red-600 hover:text-red-700 transition"
+                >
+                  <Flag className="w-4 h-4" />
+                  <span className="text-sm font-medium">Report an Issue</span>
+                </button>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <Flag className="w-4 h-4 text-red-500" /> Report an Issue
+                    </h3>
+                    <button onClick={() => setShowDispute(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+                    <select
+                      value={disputeCategory}
+                      onChange={(e) => setDisputeCategory(e.target.value)}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-300"
+                    >
+                      <option value="">Select issue type</option>
+                      <option value="service_quality">Service quality not as promised</option>
+                      <option value="no_show">Vendor did not show up</option>
+                      <option value="late_arrival">Vendor arrived late</option>
+                      <option value="pricing">Pricing dispute / hidden charges</option>
+                      <option value="communication">Poor communication</option>
+                      <option value="incomplete">Incomplete service delivery</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Describe the issue</label>
+                    <textarea
+                      value={disputeDescription}
+                      onChange={(e) => setDisputeDescription(e.target.value)}
+                      placeholder="Please provide details about the issue..."
+                      rows={4}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-300 resize-none"
+                    />
+                  </div>
+                  <button
+                    disabled={!disputeCategory || !disputeDescription.trim()}
+                    onClick={() => {
+                      toast.success('Dispute submitted. Our team will review within 24-48 hours.');
+                      setShowDispute(false);
+                      setDisputeCategory('');
+                      setDisputeDescription('');
+                    }}
+                    className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-semibold transition"
+                  >
+                    Submit Dispute
+                  </button>
+                  <p className="text-xs text-gray-400 text-center">Our team will review your dispute and respond within 24-48 hours.</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Actions ── */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Link
               href={`/chat?vendorId=${booking.vendorId}`}
               className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-brand-300 py-3 rounded-xl text-sm font-medium text-gray-700 transition"
@@ -336,6 +468,17 @@ export default function BookingDetailPage() {
               <MessageSquare className="w-4 h-4 text-brand-500" />
               Message Vendor
             </Link>
+            {booking.advanceAmountPaise && (
+              <a
+                href={`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'}/api/payments/${booking.id}/invoice`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 hover:border-brand-300 py-3 rounded-xl text-sm font-medium text-gray-700 transition"
+              >
+                <FileText className="w-4 h-4 text-brand-500" />
+                Invoice
+              </a>
+            )}
             {booking.status === 'COMPLETED' && (
               <Link
                 href={`/reviews/write/${booking.id}`}
