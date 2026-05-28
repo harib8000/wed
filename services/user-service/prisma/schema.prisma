@@ -111,3 +111,40 @@ model ChecklistItem {
   @@index([userId])
   @@map("checklist_items")
 }
+
+enum BudgetCategory {
+  VENUE
+  CATERING
+  PHOTOGRAPHY
+  VIDEOGRAPHY
+  DECORATION
+  MAKEUP
+  MUSIC
+  TRANSPORT
+  INVITATION
+  MEHENDI
+  ATTIRE
+  JEWELLERY
+  GIFTS
+  ACCOMMODATION
+  HONEYMOON
+  OTHER
+}
+
+model BudgetItem {
+  id             String         @id @default(uuid())
+  userId         String         @map("user_id")
+  category       BudgetCategory
+  label          String         @db.VarChar(200)
+  estimatedPaise Int            @map("estimated_paise")
+  actualPaise    Int?           @map("actual_paise")
+  vendorName     String?        @map("vendor_name") @db.VarChar(200)
+  bookingId      String?        @map("booking_id")
+  isPaid         Boolean        @default(false) @map("is_paid")
+  notes          String?        @db.VarChar(500)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("budget_items")
+}

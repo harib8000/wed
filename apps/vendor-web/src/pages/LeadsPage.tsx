@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import {
   Inbox, Send, CheckCircle, XCircle, Clock, ArrowUpDown,
   Eye, AlertTriangle, MessageSquareText, FileText, Trophy,
+  X, Phone, Mail, MapPin, Calendar, Users, IndianRupee, Tag,
 } from 'lucide-react';
 import { bookingApi, type VendorBooking } from '../lib/api';
 
@@ -89,6 +90,7 @@ export function LeadsPage() {
   const [templateLeadId, setTemplateLeadId] = useState<string | null>(null);
   const [templateMessage, setTemplateMessage] = useState('');
   const [statusOverrides, setStatusOverrides] = useState<Record<string, LeadStatus>>({});
+  const [detailLeadId, setDetailLeadId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data, isError } = useQuery({
@@ -336,7 +338,7 @@ export function LeadsPage() {
                       <button onClick={() => updateLeadStatus(lead.id, 'lost')} className="btn-secondary text-xs py-1.5 px-3">Mark Lost</button>
                     </>
                   )}
-                  <button className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1">
+                  <button onClick={() => setDetailLeadId(lead.id)} className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1">
                     <Eye size={12} /> View Details
                   </button>
                 </div>
@@ -391,6 +393,171 @@ export function LeadsPage() {
           })}
         </div>
       )}
+
+      {/* Lead Detail Drawer */}
+      {detailLeadId && (() => {
+        const lead = leads.find((l) => l.id === detailLeadId);
+        if (!lead) return null;
+        const sc = STATUS_CONFIG[lead.status];
+        return (
+          <div className="fixed inset-0 z-50 flex">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setDetailLeadId(null)} />
+            <div className="relative ml-auto w-full max-w-lg bg-white shadow-2xl h-full overflow-y-auto">
+              <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between z-10">
+                <h2 className="text-lg font-bold text-gray-900">Lead Details</h2>
+                <button onClick={() => setDetailLeadId(null)} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* Customer Info */}
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-brand-100 flex items-center justify-center">
+                    <span className="text-brand-700 text-xl font-bold">{lead.customer[0]}</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900">{lead.customer}</h3>
+                    <span className={`badge ${sc.class} text-xs mt-1 inline-flex items-center gap-1.5`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
+                      {sc.label}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Contact Details */}
+                <div className="card p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Contact Information</h4>
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <Phone size={14} className="text-gray-400" />
+                    <span>{lead.phone}</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <Mail size={14} className="text-gray-400" />
+                    <span className="text-gray-400 italic">Email not provided</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-gray-600">
+                    <Clock size={14} className="text-gray-400" />
+                    <span>Received {lead.receivedAt}</span>
+                  </div>
+                </div>
+
+                {/* Event Details */}
+                <div className="card p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Event Details</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar size={14} className="text-gray-400" />
+                      <div>
+                        <div className="text-gray-400 text-xs">Event Date</div>
+                        <div className="text-gray-900 font-medium">{lead.eventDate}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Tag size={14} className="text-gray-400" />
+                      <div>
+                        <div className="text-gray-400 text-xs">Event Type</div>
+                        <div className="text-gray-900 font-medium">{lead.eventType}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <IndianRupee size={14} className="text-gray-400" />
+                      <div>
+                        <div className="text-gray-400 text-xs">Budget</div>
+                        <div className="text-gray-900 font-medium">{lead.budget}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Users size={14} className="text-gray-400" />
+                      <div>
+                        <div className="text-gray-400 text-xs">Lead ID</div>
+                        <div className="text-gray-900 font-medium font-mono">{lead.id}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Customer Message */}
+                <div className="card p-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-2">Customer Message</h4>
+                  <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 rounded-xl p-3">{lead.message}</p>
+                </div>
+
+                {/* Lead Timeline */}
+                <div className="card p-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Activity Timeline</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="w-2 h-2 rounded-full bg-brand-500 mt-1.5" />
+                      <div>
+                        <p className="text-sm text-gray-900">Enquiry received</p>
+                        <p className="text-xs text-gray-400">{lead.receivedAt}</p>
+                      </div>
+                    </div>
+                    {lead.status !== 'new' && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full bg-sky-500 mt-1.5" />
+                        <div>
+                          <p className="text-sm text-gray-900">Lead contacted</p>
+                          <p className="text-xs text-gray-400">After initial review</p>
+                        </div>
+                      </div>
+                    )}
+                    {(lead.status === 'quoted' || lead.status === 'won') && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5" />
+                        <div>
+                          <p className="text-sm text-gray-900">Quote sent</p>
+                          <p className="text-xs text-gray-400">{lead.budget}</p>
+                        </div>
+                      </div>
+                    )}
+                    {lead.status === 'won' && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5" />
+                        <div>
+                          <p className="text-sm text-gray-900 font-medium">Booking confirmed! 🎉</p>
+                          <p className="text-xs text-gray-400">Lead converted to booking</p>
+                        </div>
+                      </div>
+                    )}
+                    {lead.status === 'lost' && (
+                      <div className="flex items-start gap-3">
+                        <div className="w-2 h-2 rounded-full bg-gray-400 mt-1.5" />
+                        <div>
+                          <p className="text-sm text-gray-900">Lead lost</p>
+                          <p className="text-xs text-gray-400">Did not convert</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-2">
+                  {(lead.status === 'new' || lead.status === 'contacted') && (
+                    <button
+                      onClick={() => {
+                        setDetailLeadId(null);
+                        setQuoteLeadId(lead.id);
+                      }}
+                      className="btn-primary w-full flex items-center justify-center gap-2"
+                    >
+                      <Send size={16} /> Send Quote
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setDetailLeadId(null)}
+                    className="btn-secondary w-full"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {templateLeadId && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">

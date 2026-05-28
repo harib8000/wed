@@ -13,6 +13,8 @@ import {
   CreateChecklistItemSchema,
   UpdateChecklistItemSchema,
   GenerateChecklistSchema,
+  CreateBudgetItemSchema,
+  UpdateBudgetItemSchema,
 } from '../types/user.types';
 import { prisma } from '../config/database';
 
@@ -209,6 +211,93 @@ userRouter.patch(
       }
       const doc = await profileService.reviewKyc(req.params.docId, status, req.user!.id, note);
       res.json({ success: true, data: { doc }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── GET /users/me/budget ──────────────────────────────────────────────────────
+
+userRouter.get('/me/budget', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const items = await prisma.budgetItem.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const totalEstimated = items.reduce((sum, item) => sum + item.estimatedPaise, 0);
+    const totalActual = items.reduce((sum, item) => sum + (item.actualPaise ?? 0), 0);
+    const totalPaid = items.filter((item) => item.isPaid).reduce((sum, item) => sum + (item.actualPaise ?? item.estimatedPaise), 0);
+
+    const byCategory = items.reduce<Record<string, { estimated: number; actual: number; count: number }>>((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = { estimated: 0, actual: 0, count: 0 };
+      acc[item.category].estimated += item.estimatedPaise;
+      acc[item.category].actual += item.actualPaise ?? 0;
+      acc[item.category].count += 1;
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      data: {
+        items,
+        summary: { totalEstimated, totalActual, totalPaid, itemCount: items.length },
+        byCategory,
+      },
+      meta: meta(req),
+    });
+  } catch (err) { next(err); }
+});
+
+// ── POST /users/me/budget ─────────────────────────────────────────────────────
+
+userRouter.post(
+  '/me/budget',
+  authenticate,
+  validate(CreateBudgetItemSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const item = await prisma.budgetItem.create({
+        data: { userId: req.user!.id, ...req.body },
+      });
+      res.status(201).json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── PATCH /users/me/budget/:id ────────────────────────────────────────────────
+
+userRouter.patch(
+  '/me/budget/:id',
+  authenticate,
+  validate(UpdateBudgetItemSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.budgetItem.findFirst({
+        where: { id: req.params.id, userId: req.user!.id },
+      });
+      if (!existing) throw new NotFoundError('BudgetItem', req.params.id);
+      const item = await prisma.budgetItem.update({
+        where: { id: req.params.id },
+        data: req.body,
+      });
+      res.json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── DELETE /users/me/budget/:id ───────────────────────────────────────────────
+
+userRouter.delete(
+  '/me/budget/:id',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.budgetItem.findFirst({
+        where: { id: req.params.id, userId: req.user!.id },
+      });
+      if (!existing) throw new NotFoundError('BudgetItem', req.params.id);
+      await prisma.budgetItem.delete({ where: { id: req.params.id } });
+      res.json({ success: true, data: { message: 'Deleted' }, meta: meta(req) });
     } catch (err) { next(err); }
   }
 );

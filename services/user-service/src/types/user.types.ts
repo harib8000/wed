@@ -57,5 +57,29 @@ export const GenerateChecklistSchema = z.object({
   weddingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
 });
 
+export const CreateBudgetItemSchema = z.object({
+  category: z.enum(['VENUE', 'CATERING', 'PHOTOGRAPHY', 'VIDEOGRAPHY', 'DECORATION', 'MAKEUP', 'MUSIC', 'TRANSPORT', 'INVITATION', 'MEHENDI', 'ATTIRE', 'JEWELLERY', 'GIFTS', 'ACCOMMODATION', 'HONEYMOON', 'OTHER']),
+  label: z.string().min(1).max(200),
+  estimatedPaise: z.number().int().min(0),
+  actualPaise: z.number().int().min(0).optional(),
+  vendorName: z.string().max(200).optional(),
+  bookingId: z.string().optional(),
+  isPaid: z.boolean().optional(),
+  notes: z.string().max(500).optional(),
+});
+
+export const UpdateBudgetItemSchema = z.object({
+  category: z.enum(['VENUE', 'CATERING', 'PHOTOGRAPHY', 'VIDEOGRAPHY', 'DECORATION', 'MAKEUP', 'MUSIC', 'TRANSPORT', 'INVITATION', 'MEHENDI', 'ATTIRE', 'JEWELLERY', 'GIFTS', 'ACCOMMODATION', 'HONEYMOON', 'OTHER']).optional(),
+  label: z.string().min(1).max(200).optional(),
+  estimatedPaise: z.number().int().min(0).optional(),
+  actualPaise: z.number().int().min(0).optional(),
+  vendorName: z.string().max(200).optional(),
+  bookingId: z.string().optional(),
+  isPaid: z.boolean().optional(),
+  notes: z.string().max(500).optional(),
+});
+
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
 export type UpdateNotifPrefsInput = z.infer<typeof UpdateNotifPrefsSchema>;
+export type CreateBudgetItemInput = z.infer<typeof CreateBudgetItemSchema>;
+export type UpdateBudgetItemInput = z.infer<typeof UpdateBudgetItemSchema>;

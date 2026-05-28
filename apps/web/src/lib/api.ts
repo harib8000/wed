@@ -42,6 +42,20 @@ export interface ChecklistItem {
   isDone: boolean;
 }
 
+export interface BudgetItem {
+  id: string;
+  category: string;
+  label: string;
+  estimatedPaise: number;
+  actualPaise?: number | null;
+  vendorName?: string | null;
+  bookingId?: string | null;
+  isPaid: boolean;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ChatConversation {
   id: string;
   bookingId: string;
@@ -195,6 +209,22 @@ export const paymentApi = {
 export const userApi = {
   getProfile: () => api.get('/users/me'),
   updateProfile: <T extends object>(data: T) => api.put('/users/me', data),
+  getBudget: async () => {
+    const { data } = await api.get('/users/me/budget');
+    return data.data;
+  },
+  createBudgetItem: async (item: { category: string; label: string; estimatedPaise: number; actualPaise?: number; vendorName?: string; isPaid?: boolean; notes?: string }) => {
+    const { data } = await api.post('/users/me/budget', item);
+    return data.data.item;
+  },
+  updateBudgetItem: async (id: string, updates: Record<string, unknown>) => {
+    const { data } = await api.patch(`/users/me/budget/${id}`, updates);
+    return data.data.item;
+  },
+  deleteBudgetItem: async (id: string) => {
+    const { data } = await api.delete(`/users/me/budget/${id}`);
+    return data.data;
+  },
 };
 
 export const executionApi = {
