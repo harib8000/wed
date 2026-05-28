@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Calendar, MapPin, Clock, ChevronRight, Building2, Camera, Utensils, Sparkles, Music, Search, Filter } from 'lucide-react';
+import { Calendar, MapPin, Clock, ChevronRight, Building2, Camera, Utensils, Sparkles, Music, Search, Filter, Star, CalendarDays } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { useAuthStore } from '@/store/authStore';
@@ -205,6 +205,7 @@ export default function BookingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
 
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
@@ -272,9 +273,10 @@ export default function BookingsPage() {
             </div>
           </div>
 
-          {/* ── Tabs ── */}
-          <div className="flex gap-2 mb-5 overflow-x-auto pb-1 no-scrollbar">
-            {TABS.map((tab) => {
+          {/* ── Tabs + View Toggle ── */}
+          <div className="flex items-center justify-between gap-3 mb-5">
+            <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+              {TABS.map((tab) => {
               const count = tab.value === 'ALL' ? bookings.length
                 : tab.value === 'ACTIVE' ? bookings.filter(b => ACTIVE_STATUSES.includes(b.status)).length
                 : tab.value === 'PENDING' ? bookings.filter(b => PENDING_STATUSES.includes(b.status)).length
@@ -297,7 +299,40 @@ export default function BookingsPage() {
                 </button>
               );
             })}
+            </div>
+            <div className="flex gap-1 flex-shrink-0">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-brand-100 text-brand-700' : 'text-gray-400 hover:bg-gray-100'}`}
+                aria-label="List view"
+              >
+                <Filter className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('timeline')}
+                className={`p-2 rounded-lg transition ${viewMode === 'timeline' ? 'bg-brand-100 text-brand-700' : 'text-gray-400 hover:bg-gray-100'}`}
+                aria-label="Timeline view"
+              >
+                <CalendarDays className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+
+          {/* ── Review Prompt ── */}
+          {bookings.filter((b) => b.status === 'COMPLETED').length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 flex items-start gap-3">
+              <Star className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-800">Share your experience!</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  You have {bookings.filter((b) => b.status === 'COMPLETED').length} completed booking{bookings.filter((b) => b.status === 'COMPLETED').length > 1 ? 's' : ''} awaiting your review. Your feedback helps other couples!
+                </p>
+              </div>
+              <Link href={`/reviews/write/${bookings.find((b) => b.status === 'COMPLETED')?.id}`} className="text-xs font-medium text-amber-700 hover:text-amber-900 whitespace-nowrap">
+                Write Review →
+              </Link>
+            </div>
+          )}
 
           {/* ── Booking list ── */}
           {isLoading ? (
@@ -308,6 +343,41 @@ export default function BookingsPage() {
             </div>
           ) : filteredBookings.length === 0 ? (
             <EmptyState tab={TABS.find(t => t.value === activeTab)?.label ?? 'All'} />
+          ) : viewMode === 'timeline' ? (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <CalendarDays className="w-5 h-5 text-brand-500" /> Booking Timeline
+              </h3>
+              <div className="space-y-0">
+                {[...filteredBookings].sort((a, b) => new Date(a.eventDate).getTime() - new Date(b.eventDate).getTime()).map((b, i, arr) => {
+                  const cfg = STATUS_CONFIG[b.status];
+                  return (
+                    <Link key={b.id} href={`/bookings/${b.id}`} className="flex gap-3 group">
+                      <div className="flex flex-col items-center">
+                        <div className={`w-8 h-8 rounded-full ${cfg.bg} flex items-center justify-center flex-shrink-0 z-10 group-hover:ring-2 ring-brand-200 transition`}>
+                          <span className={`w-2.5 h-2.5 rounded-full ${cfg.dotColor}`} />
+                        </div>
+                        {i < arr.length - 1 && <div className="w-0.5 flex-1 min-h-[24px] bg-gray-200" />}
+                      </div>
+                      <div className="pb-5 flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-gray-900 truncate group-hover:text-brand-600 transition">{b.vendorName}</p>
+                            <p className="text-xs text-gray-400">{b.vendorCategory} · {b.bookingNumber}</p>
+                          </div>
+                          <StatusBadge status={b.status} />
+                        </div>
+                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{formatDate(b.eventDate)}</span>
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{b.eventCity}</span>
+                          {b.quotedAmountPaise && <span className="font-semibold text-brand-600">{formatCurrency(b.quotedAmountPaise)}</span>}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           ) : (
             <div className="space-y-3">
               {filteredBookings.map((b) => <BookingCard key={b.id} booking={b} />)}

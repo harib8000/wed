@@ -98,7 +98,7 @@ export function AnalyticsPage() {
 
   const { data: stats } = useQuery({
     queryKey: ['vendor-stats'],
-    queryFn: statsApi.getDashboard,
+    queryFn: () => statsApi.getDashboard(),
     retry: 1,
     staleTime: 60_000,
   });

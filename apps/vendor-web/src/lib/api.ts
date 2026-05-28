@@ -162,18 +162,20 @@ export interface MonthlyData {
   bookings: number;
 }
 
+export type DashboardRange = '7d' | '30d' | '90d';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // API METHODS
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Dashboard stats for the logged-in vendor */
 export const statsApi = {
-  getDashboard: () =>
-    vendorApi.get<{ success: boolean; data: VendorStats }>('/vendors/me/stats')
+  getDashboard: (range: DashboardRange = '30d') =>
+    vendorApi.get<{ success: boolean; data: VendorStats }>('/vendors/me/stats', { params: { range } })
       .then((r) => r.data.data),
 
-  getMonthlyRevenue: () =>
-    vendorApi.get<{ success: boolean; data: MonthlyData[] }>('/vendors/me/revenue/monthly')
+  getMonthlyRevenue: (range: DashboardRange = '30d') =>
+    vendorApi.get<{ success: boolean; data: MonthlyData[] }>('/vendors/me/revenue/monthly', { params: { range } })
       .then((r) => r.data.data),
 };
 

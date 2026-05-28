@@ -135,7 +135,7 @@ const SEGMENT_LABELS: Record<UserSegment, string> = {
   'at-risk': 'At Risk',
 };
 
-const ACCOUNT_STATUS_COLOR: Record<AccountStatus, string> = {
+const ACCOUNT_STATUS_COLOR: Record<AccountStatus, 'success' | 'warning' | 'error'> = {
   ACTIVE: 'success',
   SUSPENDED: 'warning',
   BANNED: 'error',
