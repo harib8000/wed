@@ -242,4 +242,61 @@ export const vendorService = {
     await syncToEs(vendor);
     return vendor;
   },
+
+  async rejectVendor(vendorId: string, reason: string) {
+    const vendor = await prisma.vendor.update({
+      where: { id: vendorId },
+      data: { status: 'REJECTED', adminNote: reason },
+      include: { packages: true, tags: true },
+    });
+    await deleteVendorDocument(vendorId);
+    publishEvent('vendor.kyc_rejected', vendor.id, { vendorId, reason });
+    return vendor;
+  },
+
+  async adminList(params: {
+    page?: number;
+    limit?: number;
+    status?: string;
+    category?: string;
+    q?: string;
+  }) {
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, params.limit ?? 20);
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.VendorWhereInput = {};
+    if (params.status) where.status = params.status as never;
+    if (params.category) where.category = params.category as VendorCategory;
+    if (params.q) {
+      where.OR = [
+        { businessName: { contains: params.q, mode: 'insensitive' } },
+        { city: { contains: params.q, mode: 'insensitive' } },
+      ];
+    }
+
+    const [vendors, total] = await Promise.all([
+      prisma.vendor.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { packages: { where: { isActive: true }, take: 1 } },
+      }),
+      prisma.vendor.count({ where }),
+    ]);
+
+    return { vendors, total, page, limit, pages: Math.ceil(total / limit) };
+  },
+
+  async getStats() {
+    const [total, active, pendingKyc, suspended, rejected] = await Promise.all([
+      prisma.vendor.count(),
+      prisma.vendor.count({ where: { status: 'ACTIVE' } }),
+      prisma.vendor.count({ where: { status: 'PENDING_KYC' } }),
+      prisma.vendor.count({ where: { status: 'SUSPENDED' } }),
+      prisma.vendor.count({ where: { status: 'REJECTED' } }),
+    ]);
+    return { total, active, pendingKyc, suspended, rejected };
+  },
 };

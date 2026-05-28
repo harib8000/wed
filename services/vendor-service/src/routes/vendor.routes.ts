@@ -187,9 +187,44 @@ vendorRouter.post('/me/submit-review', authenticate, requireRole('vendor', 'admi
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
+const AdminListSchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  status: z.string().optional(),
+  category: z.string().optional(),
+  q: z.string().optional(),
+});
+
+vendorRouter.get('/admin/list', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const params = AdminListSchema.parse(req.query);
+    const result = await vendorService.adminList(params);
+    res.json({
+      success: true,
+      data: { vendors: result.vendors },
+      meta: { total: result.total, page: result.page, limit: result.limit, pages: result.pages, ...meta(req) },
+    });
+  } catch (err) { next(err); }
+});
+
+vendorRouter.get('/admin/stats', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const stats = await vendorService.getStats();
+    res.json({ success: true, data: stats, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
 vendorRouter.patch('/:id/approve', authenticate, requireRole('admin'), async (req, res, next) => {
   try {
     const vendor = await vendorService.approveVendor(req.params.id);
+    res.json({ success: true, data: { vendor }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+vendorRouter.patch('/:id/reject', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const reason = typeof req.body.reason === 'string' ? req.body.reason : 'KYC rejected by admin';
+    const vendor = await vendorService.rejectVendor(req.params.id, reason);
     res.json({ success: true, data: { vendor }, meta: meta(req) });
   } catch (err) { next(err); }
 });

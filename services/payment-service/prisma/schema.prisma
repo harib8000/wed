@@ -30,6 +30,25 @@ enum RefundReason {
   OTHER
 }
 
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_CUSTOMER
+  RESOLVED_VENDOR
+  CLOSED
+}
+
+enum DisputeReason {
+  no_show
+  poor_quality
+  late_arrival
+  wrong_items
+  overcharging
+  cancellation
+  rude_behaviour
+  incomplete_service
+}
+
 model Payment {
   id                String        @id @default(uuid())
   bookingId         String        @map("booking_id")
@@ -105,4 +124,35 @@ model Refund {
 
   @@index([paymentId])
   @@map("refunds")
+}
+
+model Dispute {
+  id              String        @id @default(uuid())
+  bookingId       String        @map("booking_id")
+  bookingNumber   String        @map("booking_number") @db.VarChar(30)
+  customerId      String        @map("customer_id")
+  vendorId        String        @map("vendor_id")
+
+  // Names denormalised to avoid cross-service joins
+  customerName    String        @map("customer_name") @db.VarChar(200)
+  vendorName      String        @map("vendor_name") @db.VarChar(200)
+
+  reason          DisputeReason
+  description     String        @db.Text
+  evidenceUrls    String[]      @map("evidence_urls")
+
+  status          DisputeStatus @default(OPEN)
+  refundAmountPaise Int?        @map("refund_amount_paise")
+  adminNotes      String?       @map("admin_notes") @db.VarChar(2000)
+  resolvedAt      DateTime?     @map("resolved_at")
+  resolvedByAdminId String?     @map("resolved_by_admin_id")
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([bookingId])
+  @@index([customerId])
+  @@index([vendorId])
+  @@index([status])
+  @@map("disputes")
 }

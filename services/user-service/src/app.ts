@@ -4,6 +4,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
 import { userRouter } from './routes/user.routes';
+import { adminRouter } from './routes/admin.routes';
 import { requestId } from './middleware/requestId';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
@@ -20,6 +21,7 @@ export function createApp(): express.Express {
   app.use(requestId);
   app.use(pinoHttp({ logger, customLogLevel: (_req, res, err) => err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info' }));
 
+  app.use('/users/admin', adminRouter);
   app.use('/users', userRouter);
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'user-service', ts: new Date() }));
 

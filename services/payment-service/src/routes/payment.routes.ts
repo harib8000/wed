@@ -228,3 +228,153 @@ paymentRouter.post('/escrow/:id/release', authenticate, requireRole('admin'), as
 });
 
 paymentRouter.get('/health', (_req, res) => res.json({ status: 'ok', service: 'payment-service' }));
+
+// ── Admin: list all payments ──────────────────────────────────────────────────
+
+const AdminListSchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  status: z.string().optional(),
+});
+
+paymentRouter.get('/admin/list', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { page, limit, status } = AdminListSchema.parse(req.query);
+    const skip = (page - 1) * limit;
+    const where = status ? { status: status as never } : {};
+
+    const [payments, total] = await Promise.all([
+      prisma.payment.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+      prisma.payment.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: { payments },
+      meta: { total, page, limit, pages: Math.ceil(total / limit), ...meta(req) },
+    });
+  } catch (err) { next(err); }
+});
+
+paymentRouter.get('/admin/stats', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalRevenue, monthlyRevenue, monthly] = await Promise.all([
+      prisma.payment.aggregate({ where: { status: 'CAPTURED' }, _sum: { amountPaise: true } }),
+      prisma.payment.aggregate({
+        where: { status: 'CAPTURED', createdAt: { gte: startOfMonth } },
+        _sum: { amountPaise: true },
+      }),
+      prisma.$queryRaw<Array<{ month: string; revenue: bigint; bookings: bigint }>>`
+        SELECT to_char(created_at, 'Mon') AS month,
+               SUM(amount_paise) AS revenue,
+               COUNT(*) AS bookings
+        FROM payments.payments
+        WHERE status = 'CAPTURED'
+          AND created_at >= NOW() - INTERVAL '6 months'
+        GROUP BY to_char(created_at, 'Mon'), DATE_TRUNC('month', created_at)
+        ORDER BY DATE_TRUNC('month', created_at)
+      `,
+    ]);
+
+    const monthlyData = monthly.map((row: { month: string; revenue: bigint; bookings: bigint }) => ({
+      month: row.month,
+      revenue: Number(row.revenue),
+      bookings: Number(row.bookings),
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        revenueTotal: totalRevenue._sum.amountPaise ?? 0,
+        revenueThisMonth: monthlyRevenue._sum.amountPaise ?? 0,
+        monthly: monthlyData,
+      },
+      meta: meta(req),
+    });
+  } catch (err) { next(err); }
+});
+
+// ── Admin: disputes ───────────────────────────────────────────────────────────
+
+const DisputeListSchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  status: z.string().optional(),
+});
+
+const CreateDisputeSchema = z.object({
+  bookingId: z.string().uuid(),
+  bookingNumber: z.string().min(1),
+  customerId: z.string().uuid(),
+  vendorId: z.string().uuid(),
+  customerName: z.string().min(1).max(200),
+  vendorName: z.string().min(1).max(200),
+  reason: z.enum(['no_show', 'poor_quality', 'late_arrival', 'wrong_items', 'overcharging', 'cancellation', 'rude_behaviour', 'incomplete_service']),
+  description: z.string().min(10).max(5000),
+  evidenceUrls: z.array(z.string()).default([]),
+});
+
+const ResolveDisputeSchema = z.object({
+  status: z.enum(['RESOLVED_CUSTOMER', 'RESOLVED_VENDOR', 'CLOSED']),
+  refundAmountPaise: z.number().int().min(0).optional(),
+  adminNotes: z.string().min(1).max(2000),
+});
+
+paymentRouter.get('/admin/disputes', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const { page, limit, status } = DisputeListSchema.parse(req.query);
+    const skip = (page - 1) * limit;
+    const where = status ? { status: status as never } : {};
+
+    const [disputes, total] = await Promise.all([
+      prisma.dispute.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' } }),
+      prisma.dispute.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: { disputes },
+      meta: { total, page, limit, pages: Math.ceil(total / limit), ...meta(req) },
+    });
+  } catch (err) { next(err); }
+});
+
+paymentRouter.post('/admin/disputes', authenticate, async (req, res, next) => {
+  try {
+    const body = CreateDisputeSchema.parse(req.body);
+    const dispute = await prisma.dispute.create({ data: body });
+    res.status(201).json({ success: true, data: { dispute }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+paymentRouter.post('/admin/disputes/:id/resolve', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const body = ResolveDisputeSchema.parse(req.body);
+    const dispute = await prisma.dispute.update({
+      where: { id: req.params.id },
+      data: {
+        status: body.status,
+        refundAmountPaise: body.refundAmountPaise,
+        adminNotes: body.adminNotes,
+        resolvedAt: new Date(),
+        resolvedByAdminId: req.user!.id,
+      },
+    });
+
+    // If resolved in customer's favour, trigger refund on the linked payment
+    if (body.status === 'RESOLVED_CUSTOMER' && body.refundAmountPaise && body.refundAmountPaise > 0) {
+      const payment = await prisma.payment.findFirst({
+        where: { bookingId: dispute.bookingId, status: 'CAPTURED' },
+      });
+      if (payment) {
+        await paymentService.refund(payment.id, 'DISPUTE_RESOLVED_CUSTOMER', body.adminNotes)
+          .catch((err: unknown) => logger.warn({ err }, 'Dispute refund failed (non-blocking)'));
+      }
+    }
+
+    res.json({ success: true, data: { dispute }, meta: meta(req) });
+  } catch (err) { next(err); }
+});

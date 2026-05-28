@@ -13,9 +13,13 @@ const envSchema = z.object({
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   ALLOWED_ORIGINS: z
     .string()
-    .default('http://localhost:3000,http://localhost:3001')
+    .default('http://localhost:3000,http://localhost:3001,http://localhost:3002')
     .transform((s) => s.split(',').map((o) => o.trim())),
   AUTH_SERVICE_URL: z.string().default('http://auth-service:4001'),
+  VENDOR_SERVICE_URL: z.string().default('http://vendor-service:4003'),
+  BOOKING_SERVICE_URL: z.string().default('http://booking-service:4004'),
+  PAYMENT_SERVICE_URL: z.string().default('http://payment-service:4005'),
+  REVIEW_SERVICE_URL: z.string().default('http://review-service:4009'),
 });
 
 const parsed = envSchema.safeParse(process.env);
