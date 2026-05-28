@@ -257,6 +257,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  void _showComingSoon(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
   PreferredSizeWidget _buildAppBar(Vendor vendor) => AppBar(
     titleSpacing: 0,
     title: Row(children: [
@@ -270,9 +276,33 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         Text(vendor.city, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.normal, color: AppColors.textMuted)),
       ]),
     ]),
-    actions: [Icons.call_outlined, Icons.videocam_outlined, Icons.more_vert]
-        .map((icon) => IconButton(tooltip: 'Action', icon: Icon(icon, size: 20), onPressed: () {}))
-        .toList(),
+    actions: [
+      IconButton(
+        tooltip: 'Camera',
+        icon: const Icon(Icons.camera_alt_outlined, size: 20),
+        onPressed: () => _showComingSoon('Photo sharing coming soon'),
+      ),
+      IconButton(
+        tooltip: 'Gallery',
+        icon: const Icon(Icons.photo_library_outlined, size: 20),
+        onPressed: () => _showComingSoon('Image sharing coming soon'),
+      ),
+      IconButton(
+        tooltip: 'Voice message',
+        icon: const Icon(Icons.mic_none_outlined, size: 20),
+        onPressed: () => _showComingSoon('Voice messages coming soon'),
+      ),
+      IconButton(
+        tooltip: 'Location',
+        icon: const Icon(Icons.location_on_outlined, size: 20),
+        onPressed: () => _showComingSoon('Location sharing coming soon'),
+      ),
+      IconButton(
+        tooltip: 'Contact',
+        icon: const Icon(Icons.contact_phone_outlined, size: 20),
+        onPressed: () => _showComingSoon('Contact sharing coming soon'),
+      ),
+    ],
   );
 
   Widget _buildInput() => SafeArea(

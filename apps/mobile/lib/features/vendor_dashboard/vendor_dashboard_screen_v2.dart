@@ -149,7 +149,7 @@ class _HeaderSection extends StatelessWidget {
                     ),
                     child: Stack(
                       children: [
-                        IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22), onPressed: () {}),
+                        IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22), onPressed: () => context.push('/notifications')),
                         Positioned(
                           right: 8, top: 8,
                           child: Container(

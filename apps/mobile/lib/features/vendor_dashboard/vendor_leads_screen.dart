@@ -7,6 +7,85 @@ import '../../providers/vendor_analytics_provider.dart';
 class VendorLeadsScreen extends ConsumerWidget {
   const VendorLeadsScreen({super.key});
 
+  Future<void> _showAddLeadSheet(BuildContext context) async {
+    final nameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final eventTypeController = TextEditingController();
+    final dateController = TextEditingController();
+    final budgetController = TextEditingController();
+    final notesController = TextEditingController();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(sheetContext).viewInsets.bottom + 20),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 48,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Add Lead', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Customer name')),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneController,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(labelText: 'Phone number'),
+              ),
+              const SizedBox(height: 12),
+              TextField(controller: eventTypeController, decoration: const InputDecoration(labelText: 'Event type')),
+              const SizedBox(height: 12),
+              TextField(controller: dateController, decoration: const InputDecoration(labelText: 'Event date')),
+              const SizedBox(height: 12),
+              TextField(
+                controller: budgetController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Budget'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Notes'),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final leadName = nameController.text.trim().isEmpty ? 'New lead' : nameController.text.trim();
+                    Navigator.of(sheetContext).pop();
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(SnackBar(content: Text('Lead added for $leadName')));
+                  },
+                  child: const Text('Save Lead'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final leadsAsync = ref.watch(vendorLeadsProvider);
@@ -23,7 +102,7 @@ class VendorLeadsScreen extends ConsumerWidget {
         data: (leads) => _LeadsBody(leads: leads),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () => _showAddLeadSheet(context),
         icon: const Icon(Icons.add),
         label: const Text('Add Lead'),
         backgroundColor: AppColors.brand,
@@ -152,6 +231,55 @@ class _PipelineChip extends StatelessWidget {
 class _LeadCard extends StatelessWidget {
   final VendorLead lead;
   const _LeadCard({required this.lead});
+
+  void _showLeadSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showQuoteDialog(BuildContext context) async {
+    final amountController = TextEditingController();
+    final messageController = TextEditingController(
+      text: 'Hi ${lead.customerName}, sharing a tailored quote for your ${lead.eventType.toLowerCase()}.',
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Send Quote'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Quote amount'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: messageController,
+              maxLines: 3,
+              decoration: const InputDecoration(labelText: 'Message'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _showLeadSnackBar(context, 'Quote sent to ${lead.customerName}');
+            },
+            child: const Text('Send Quote'),
+          ),
+        ],
+      ),
+    );
+  }
 
   Color get _statusColor {
     switch (lead.status) {
@@ -307,11 +435,26 @@ class _LeadCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
               child: Row(
                 children: [
-                  _QuickAction(icon: Icons.phone_outlined, label: 'Call', color: const Color(0xFF10B981), onTap: () {}),
+                  _QuickAction(
+                    icon: Icons.phone_outlined,
+                    label: 'Call',
+                    color: const Color(0xFF10B981),
+                    onTap: () => _showLeadSnackBar(context, 'Call ${lead.phone}'),
+                  ),
                   const SizedBox(width: 8),
-                  _QuickAction(icon: Icons.chat_outlined, label: 'WhatsApp', color: const Color(0xFF25D366), onTap: () {}),
+                  _QuickAction(
+                    icon: Icons.chat_outlined,
+                    label: 'WhatsApp',
+                    color: const Color(0xFF25D366),
+                    onTap: () => _showLeadSnackBar(context, 'WhatsApp ${lead.phone}'),
+                  ),
                   const SizedBox(width: 8),
-                  _QuickAction(icon: Icons.request_quote_outlined, label: 'Send Quote', color: AppColors.brand, onTap: () {}),
+                  _QuickAction(
+                    icon: Icons.request_quote_outlined,
+                    label: 'Send Quote',
+                    color: AppColors.brand,
+                    onTap: () => _showQuoteDialog(context),
+                  ),
                 ],
               ),
             )

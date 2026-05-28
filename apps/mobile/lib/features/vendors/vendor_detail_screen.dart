@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -118,7 +119,13 @@ class _VendorDetailViewState extends State<_VendorDetailView> {
                 icon: Icon(isWishlisted ? Icons.favorite : Icons.favorite_border, color: Colors.white),
                 onPressed: () => widget.ref.read(wishlistProvider.notifier).toggle(vendor),
               ),
-              IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () {}),
+              IconButton(icon: const Icon(Icons.share, color: Colors.white), onPressed: () async {
+                await Clipboard.setData(ClipboardData(text: 'https://weddingos.in/vendors/${vendor.id}'));
+                if (!context.mounted) return;
+                ScaffoldMessenger.of(context)
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(const SnackBar(content: Text('Profile link copied to clipboard!')));
+              }),
             ],
           ),
 

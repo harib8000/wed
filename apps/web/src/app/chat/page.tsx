@@ -218,15 +218,6 @@ function DateSeparator({ label }: { label: string }) {
     </div>
   );
 }
-
-function ComingSoonBadge() {
-  return (
-    <span className="absolute -top-1 -right-1 bg-amber-400 text-[8px] font-bold text-amber-900 px-1 rounded-full leading-tight select-none">
-      SOON
-    </span>
-  );
-}
-
 function MessageBubble({ msg, isUser }: { msg: Message; isUser: boolean }) {
   return (
     <div
@@ -745,24 +736,20 @@ function ChatPageInner() {
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <div className="relative">
-                    <button
-                      className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-400 cursor-default"
-                      aria-label="Voice call — coming soon"
-                    >
-                      <Phone className="w-4 h-4" />
-                    </button>
-                    <ComingSoonBadge />
-                  </div>
-                  <div className="relative">
-                    <button
-                      className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-400 cursor-default"
-                      aria-label="Video call — coming soon"
-                    >
-                      <Video className="w-4 h-4" />
-                    </button>
-                    <ComingSoonBadge />
-                  </div>
+                  <button
+                    onClick={() => toast('Voice calls coming soon! Use chat for now.', { icon: '📞' })}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-500 hover:text-brand-600 cursor-pointer"
+                    aria-label="Voice call — coming soon"
+                  >
+                    <Phone className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => toast('Video calls coming soon! Use chat for now.', { icon: '📹' })}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-500 hover:text-brand-600 cursor-pointer"
+                    aria-label="Video call — coming soon"
+                  >
+                    <Video className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
@@ -817,28 +804,20 @@ function ChatPageInner() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <div className="relative group">
-                    <button
-                      className="p-2 text-gray-400 hover:text-gray-500 transition cursor-default"
-                      aria-label="Attach image — coming soon"
-                    >
-                      <ImageIcon className="w-5 h-5" />
-                    </button>
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      Coming soon
-                    </span>
-                  </div>
-                  <div className="relative group">
-                    <button
-                      className="p-2 text-gray-400 hover:text-gray-500 transition cursor-default"
-                      aria-label="Attach file — coming soon"
-                    >
-                      <Paperclip className="w-5 h-5" />
-                    </button>
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      Coming soon
-                    </span>
-                  </div>
+                  <button
+                    onClick={() => toast('Image sharing coming soon!', { icon: '📸' })}
+                    className="p-2 text-gray-500 hover:text-brand-600 transition cursor-pointer"
+                    aria-label="Attach image — coming soon"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => toast('File sharing coming soon!', { icon: '📎' })}
+                    className="p-2 text-gray-500 hover:text-brand-600 transition cursor-pointer"
+                    aria-label="Attach file — coming soon"
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </button>
 
                   <input
                     ref={inputRef}

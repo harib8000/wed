@@ -7,6 +7,29 @@ import '../../providers/vendor_analytics_provider.dart';
 class VendorCalendarScreen extends ConsumerWidget {
   const VendorCalendarScreen({super.key});
 
+  Future<void> _blockDates(BuildContext context) async {
+    final pickedRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: DateTime(2027, 12, 31),
+      helpText: 'Select dates to block',
+    );
+
+    if (pickedRange != null && context.mounted) {
+      final start = pickedRange.start;
+      final end = pickedRange.end;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              'Blocked ${start.day}/${start.month}/${start.year} - ${end.day}/${end.month}/${end.year}',
+            ),
+          ),
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventsAsync = ref.watch(vendorCalendarProvider);
@@ -18,7 +41,7 @@ class VendorCalendarScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         actions: [
           TextButton.icon(
-            onPressed: () {},
+            onPressed: () => _blockDates(context),
             icon: const Icon(Icons.block, size: 16, color: AppColors.error),
             label: const Text('Block Dates', style: TextStyle(color: AppColors.error, fontSize: 12)),
           ),

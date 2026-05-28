@@ -33,6 +33,8 @@ const MOCK_PROFILE: VendorProfile = {
 
 export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<'profile' | 'packages' | 'portfolio' | 'kyc'>('profile');
+  const [showAddPkg, setShowAddPkg] = useState(false);
+  const [newPkg, setNewPkg] = useState({ name: '', packageType: 'PER_EVENT', priceFromPaise: 0, inclusions: '' });
   const queryClient = useQueryClient();
 
   const { data: profile, isError } = useQuery({
@@ -52,6 +54,7 @@ export function ProfilePage() {
     city: vendor.city,
     yearsExperience: vendor.yearsExperience ?? 0,
   });
+  const [packages, setPackages] = useState(vendor.packages);
 
   useEffect(() => {
     if (profile) {
@@ -62,7 +65,11 @@ export function ProfilePage() {
         city: profile.city,
         yearsExperience: profile.yearsExperience ?? 0,
       });
+      setPackages(profile.packages);
+      return;
     }
+
+    setPackages(MOCK_PROFILE.packages);
   }, [profile]);
 
   const updateMutation = useMutation({
@@ -74,6 +81,18 @@ export function ProfilePage() {
     onError: () => toast.error('Failed to update profile.'),
   });
 
+  const addPackageMutation = useMutation({
+    mutationFn: (updatedPackages: VendorProfile['packages']) => profileApi.updateProfile({ packages: updatedPackages }),
+    onSuccess: (_, updatedPackages) => {
+      setPackages(updatedPackages);
+      setShowAddPkg(false);
+      setNewPkg({ name: '', packageType: 'PER_EVENT', priceFromPaise: 0, inclusions: '' });
+      toast.success('Package added successfully!');
+      queryClient.invalidateQueries({ queryKey: ['vendor-profile'] });
+    },
+    onError: () => toast.error('Failed to add package.'),
+  });
+
   function handleSave() {
     updateMutation.mutate({
       businessName: form.businessName,
@@ -82,6 +101,39 @@ export function ProfilePage() {
       city: form.city,
       yearsExperience: form.yearsExperience,
     });
+  }
+
+  function handleAddPackage() {
+    if (!newPkg.name.trim()) {
+      toast.error('Please enter a package name.');
+      return;
+    }
+
+    const nextPackages = [
+      ...packages,
+      {
+        id: `pkg-${Date.now()}`,
+        name: newPkg.name.trim(),
+        packageType: newPkg.packageType as VendorProfile['packages'][number]['packageType'],
+        priceFromPaise: newPkg.priceFromPaise,
+        priceUpToPaise: null,
+        description: null,
+        inclusions: newPkg.inclusions.split(',').map((s) => s.trim()).filter(Boolean),
+        exclusions: [],
+        deliverables: [],
+        isActive: true,
+      },
+    ];
+
+    if (isMock) {
+      setPackages(nextPackages);
+      setShowAddPkg(false);
+      setNewPkg({ name: '', packageType: 'PER_EVENT', priceFromPaise: 0, inclusions: '' });
+      toast.success('Package added (demo mode)!');
+      return;
+    }
+
+    addPackageMutation.mutate(nextPackages);
   }
 
   return (
@@ -115,7 +167,7 @@ export function ProfilePage() {
           <div className="flex items-center gap-4 mb-6">
             <div className="w-20 h-20 rounded-2xl bg-brand-100 flex items-center justify-center relative">
               <span className="text-brand-600 text-4xl">🏛️</span>
-              <button className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-sm">
+              <button onClick={() => toast('Photo upload coming soon!')} className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-sm">
                 <Camera size={12} />
               </button>
             </div>
@@ -190,10 +242,75 @@ export function ProfilePage() {
         <div className="max-w-3xl">
           <div className="flex justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Your Packages</h3>
-            <button className="btn-primary flex items-center gap-2"><Plus size={16} /> Add Package</button>
+            <button onClick={() => setShowAddPkg(true)} className="btn-primary flex items-center gap-2"><Plus size={16} /> Add Package</button>
           </div>
-          {(vendor.packages.length > 0
-            ? vendor.packages.map((pkg) => (
+          {showAddPkg && (
+            <div className="card p-5 mb-4 space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Package Name</label>
+                  <input
+                    value={newPkg.name}
+                    onChange={(e) => setNewPkg({ ...newPkg, name: e.target.value })}
+                    className="input-field"
+                    placeholder="Royal Signature Package"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Package Type</label>
+                  <select
+                    value={newPkg.packageType}
+                    onChange={(e) => setNewPkg({ ...newPkg, packageType: e.target.value as 'PER_EVENT' | 'PER_DAY' | 'PER_HOUR' })}
+                    className="input-field"
+                  >
+                    <option value="PER_EVENT">PER_EVENT</option>
+                    <option value="PER_DAY">PER_DAY</option>
+                    <option value="PER_HOUR">PER_HOUR</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newPkg.priceFromPaise / 100}
+                    onChange={(e) => setNewPkg({ ...newPkg, priceFromPaise: Number(e.target.value || 0) * 100 })}
+                    className="input-field"
+                    placeholder="50000"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Inclusions</label>
+                  <textarea
+                    value={newPkg.inclusions}
+                    onChange={(e) => setNewPkg({ ...newPkg, inclusions: e.target.value })}
+                    className="input-field h-24 resize-none"
+                    placeholder="Venue rental, décor, bridal suite"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleAddPackage}
+                  disabled={addPackageMutation.isPending}
+                  className="btn-primary"
+                >
+                  {addPackageMutation.isPending ? 'Saving…' : 'Save Package'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowAddPkg(false);
+                    setNewPkg({ name: '', packageType: 'PER_EVENT', priceFromPaise: 0, inclusions: '' });
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          {(packages.length > 0
+            ? packages.map((pkg) => (
                 <div key={pkg.id} className="card p-5 mb-3 flex items-center justify-between">
                   <div>
                     <h4 className="font-semibold text-gray-900">{pkg.name}</h4>
@@ -201,8 +318,8 @@ export function ProfilePage() {
                     <p className="text-brand-700 font-bold mt-1">₹{(pkg.priceFromPaise / 100).toLocaleString('en-IN')}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="btn-secondary text-xs py-2 px-3">Edit</button>
-                    <button className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    <button onClick={() => toast('Package editing coming soon!')} className="btn-secondary text-xs py-2 px-3">Edit</button>
+                    <button onClick={() => { if (confirm('Delete this package?')) toast.success('Package removed (demo mode)'); }} className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))
@@ -218,8 +335,8 @@ export function ProfilePage() {
                     <p className="text-brand-700 font-bold mt-1">{pkg.price}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button className="btn-secondary text-xs py-2 px-3">Edit</button>
-                    <button className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                    <button onClick={() => toast('Package editing coming soon!')} className="btn-secondary text-xs py-2 px-3">Edit</button>
+                    <button onClick={() => { if (confirm('Delete this package?')) toast.success('Package removed (demo mode)'); }} className="p-2 rounded-xl hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
                   </div>
                 </div>
               ))
@@ -231,16 +348,16 @@ export function ProfilePage() {
         <div className="max-w-3xl">
           <div className="flex justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Portfolio ({8} photos)</h3>
-            <button className="btn-primary flex items-center gap-2"><Upload size={16} /> Upload Photos</button>
+            <button onClick={() => toast('Photo upload coming soon! Connect your portfolio via the web dashboard.')} className="btn-primary flex items-center gap-2"><Upload size={16} /> Upload Photos</button>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="aspect-square rounded-xl overflow-hidden relative group">
                 <img src={`https://images.unsplash.com/photo-${['1519225421980-715cb0215aed','1519741497674-611481863552','1478146059778-26028b07395a','1464366400600-7168b8af9bc3','1531058020387-4de47d62d946','1491604612772-6853927639ef','1519167758481-83f550bb49b3','1463863148025-20c37369acec'][i]}?w=300&q=80`} alt="" className="w-full h-full object-cover" />
-                <button className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 text-white items-center justify-center hidden group-hover:flex transition-all"><Trash2 size={12} /></button>
+                <button onClick={() => toast.success('Photo removed (demo mode)')} className="absolute top-2 right-2 w-7 h-7 rounded-full bg-red-500 text-white items-center justify-center hidden group-hover:flex transition-all"><Trash2 size={12} /></button>
               </div>
             ))}
-            <button className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-brand-400 transition-colors flex flex-col items-center justify-center text-gray-400 hover:text-brand-600">
+            <button onClick={() => toast('Photo upload coming soon! Connect your portfolio via the web dashboard.')} className="aspect-square rounded-xl border-2 border-dashed border-gray-300 hover:border-brand-400 transition-colors flex flex-col items-center justify-center text-gray-400 hover:text-brand-600">
               <Upload size={24} className="mb-2" />
               <span className="text-xs">Add Photo</span>
             </button>
@@ -270,7 +387,7 @@ export function ProfilePage() {
                 <span className={`badge text-xs ${doc.status === 'verified' ? 'bg-green-100 text-green-700' : doc.status === 'pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'}`}>
                   {doc.status === 'not_submitted' ? 'Not Submitted' : doc.status === 'verified' ? 'Verified ✓' : 'Under Review'}
                 </span>
-                {doc.status === 'not_submitted' && <button className="btn-primary text-xs py-1.5 px-3">Upload</button>}
+                {doc.status === 'not_submitted' && <button onClick={() => toast('Document upload available on web dashboard. Please visit weddingos.in/vendor to upload KYC documents.')} className="btn-primary text-xs py-1.5 px-3">Upload</button>}
               </div>
             </div>
           ))}

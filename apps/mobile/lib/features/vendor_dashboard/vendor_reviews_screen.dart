@@ -242,6 +242,60 @@ class _ReviewCard extends StatelessWidget {
   final VendorReviewItem review;
   const _ReviewCard({required this.review});
 
+  Future<void> _showReplySheet(BuildContext context) async {
+    final replyController = TextEditingController();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(sheetContext).viewInsets.bottom + 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 48,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Reply to ${review.customerName}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: replyController,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: 'Thank the customer and address their feedback',
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(sheetContext).pop();
+                  ScaffoldMessenger.of(context)
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(const SnackBar(content: Text('Reply submitted!')));
+                },
+                child: const Text('Submit Reply'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final dateStr = '${review.date.day}/${review.date.month}/${review.date.year}';
@@ -366,7 +420,7 @@ class _ReviewCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
               child: GestureDetector(
-                onTap: () {},
+                onTap: () => _showReplySheet(context),
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   decoration: BoxDecoration(
