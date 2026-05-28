@@ -10,6 +10,9 @@ import { useAuthStore } from '@/store/authStore';
 import { authApi, bookingApi, userApi } from '@/lib/api';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { SmartNextSteps } from '@/components/engagement/SmartNextSteps';
+import { PlanningProgress } from '@/components/engagement/PlanningProgress';
+import { SocialProofBadges, BookingActivityIndicator } from '@/components/engagement/SocialProof';
 
 // ─── Category data ─────────────────────────────────────────
 const WEDDING_CATEGORIES = [
@@ -233,6 +236,12 @@ export default function DashboardPage() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
+          {/* ─── Smart Next Steps (Personalized Guidance) ──────── */}
+          <SmartNextSteps daysToGo={daysToGo} bookingCount={bookingCount} />
+
+          {/* ─── Planning Progress Tracker ──────────────────────── */}
+          <PlanningProgress />
+
           {/* ─── Category Cards (Main Feature) ────────────────── */}
           <motion.div variants={fadeIn} initial="hidden" animate="visible" transition={{ duration: 0.5, delay: 0.1 }} className="mb-10">
             <div className="flex items-center justify-between mb-6">
@@ -345,6 +354,8 @@ export default function DashboardPage() {
                         <span>{vendor.city}</span>
                       </div>
                     </div>
+                    <SocialProofBadges rating={String(vendor.rating)} reviews={vendor.reviews} featured={true} />
+                    <BookingActivityIndicator reviews={vendor.reviews} />
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <span className="text-sm font-bold text-brand-700">{vendor.price}</span>
                       <span className="text-xs text-brand-600 font-medium flex items-center gap-1 group-hover:gap-2 transition-all">

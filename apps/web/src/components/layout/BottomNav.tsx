@@ -2,14 +2,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Search, Calendar, Heart, User } from 'lucide-react';
+import { Home, Search, Calendar, Heart, User, Bell } from 'lucide-react';
 import { clsx } from 'clsx';
 
 const NAV_ITEMS = [
   { label: 'Home', icon: Home, href: '/', badgeKey: null },
   { label: 'Explore', icon: Search, href: '/vendors', badgeKey: null },
   { label: 'Bookings', icon: Calendar, href: '/bookings', badgeKey: 'wos_pending_bookings' },
-  { label: 'Wishlist', icon: Heart, href: '/wishlist', badgeKey: 'wos_wishlist_items' },
+  { label: 'Alerts', icon: Bell, href: '/notifications', badgeKey: 'wos_notifications' },
   { label: 'Profile', icon: User, href: '/profile', badgeKey: null },
 ] as const;
 

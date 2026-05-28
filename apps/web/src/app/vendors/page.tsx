@@ -2,13 +2,17 @@
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Search, MapPin, Star, Heart, X, SlidersHorizontal, Loader2, Info } from 'lucide-react';
+import { Search, MapPin, Star, Heart, X, SlidersHorizontal, Loader2, Info, GitCompareArrows } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { QuickEnquiry } from '@/components/vendors/QuickEnquiry';
 import { vendorApi, searchApi } from '@/lib/api';
+import { SocialProofBadges, BookingActivityIndicator } from '@/components/engagement/SocialProof';
+import { addToCompare, isInCompare, CompareFloatingBar } from '@/components/compare/VendorCompare';
+import type { CompareVendor } from '@/components/compare/VendorCompare';
 
 const CATEGORIES = ['All', 'Venue', 'Photography', 'Catering', 'Decor', 'Makeup', 'Music', 'Mehendi', 'Videography', 'Transport'];
 const CITIES = ['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Jaipur'];
@@ -155,15 +159,37 @@ function EmptyState({ onClear }: { onClear: () => void }) {
 /* ─── Vendor Card ─── */
 function VendorCard({ vendor, index, onEnquiry }: { vendor: VendorItem; index: number; onEnquiry: (vendor: VendorItem) => void }) {
   const [liked, setLiked] = useState(false);
+  const [inCompare, setInCompare] = useState(false);
 
   useEffect(() => {
     setLiked(getWishlist().includes(vendor.id));
+    setInCompare(isInCompare(vendor.id));
   }, [vendor.id]);
 
   const handleToggleWishlist = useCallback(() => {
     const nowLiked = toggleWishlist(vendor.id);
     setLiked(nowLiked);
   }, [vendor.id]);
+
+  const handleAddToCompare = useCallback(() => {
+    const compareVendor: CompareVendor = {
+      id: vendor.id,
+      businessName: vendor.businessName,
+      category: vendor.category,
+      rating: String(vendor.rating),
+      totalReviews: vendor.totalReviews,
+      basePrice: vendor.basePrice,
+      coverImage: vendor.coverImage,
+      citiesServed: vendor.citiesServed,
+    };
+    const added = addToCompare(compareVendor);
+    if (added) {
+      setInCompare(true);
+      toast.success(`Added ${vendor.businessName} to compare`);
+    } else {
+      toast.error('Compare list is full (max 3 vendors)');
+    }
+  }, [vendor]);
 
   const formatPrice = (p: number, cat: string) => {
     if (cat === 'catering') return `₹${p.toLocaleString('en-IN')}/plate`;
@@ -188,13 +214,25 @@ function VendorCard({ vendor, index, onEnquiry }: { vendor: VendorItem; index: n
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
-        <button
-          onClick={handleToggleWishlist}
-          aria-label={liked ? `Remove ${vendor.businessName} from wishlist` : `Add ${vendor.businessName} to wishlist`}
-          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white transition-colors"
-        >
-          <Heart size={16} className={liked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
-        </button>
+        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+          <button
+            onClick={handleAddToCompare}
+            disabled={inCompare}
+            aria-label={inCompare ? `${vendor.businessName} is in compare list` : `Add ${vendor.businessName} to compare`}
+            className={`w-8 h-8 rounded-full flex items-center justify-center shadow-sm transition-colors ${
+              inCompare ? 'bg-brand-600 text-white' : 'bg-white/90 text-gray-400 hover:bg-white hover:text-brand-600'
+            }`}
+          >
+            <GitCompareArrows size={14} />
+          </button>
+          <button
+            onClick={handleToggleWishlist}
+            aria-label={liked ? `Remove ${vendor.businessName} from wishlist` : `Add ${vendor.businessName} to wishlist`}
+            className="w-8 h-8 rounded-full bg-white/90 flex items-center justify-center shadow-sm hover:bg-white transition-colors"
+          >
+            <Heart size={16} className={liked ? 'fill-red-500 text-red-500' : 'text-gray-400'} />
+          </button>
+        </div>
         {vendor.featured && (
           <span className="absolute top-3 left-3 badge bg-gold-500 text-white text-xs">⭐ Featured</span>
         )}
@@ -202,7 +240,7 @@ function VendorCard({ vendor, index, onEnquiry }: { vendor: VendorItem; index: n
       </div>
       <div className="p-4">
         <h3 className="font-semibold text-gray-900 mb-1">{vendor.businessName}</h3>
-        <div className="flex items-center gap-2 text-sm text-gray-500 mb-3">
+        <div className="flex items-center gap-2 text-sm text-gray-500 mb-1.5">
           <div className="flex items-center gap-1">
             <Star size={13} className="fill-gold-400 text-gold-400" />
             <span className="font-medium text-gray-900">{vendor.rating}</span>
@@ -211,6 +249,10 @@ function VendorCard({ vendor, index, onEnquiry }: { vendor: VendorItem; index: n
           <span>·</span>
           <MapPin size={13} />
           <span>{vendor.citiesServed[0]}</span>
+        </div>
+        <div className="mb-3 space-y-1">
+          <SocialProofBadges rating={String(vendor.rating)} reviews={vendor.totalReviews} featured={vendor.featured} />
+          <BookingActivityIndicator reviews={vendor.totalReviews} />
         </div>
         <div className="flex items-center justify-between pt-3 border-t border-gray-100">
           <div>
@@ -567,6 +609,8 @@ function VendorsPageInner() {
         </div>
       </div>
       <Footer />
+      {/* Compare Floating Bar */}
+      <CompareFloatingBar />
       {/* Quick Enquiry Modal */}
       {enquiryVendor && (
         <QuickEnquiry
