@@ -5,7 +5,8 @@
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 import Cookies from 'js-cookie';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
+const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+const BASE_URL = env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 
 export const adminApi: AxiosInstance = axios.create({
   baseURL: BASE_URL,

@@ -162,7 +162,9 @@ export function LocationSelector({ scrolled = true }: LocationSelectorProps) {
   }, []);
 
   const filteredCities = useMemo(
-    () => INDIAN_CITIES.filter((city) => city.toLowerCase().includes(query.trim().toLowerCase())),
+    () => [...INDIAN_CITIES]
+      .filter((city) => city.toLowerCase().includes(query.trim().toLowerCase()))
+      .sort((a, b) => a.localeCompare(b)),
     [query]
   );
 
