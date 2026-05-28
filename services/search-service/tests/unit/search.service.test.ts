@@ -131,6 +131,36 @@ describe('searchService.searchVendors', () => {
     expect(callArgs.sort).toEqual(expectedSort);
   });
 
+  it('adds geo distance filter and sorts nearest first when coordinates are provided', async () => {
+    mockSearch.mockResolvedValueOnce(makeEsResponse([], 0));
+
+    await searchService.searchVendors({ lat: 19.076, lng: 72.8777, radius: 10 });
+
+    const callArgs = mockSearch.mock.calls[0][0];
+    expect(callArgs.query.bool.filter).toContainEqual({
+      geo_distance: {
+        distance: '10km',
+        location: { lat: 19.076, lon: 72.8777 },
+      },
+    });
+    expect(callArgs.sort[0]).toEqual({
+      _geo_distance: {
+        location: { lat: 19.076, lon: 72.8777 },
+        order: 'asc',
+        unit: 'km',
+      },
+    });
+  });
+
+  it('matches pincode when coordinates are not provided', async () => {
+    mockSearch.mockResolvedValueOnce(makeEsResponse([], 0));
+
+    await searchService.searchVendors({ pincode: '400001' });
+
+    const callArgs = mockSearch.mock.calls[0][0];
+    expect(callArgs.query.bool.must).toContainEqual({ match: { pincode: '400001' } });
+  });
+
   it('returns aggregations (categories, cities)', async () => {
     const aggs = {
       categories: { buckets: [{ key: 'photographer', doc_count: 10 }] },

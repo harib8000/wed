@@ -3,11 +3,14 @@ import { z } from 'zod';
 import { notificationService } from '../services/notification.service';
 import { authenticate, requireInternalOrAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
+import { prisma } from '../config/database';
 
 // ── Zod Schemas ─────────────────────────────────────────────────────────────
 
 export const GetNotificationsQuerySchema = z.object({
-  limit: z.coerce.number().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  type: z.string().max(100).optional(),
 });
 
 export const InternalNotifySchema = z.object({
@@ -24,9 +27,33 @@ const meta = (req: Request) => ({ requestId: req.headers['x-request-id'], timest
 
 notificationRouter.get('/', authenticate, validate(GetNotificationsQuerySchema, 'query'), async (req, res, next) => {
   try {
-    const { limit } = req.query as unknown as z.infer<typeof GetNotificationsQuerySchema>;
-    const notifications = await notificationService.getUnread(req.user!.id, limit);
-    res.json({ success: true, data: { notifications }, meta: meta(req) });
+    const { page, limit, type } = req.query as unknown as z.infer<typeof GetNotificationsQuerySchema>;
+    const where = {
+      userId: req.user!.id,
+      channel: 'IN_APP' as const,
+      status: { in: ['SENT', 'QUEUED'] as const },
+      ...(type ? { event: type } : {}),
+    };
+
+    const [notifications, total, unreadCount] = await Promise.all([
+      prisma.notificationLog.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.notificationLog.count({ where }),
+      prisma.notificationLog.count({
+        where: {
+          userId: req.user!.id,
+          channel: 'IN_APP',
+          status: { in: ['SENT', 'QUEUED'] },
+          readAt: null,
+        },
+      }),
+    ]);
+
+    res.json({ success: true, data: { notifications, total, page, limit, unreadCount }, meta: meta(req) });
   } catch (err) { next(err); }
 });
 

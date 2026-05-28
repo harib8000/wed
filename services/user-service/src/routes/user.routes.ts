@@ -3,7 +3,7 @@ import { profileService } from '../services/profile.service';
 import { authenticate, requireRole } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { getPresignedUploadUrl } from '../utils/s3';
-import { NotFoundError } from '@wedding-os/shared-errors';
+import { NotFoundError, ValidationError } from '@wedding-os/shared-errors';
 import {
   UpdateProfileSchema,
   UpdateNotifPrefsSchema,
@@ -11,6 +11,7 @@ import {
   UploadKycSchema,
   CreateChecklistItemSchema,
   UpdateChecklistItemSchema,
+  GenerateChecklistSchema,
 } from '../types/user.types';
 import { prisma } from '../config/database';
 
@@ -18,6 +19,55 @@ export const userRouter = Router();
 
 function meta(req: Request) {
   return { requestId: req.headers['x-request-id'], timestamp: new Date().toISOString() };
+}
+
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const defaultChecklistTemplates = [
+  { title: 'Book wedding venue', category: 'venue', monthsBefore: 6 },
+  { title: 'Finalize catering', category: 'catering', monthsBefore: 4 },
+  { title: 'Book photographer', category: 'photography', monthsBefore: 5 },
+  { title: 'Book decorator', category: 'decor', monthsBefore: 3 },
+  { title: 'Book makeup artist', category: 'makeup', monthsBefore: 2 },
+  { title: 'Book DJ/Music', category: 'music', monthsBefore: 2 },
+  { title: 'Send invitations', category: 'invitations', monthsBefore: 2 },
+  { title: 'Finalize mehendi artist', category: 'mehendi', monthsBefore: 1 },
+  { title: 'Confirm all vendor bookings', category: 'general', weeksBefore: 2 },
+  { title: 'Final menu tasting', category: 'catering', monthsBefore: 1 },
+  { title: 'Wedding dress fitting', category: 'attire', monthsBefore: 1 },
+  { title: 'Arrange transportation', category: 'transport', monthsBefore: 1 },
+  { title: 'Plan honeymoon', category: 'travel', monthsBefore: 3 },
+  { title: 'Rehearsal dinner', category: 'general', weeksBefore: 1 },
+  { title: 'Day-of emergency kit', category: 'general', weeksBefore: 1 },
+] as const;
+
+function parseWeddingDate(value: string) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime())) throw new ValidationError('Invalid weddingDate', 'weddingDate');
+  return date;
+}
+
+function shiftDate(baseDate: Date, monthsBefore?: number, weeksBefore?: number) {
+  const date = new Date(baseDate);
+
+  if (monthsBefore) {
+    const originalDay = date.getUTCDate();
+    date.setUTCDate(1);
+    date.setUTCMonth(date.getUTCMonth() - monthsBefore);
+    const lastDayOfTargetMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+    date.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth));
+  }
+
+  if (weeksBefore) date.setUTCDate(date.getUTCDate() - (weeksBefore * 7));
+  return date;
+}
+
+function formatDate(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function getDaysBeforeEvent(eventDate: Date, dueDate: Date) {
+  return Math.max(0, Math.round((eventDate.getTime() - dueDate.getTime()) / DAY_IN_MS));
 }
 
 // ── GET /users/me ─────────────────────────────────────────────────────────────
@@ -193,6 +243,61 @@ userRouter.post(
         },
       });
       res.status(201).json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── POST /users/me/checklist/generate ──────────────────────────────────────────
+
+userRouter.post(
+  '/me/checklist/generate',
+  authenticate,
+  validate(GenerateChecklistSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { weddingDate } = req.body as { weddingDate: string };
+      const eventDate = parseWeddingDate(weddingDate);
+      const existingItems = await prisma.checklistItem.findMany({
+        where: { userId: req.user!.id },
+        select: { title: true },
+      });
+      const existingTitles = new Set(existingItems.map((item) => item.title));
+
+      const tasksToCreate = defaultChecklistTemplates
+        .filter((template) => !existingTitles.has(template.title))
+        .map((template) => {
+          const dueDate = shiftDate(eventDate, template.monthsBefore, template.weeksBefore);
+          return {
+            title: template.title,
+            category: template.category,
+            dueDate: formatDate(dueDate),
+            daysBeforeEvent: getDaysBeforeEvent(eventDate, dueDate),
+          };
+        });
+
+      const items = tasksToCreate.length === 0
+        ? []
+        : await prisma.$transaction(
+          tasksToCreate.map((task) => prisma.checklistItem.create({
+            data: {
+              userId: req.user!.id,
+              title: task.title,
+              category: task.category,
+              detail: `Suggested due date: ${task.dueDate}`,
+              daysBeforeEvent: task.daysBeforeEvent,
+              isDone: false,
+            },
+          }))
+        );
+
+      res.status(201).json({
+        success: true,
+        data: {
+          items: items.map((item, index) => ({ ...item, dueDate: tasksToCreate[index].dueDate })),
+          totalGenerated: items.length,
+        },
+        meta: meta(req),
+      });
     } catch (err) { next(err); }
   }
 );

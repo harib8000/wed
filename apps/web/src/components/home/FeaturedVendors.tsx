@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Star, MapPin, CheckCircle, Heart } from 'lucide-react';
+import { Star, MapPin, CheckCircle, Heart, Shield, Clock, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -10,32 +10,38 @@ const FEATURED_VENDORS = [
   {
     id: '1', name: 'Royal Grand Palace', category: 'Venue', city: 'Hyderabad',
     rating: 4.9, reviews: 247, price: '₹5L – ₹15L', image: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=400&q=80',
-    badge: 'Top Rated', tags: ['5-Star', 'Garden', 'Banquet'],
+    badge: 'Top Rated', tags: ['5-Star', 'Garden', 'Banquet'], verified: true,
+    totalBookings: 312, responseTime: '< 1 hour', yearsExperience: 12,
   },
   {
     id: '2', name: 'Srikanth Photography', category: 'Photography', city: 'Hyderabad',
     rating: 4.8, reviews: 189, price: '₹80K – ₹2.5L', image: 'https://images.unsplash.com/photo-1537907690979-13c0f6a4c7f4?w=400&q=80',
-    badge: 'Verified Pro', tags: ['Candid', 'Traditional', 'Cinematic'],
+    badge: 'Verified Pro', tags: ['Candid', 'Traditional', 'Cinematic'], verified: true,
+    totalBookings: 156, responseTime: '< 2 hours', yearsExperience: 8,
   },
   {
     id: '3', name: 'Flavours Catering Co.', category: 'Catering', city: 'Hyderabad',
     rating: 4.7, reviews: 312, price: '₹800 – ₹2,000/plate', image: 'https://images.unsplash.com/photo-1555244162-803834f70033?w=400&q=80',
-    badge: 'Most Booked', tags: ['Multi-cuisine', 'Live Counters', 'Hygienic'],
+    badge: 'Most Booked', tags: ['Multi-cuisine', 'Live Counters', 'Hygienic'], verified: true,
+    totalBookings: 420, responseTime: '< 30 min', yearsExperience: 15,
   },
   {
     id: '4', name: 'Blooms & Dreams Decor', category: 'Decor', city: 'Hyderabad',
     rating: 4.9, reviews: 156, price: '₹1.5L – ₹8L', image: 'https://images.unsplash.com/photo-1478146059778-26028b07395a?w=400&q=80',
-    badge: 'Award Winner', tags: ['Floral', 'LED', 'Theme Decor'],
+    badge: 'Award Winner', tags: ['Floral', 'LED', 'Theme Decor'], verified: true,
+    totalBookings: 198, responseTime: '< 1 hour', yearsExperience: 10,
   },
   {
     id: '5', name: 'Shika Makeup Studio', category: 'Makeup', city: 'Hyderabad',
     rating: 4.8, reviews: 203, price: '₹25K – ₹75K', image: 'https://images.unsplash.com/photo-1487412912498-0447578fcca8?w=400&q=80',
-    badge: 'Celebrity Artist', tags: ['Bridal', 'HD', 'Airbrush'],
+    badge: 'Celebrity Artist', tags: ['Bridal', 'HD', 'Airbrush'], verified: true,
+    totalBookings: 267, responseTime: '< 2 hours', yearsExperience: 7,
   },
   {
     id: '6', name: 'Beats & Celebrations', category: 'Music', city: 'Hyderabad',
     rating: 4.6, reviews: 94, price: '₹60K – ₹2L', image: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80',
-    badge: 'Popular', tags: ['Live Band', 'DJ', 'Dhol'],
+    badge: 'Popular', tags: ['Live Band', 'DJ', 'Dhol'], verified: true,
+    totalBookings: 134, responseTime: '< 3 hours', yearsExperience: 5,
   },
 ];
 
@@ -63,8 +69,13 @@ function VendorCard({ vendor, index }: { vendor: typeof FEATURED_VENDORS[0]; ind
       {/* Image */}
       <div className="relative h-48 overflow-hidden">
         <img src={vendor.image} alt={vendor.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-        <div className="absolute top-3 left-3">
+        <div className="absolute top-3 left-3 flex items-center gap-1.5">
           <span className="badge bg-white/90 text-gray-900 text-xs shadow-sm">{vendor.badge}</span>
+          {vendor.verified && (
+            <span className="badge bg-green-500/90 text-white text-xs shadow-sm flex items-center gap-1">
+              <CheckCircle size={10} /> Verified
+            </span>
+          )}
         </div>
         <button
           aria-label={liked ? `Remove ${vendor.name} from wishlist` : `Add ${vendor.name} to wishlist`}
@@ -92,11 +103,23 @@ function VendorCard({ vendor, index }: { vendor: typeof FEATURED_VENDORS[0]; ind
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-gray-500 text-xs mb-3">
+        <div className="flex items-center gap-1 text-gray-500 text-xs mb-2">
           <MapPin size={12} />
           <span>{vendor.city}</span>
           <span className="mx-1">·</span>
           <span>{vendor.reviews} reviews</span>
+          <span className="mx-1">·</span>
+          <span>{vendor.totalBookings}+ weddings</span>
+        </div>
+
+        {/* Trust Indicators */}
+        <div className="flex items-center gap-3 text-xs text-gray-400 mb-3">
+          <span className="flex items-center gap-1">
+            <Clock size={10} /> {vendor.responseTime}
+          </span>
+          <span className="flex items-center gap-1">
+            <TrendingUp size={10} /> {vendor.yearsExperience}yr exp
+          </span>
         </div>
 
         <div className="flex flex-wrap gap-1 mb-3">
@@ -124,7 +147,7 @@ export function FeaturedVendors() {
     <section className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
-          className="flex items-center justify-between mb-12"
+          className="flex items-center justify-between mb-8"
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -138,6 +161,31 @@ export function FeaturedVendors() {
           <Link href="/vendors" className="hidden md:flex btn-secondary items-center gap-2 focus-ring">
             View All <CheckCircle size={16} />
           </Link>
+        </motion.div>
+
+        {/* Booking Protection Banner */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-4 mb-8 flex flex-wrap items-center justify-center gap-6 text-sm"
+        >
+          <div className="flex items-center gap-2 text-green-700">
+            <Shield size={16} className="text-green-600" />
+            <span className="font-medium">WeddingOS Booking Protection</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-green-600">
+            <CheckCircle size={14} /> Escrow payments
+          </div>
+          <div className="flex items-center gap-1.5 text-green-600">
+            <CheckCircle size={14} /> KYC verified vendors
+          </div>
+          <div className="flex items-center gap-1.5 text-green-600">
+            <CheckCircle size={14} /> 100% refund guarantee
+          </div>
+          <div className="flex items-center gap-1.5 text-green-600">
+            <CheckCircle size={14} /> Dispute support
+          </div>
         </motion.div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

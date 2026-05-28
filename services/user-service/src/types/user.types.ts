@@ -53,5 +53,9 @@ export const UpdateChecklistItemSchema = z.object({
   isDone: z.boolean().optional(),
 });
 
+export const GenerateChecklistSchema = z.object({
+  weddingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
 export type UpdateNotifPrefsInput = z.infer<typeof UpdateNotifPrefsSchema>;

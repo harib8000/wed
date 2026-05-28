@@ -1,18 +1,36 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, MapPin, Calendar, ArrowRight, Star, Shield, Clock } from 'lucide-react';
+import { Search, MapPin, Calendar, ArrowRight, Star, Shield, Clock, Navigation, Users, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const CATEGORIES = ['Venue', 'Photography', 'Catering', 'Decor', 'Makeup', 'Music', 'Mehendi', 'Videography'];
+const CATEGORIES = ['Venue', 'Photography', 'Catering', 'Decor', 'Makeup', 'Music', 'Mehendi', 'Videography', 'Transport', 'Invitations'];
 const EVENT_TYPES = ['Wedding', 'Engagement', 'Dhoti Ceremony', 'Saree Function', 'Birthday', 'Reception', 'Housewarming', 'Baby Shower', 'Anniversary', 'Corporate Event'];
+const ALL_CITIES = [
+  'Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Jaipur',
+  'Lucknow', 'Ahmedabad', 'Visakhapatnam', 'Bhopal', 'Indore', 'Chandigarh', 'Coimbatore',
+  'Kochi', 'Nagpur', 'Patna', 'Surat', 'Vadodara', 'Thiruvananthapuram', 'Guwahati',
+  'Bhubaneswar', 'Mangalore', 'Mysore', 'Udaipur', 'Jodhpur', 'Dehradun', 'Ranchi', 'Amritsar',
+];
+
+const LIVE_STATS = [
+  { label: 'Verified Vendors', value: '12,000+' },
+  { label: 'Happy Events', value: '50,000+' },
+  { label: 'Cities', value: '30+' },
+];
 
 export function HeroSection() {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const [city, setCity] = useState('Hyderabad');
+  const [city, setCity] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('wedding_os_selected_city') || 'Hyderabad';
+    }
+    return 'Hyderabad';
+  });
   const [eventType, setEventType] = useState('');
   const [scrollY, setScrollY] = useState(0);
+  const [detectingLocation, setDetectingLocation] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
   // Parallax scroll tracking
@@ -29,12 +47,52 @@ export function HeroSection() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Detect user location
+  const detectLocation = () => {
+    if (!navigator.geolocation) return;
+    setDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        // Simple nearest-city logic based on major Indian cities coordinates
+        const CITY_COORDS: Record<string, [number, number]> = {
+          Hyderabad: [17.385, 78.4867], Mumbai: [19.076, 72.8777], Delhi: [28.6139, 77.209],
+          Bangalore: [12.9716, 77.5946], Chennai: [13.0827, 80.2707], Kolkata: [22.5726, 88.3639],
+          Pune: [18.5204, 73.8567], Jaipur: [26.9124, 75.7873], Lucknow: [26.8467, 80.9462],
+          Ahmedabad: [23.0225, 72.5714], Visakhapatnam: [17.6868, 83.2185], Kochi: [9.9312, 76.2673],
+          Chandigarh: [30.7333, 76.7794], Coimbatore: [11.0168, 76.9558], Nagpur: [21.1458, 79.0882],
+          Bhopal: [23.2599, 77.4126], Indore: [22.7196, 75.8577], Surat: [21.1702, 72.8311],
+          Patna: [25.6093, 85.1376], Vadodara: [22.3072, 73.1812],
+        };
+        let nearest = 'Hyderabad';
+        let minDist = Infinity;
+        for (const [c, [lat, lon]] of Object.entries(CITY_COORDS)) {
+          const d = Math.sqrt(Math.pow(pos.coords.latitude - lat, 2) + Math.pow(pos.coords.longitude - lon, 2));
+          if (d < minDist) { minDist = d; nearest = c; }
+        }
+        setCity(nearest);
+        localStorage.setItem('wedding_os_selected_city', nearest);
+        setDetectingLocation(false);
+      },
+      () => setDetectingLocation(false),
+      { timeout: 5000 }
+    );
+  };
+
+  // Auto-detect on mount if no city saved
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !localStorage.getItem('wedding_os_selected_city')) {
+      detectLocation();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
     if (query) params.set('q', query);
     if (city) params.set('city', city);
     if (eventType) params.set('eventType', eventType);
+    localStorage.setItem('wedding_os_selected_city', city);
     router.push(`/vendors?${params.toString()}`);
   };
 
@@ -114,14 +172,27 @@ export function HeroSection() {
               <MapPin size={20} className="text-gray-400 shrink-0" />
               <select
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
+                onChange={(e) => {
+                  setCity(e.target.value);
+                  localStorage.setItem('wedding_os_selected_city', e.target.value);
+                }}
                 aria-label="Select city"
                 className="outline-none text-gray-700 bg-transparent cursor-pointer"
               >
-                {['Hyderabad', 'Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Pune', 'Jaipur'].map((c) => (
+                {ALL_CITIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={detectLocation}
+                disabled={detectingLocation}
+                className="text-brand-600 hover:text-brand-700 transition-colors"
+                aria-label="Detect my location"
+                title="Detect my location"
+              >
+                <Navigation size={16} className={detectingLocation ? 'animate-spin' : ''} />
+              </button>
             </div>
             <button type="submit" aria-label="Search vendors" className="btn-primary rounded-xl flex items-center gap-2 whitespace-nowrap">
               <Search size={18} />
@@ -177,7 +248,7 @@ export function HeroSection() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 1.0 }}
-          className="flex flex-wrap justify-center gap-6 text-white/70 text-sm"
+          className="flex flex-wrap justify-center gap-6 text-white/70 text-sm mb-8"
         >
           <div className="flex items-center gap-2">
             <Shield size={16} className="text-green-400" />
@@ -191,6 +262,29 @@ export function HeroSection() {
             <Clock size={16} className="text-blue-400" />
             <span>Real-time Coordination</span>
           </div>
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-purple-400" />
+            <span>12,000+ Verified Vendors</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Zap size={16} className="text-yellow-400" />
+            <span>No Last-Minute Hassle</span>
+          </div>
+        </motion.div>
+
+        {/* Live Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 1.2 }}
+          className="flex justify-center gap-8 md:gap-16"
+        >
+          {LIVE_STATS.map((stat) => (
+            <div key={stat.label} className="text-center">
+              <div className="text-2xl md:text-3xl font-bold text-white">{stat.value}</div>
+              <div className="text-xs text-white/50 mt-1">{stat.label}</div>
+            </div>
+          ))}
         </motion.div>
       </div>
 
