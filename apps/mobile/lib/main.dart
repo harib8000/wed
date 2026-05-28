@@ -3,17 +3,26 @@ import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
 import 'models/user.dart';
 import 'providers/auth_provider.dart';
 import 'providers/theme_provider.dart';
+import 'features/onboarding/onboarding_screen.dart';
+
+/// Whether the user has seen onboarding — resolved before runApp.
+late final bool _hasSeenOnboarding;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize Hive for local caching / offline support
   await Hive.initFlutter();
+
+  // Check onboarding flag
+  final prefs = await SharedPreferences.getInstance();
+  _hasSeenOnboarding = prefs.getBool(kHasSeenOnboardingKey) ?? false;
 
   // Skip Firebase on web (no firebase_options.dart / google-services configured)
   // On native, Firebase + Notifications will be initialized via the services layer
@@ -63,6 +72,13 @@ class _WeddingOSAppState extends ConsumerState<WeddingOSApp> {
   void initState() {
     super.initState();
     _router = buildRouter(ref);
+
+    // If first-time user, redirect to onboarding
+    if (!_hasSeenOnboarding) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _router.go('/onboarding');
+      });
+    }
   }
 
   @override

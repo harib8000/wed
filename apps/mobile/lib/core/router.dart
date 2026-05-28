@@ -5,6 +5,7 @@ import '../features/home/home_screen.dart';
 import '../features/vendors/vendors_screen.dart';
 import '../features/vendors/vendor_detail_screen.dart';
 import '../features/auth/login_screen.dart';
+import '../features/onboarding/onboarding_screen.dart';
 import '../features/bookings/bookings_screen.dart';
 import '../features/bookings/booking_detail_screen.dart';
 import '../features/bookings/checkout_screen.dart';
@@ -31,7 +32,7 @@ import '../shared/widgets/app_shell.dart';
 import '../shared/widgets/vendor_app_shell.dart';
 
 // Public routes that don't require authentication
-const _publicRoutes = {'/login'};
+const _publicRoutes = {'/login', '/onboarding'};
 
 // Auth guard — redirects to /login if unauthenticated, and routes by role
 String? _authRedirect(WidgetRef ref, GoRouterState state) {
@@ -109,6 +110,12 @@ GoRouter buildRouter(WidgetRef ref) => GoRouter(
     GoRoute(
       path: '/login',
       builder: (context, state) => const LoginScreen(),
+    ),
+
+    // Onboarding
+    GoRoute(
+      path: '/onboarding',
+      builder: (context, state) => const OnboardingScreen(),
     ),
 
     // Vendor detail (full screen, no bottom nav)
