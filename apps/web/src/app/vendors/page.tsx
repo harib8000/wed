@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { haversineDistance, formatDistance } from '@/lib/geo';
 import { QuickEnquiry } from '@/components/vendors/QuickEnquiry';
 import { vendorApi, searchApi } from '@/lib/api';
 import { SocialProofBadges, BookingActivityIndicator } from '@/components/engagement/SocialProof';
@@ -181,22 +182,6 @@ function formatBookingCount(totalBookings: number) {
   if (totalBookings >= 250) return '250+ weddings';
   if (totalBookings >= 150) return '150+ weddings';
   return `${totalBookings}+ weddings`;
-}
-
-function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const toRad = (value: number) => (value * Math.PI) / 180;
-  const earthRadius = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
-  return earthRadius * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
-}
-
-function formatDistance(distanceKm?: number | null) {
-  if (typeof distanceKm !== 'number' || !Number.isFinite(distanceKm)) return null;
-  return `${distanceKm.toFixed(1)} km away`;
 }
 
 function normalizeVendor(raw: Record<string, unknown>, selectedCity: string): VendorItem {

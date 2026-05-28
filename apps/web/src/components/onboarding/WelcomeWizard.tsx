@@ -134,7 +134,7 @@ export function WelcomeWizard() {
   const selectedBudget = BUDGETS.find((item) => item.value === budget)?.label || 'Not set';
   const selectedGuestCount = GUEST_COUNTS.find((item) => item.value === guestCount)?.label || 'Not set';
   const selectedRole = ROLE_OPTIONS.find((item) => item.value === role)?.label || 'Not set';
-  const primaryVendorCategory = VENDOR_NEEDS.find((item) => vendorNeeds.includes(item.label))?.value;
+  const firstSelectedVendorCategory = VENDOR_NEEDS.find((item) => vendorNeeds.includes(item.label))?.value;
 
   const handleDetectLocation = async () => {
     setDetectingLocation(true);
@@ -172,7 +172,7 @@ export function WelcomeWizard() {
 
     const params = new URLSearchParams();
     if (city) params.set('city', city);
-    if (primaryVendorCategory) params.set('category', primaryVendorCategory);
+    if (firstSelectedVendorCategory) params.set('category', firstSelectedVendorCategory);
 
     setShow(false);
     router.push(params.toString() ? `/vendors?${params.toString()}` : '/vendors');

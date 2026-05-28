@@ -30,7 +30,8 @@
     "@aws-sdk/client-s3": "^3.590.0",
     "@aws-sdk/s3-request-presigner": "^3.590.0",
     "@wedding-os/shared-events": "workspace:*",
-    "@wedding-os/shared-errors": "workspace:*"
+    "@wedding-os/shared-errors": "workspace:*",
+    "@wedding-os/shared-utils": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

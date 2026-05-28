@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MapPin, Search, LocateFixed, ChevronDown, X } from 'lucide-react';
 import { clsx } from 'clsx';
+import { haversineDistance } from '@/lib/geo';
 
 const STORAGE_KEY = 'wedding_os_selected_city';
 
@@ -76,15 +77,7 @@ const CITY_COORDINATES: Record<(typeof INDIAN_CITIES)[number], { lat: number; ln
 };
 
 function distanceBetween(lat1: number, lng1: number, lat2: number, lng2: number) {
-  const toRadians = (value: number) => (value * Math.PI) / 180;
-  const earthRadiusKm = 6371;
-  const dLat = toRadians(lat2 - lat1);
-  const dLng = toRadians(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
-
-  return 2 * earthRadiusKm * Math.asin(Math.sqrt(a));
+  return haversineDistance(lat1, lng1, lat2, lng2);
 }
 
 export function getSelectedCity() {

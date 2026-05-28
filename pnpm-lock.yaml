@@ -1072,6 +1072,9 @@ importers:
       '@wedding-os/shared-events':
         specifier: workspace:*
         version: link:../../packages/shared-events
+      '@wedding-os/shared-utils':
+        specifier: workspace:*
+        version: link:../../packages/shared-utils
       cookie-parser:
         specifier: ^1.4.6
         version: 1.4.7

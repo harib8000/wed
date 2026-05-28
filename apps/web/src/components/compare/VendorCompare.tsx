@@ -117,7 +117,7 @@ function formatDistance(distanceKm?: number | null, eventCity?: string) {
   return eventCity ? `Serves ${eventCity}` : 'Distance unavailable';
 }
 
-function trustScore(vendor: CompareVendor) {
+function getTrustBadgeCount(vendor: CompareVendor) {
   return Number(vendor.verified) + Number(vendor.featured) + Number(vendor.topRated);
 }
 
@@ -132,7 +132,7 @@ function winnerIds(vendors: CompareVendor[], key: string): Set<string> {
       case 'team': return vendor.teamSize || 0;
       case 'response': return vendor.responseTimeHours || Number.MAX_SAFE_INTEGER;
       case 'cancellation': return vendor.cancellationRate || Number.MAX_SAFE_INTEGER;
-      case 'trust': return trustScore(vendor);
+      case 'trust': return getTrustBadgeCount(vendor);
       case 'distance': return vendor.distanceKm ?? Number.MAX_SAFE_INTEGER;
       default: return vendor.totalReviews;
     }
@@ -153,7 +153,7 @@ function winnerIds(vendors: CompareVendor[], key: string): Set<string> {
             case 'team': return vendor.teamSize || 0;
             case 'response': return vendor.responseTimeHours || Number.MAX_SAFE_INTEGER;
             case 'cancellation': return vendor.cancellationRate || Number.MAX_SAFE_INTEGER;
-            case 'trust': return trustScore(vendor);
+            case 'trust': return getTrustBadgeCount(vendor);
             case 'distance': return vendor.distanceKm ?? Number.MAX_SAFE_INTEGER;
             default: return vendor.totalReviews;
           }

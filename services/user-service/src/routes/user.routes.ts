@@ -4,6 +4,7 @@ import { authenticate, requireRole } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { getPresignedUploadUrl } from '../utils/s3';
 import { NotFoundError, ValidationError } from '@wedding-os/shared-errors';
+import { formatDate as sharedFormatDate, daysBetween } from '@wedding-os/shared-utils';
 import {
   UpdateProfileSchema,
   UpdateNotifPrefsSchema,
@@ -20,8 +21,6 @@ export const userRouter = Router();
 function meta(req: Request) {
   return { requestId: req.headers['x-request-id'], timestamp: new Date().toISOString() };
 }
-
-const DAY_IN_MS = 24 * 60 * 60 * 1000;
 
 type ChecklistTemplate = {
   title: string;
@@ -50,7 +49,7 @@ const defaultChecklistTemplates: ChecklistTemplate[] = [
 
 function parseWeddingDate(value: string) {
   const date = new Date(`${value}T00:00:00.000Z`);
-  if (Number.isNaN(date.getTime()) || formatDate(date) !== value) {
+  if (Number.isNaN(date.getTime()) || sharedFormatDate(date) !== value) {
     throw new ValidationError('Invalid weddingDate', 'weddingDate');
   }
   return date;
@@ -71,12 +70,8 @@ function shiftDate(baseDate: Date, monthsBefore?: number, weeksBefore?: number) 
   return date;
 }
 
-function formatDate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
 function getDaysBeforeEvent(eventDate: Date, dueDate: Date) {
-  return Math.max(0, Math.round((eventDate.getTime() - dueDate.getTime()) / DAY_IN_MS));
+  return Math.max(0, daysBetween(dueDate, eventDate));
 }
 
 // ── GET /users/me ─────────────────────────────────────────────────────────────
@@ -279,7 +274,7 @@ userRouter.post(
           return {
             title: template.title,
             category: template.category,
-            dueDate: formatDate(dueDate),
+            dueDate: sharedFormatDate(dueDate),
             daysBeforeEvent: getDaysBeforeEvent(eventDate, dueDate),
           };
         });
