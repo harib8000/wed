@@ -14,6 +14,7 @@ import {
   Image as ImageIcon,
   Menu,
   X,
+  Search,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuthStore } from '@/store/authStore';
@@ -316,8 +317,12 @@ function ChatPageInner() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [socketConnected, setSocketConnected] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
+  const [messageSearch, setMessageSearch] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -595,6 +600,47 @@ function ChatPageInner() {
     updateConversationPreview(activeConversation.bookingId, vendorReply.text, vendorReply.sentAt);
   }, [activeConversation, newMessage, socketConnected, updateConversationPreview, user]);
 
+  const handleFileAttach = useCallback((file: File, type: 'image' | 'file') => {
+    if (!activeConversation || !user) return;
+
+    const maxSize = type === 'image' ? 10 * 1024 * 1024 : 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error(`File too large. Max ${type === 'image' ? '10MB' : '25MB'}.`);
+      return;
+    }
+
+    const previewUrl = type === 'image' ? URL.createObjectURL(file) : file.name;
+    const userMsg: Message = {
+      id: `temp-${Date.now()}`,
+      senderId: user.id,
+      senderRole: user.role,
+      text: previewUrl,
+      sentAt: new Date().toISOString(),
+      status: 'sending',
+      contentType: type,
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    updateConversationPreview(
+      activeConversation.bookingId,
+      type === 'image' ? '📷 Image' : `📎 ${file.name}`,
+      userMsg.sentAt,
+    );
+
+    if (socketConnected && !activeConversation.bookingId.startsWith('demo-')) {
+      socketRef.current?.emit('message:send', {
+        bookingId: activeConversation.bookingId,
+        content: previewUrl,
+        contentType: type === 'file' ? 'document' : 'image',
+      });
+    }
+
+    setTimeout(() => {
+      setMessages((prev) => prev.map((m) => (m.id === userMsg.id ? { ...m, status: 'sent' } : m)));
+      toast.success(`${type === 'image' ? 'Image' : 'File'} sent!`);
+    }, 600);
+  }, [activeConversation, socketConnected, updateConversationPreview, user]);
+
   const selectConversation = useCallback((vid: string) => {
     router.push(`/chat?vendorId=${vid}`);
     setSidebarOpen(false);
@@ -737,6 +783,13 @@ function ChatPageInner() {
 
                 <div className="flex items-center gap-1">
                   <button
+                    onClick={() => { setShowSearch(!showSearch); setMessageSearch(''); }}
+                    className={clsx('p-2 rounded-lg hover:bg-gray-100 transition cursor-pointer', showSearch ? 'text-brand-600 bg-brand-50' : 'text-gray-500 hover:text-brand-600')}
+                    aria-label="Search messages"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => toast('Voice calls coming soon! Use chat for now.', { icon: '📞' })}
                     className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-500 hover:text-brand-600 cursor-pointer"
                     aria-label="Voice call — coming soon"
@@ -753,6 +806,28 @@ function ChatPageInner() {
                 </div>
               </div>
 
+              {showSearch && (
+                <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2">
+                  <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={messageSearch}
+                    onChange={(e) => setMessageSearch(e.target.value)}
+                    placeholder="Search in conversation…"
+                    className="flex-1 text-sm bg-transparent focus:outline-none"
+                    autoFocus
+                  />
+                  {messageSearch && (
+                    <span className="text-xs text-gray-400">
+                      {messages.filter((m) => m.contentType === 'text' && m.text.toLowerCase().includes(messageSearch.toLowerCase())).length} found
+                    </span>
+                  )}
+                  <button onClick={() => { setShowSearch(false); setMessageSearch(''); }} className="p-1 rounded hover:bg-gray-100">
+                    <X className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
+                </div>
+              )
+
               {isDemoMode && (
                 <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-center gap-2 text-xs text-amber-700">
                   <span className="inline-block w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
@@ -767,13 +842,15 @@ function ChatPageInner() {
                       <DateSeparator label={group.label} />
                       {group.messages.map((msg) => {
                         const isUser = msg.senderId === user?.id;
+                        const searchMatch = messageSearch && msg.contentType === 'text' && msg.text.toLowerCase().includes(messageSearch.toLowerCase());
+                        const dimmed = messageSearch && !searchMatch;
                         return (
                           <motion.div
                             key={msg.id}
                             initial={{ opacity: 0, y: 12, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            animate={{ opacity: dimmed ? 0.3 : 1, y: 0, scale: 1 }}
                             transition={{ duration: 0.25 }}
-                            className={clsx('flex mb-2', isUser ? 'justify-end' : 'justify-start')}
+                            className={clsx('flex mb-2', isUser ? 'justify-end' : 'justify-start', searchMatch && 'ring-2 ring-yellow-400 rounded-2xl')}
                           >
                             <MessageBubble msg={msg} isUser={Boolean(isUser)} />
                           </motion.div>
@@ -804,17 +881,39 @@ function ChatPageInner() {
                 </div>
 
                 <div className="flex items-center gap-2">
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileAttach(file, 'image');
+                      e.target.value = '';
+                    }}
+                  />
                   <button
-                    onClick={() => toast('Image sharing coming soon!', { icon: '📸' })}
+                    onClick={() => imageInputRef.current?.click()}
                     className="p-2 text-gray-500 hover:text-brand-600 transition cursor-pointer"
-                    aria-label="Attach image — coming soon"
+                    aria-label="Attach image"
                   >
                     <ImageIcon className="w-5 h-5" />
                   </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileAttach(file, 'file');
+                      e.target.value = '';
+                    }}
+                  />
                   <button
-                    onClick={() => toast('File sharing coming soon!', { icon: '📎' })}
+                    onClick={() => fileInputRef.current?.click()}
                     className="p-2 text-gray-500 hover:text-brand-600 transition cursor-pointer"
-                    aria-label="Attach file — coming soon"
+                    aria-label="Attach file"
                   >
                     <Paperclip className="w-5 h-5" />
                   </button>

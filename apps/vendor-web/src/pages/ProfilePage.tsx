@@ -2,9 +2,11 @@ import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { Camera, CheckCircle, Upload, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { profileApi, vendorApi, type VendorProfile, type VendorPackage } from '../lib/api';
 
 type PackageType = VendorPackage['packageType'];
+type ProfileTab = 'profile' | 'packages' | 'portfolio' | 'kyc';
 type PortfolioItem = {
   id: string;
   s3Key: string;
@@ -34,6 +36,10 @@ type EditablePackage = {
 };
 
 const PACKAGE_TYPES: PackageType[] = ['BASIC', 'STANDARD', 'PREMIUM', 'CUSTOM'];
+const PROFILE_TABS: ProfileTab[] = ['profile', 'packages', 'portfolio', 'kyc'];
+const getProfileTab = (value: string | null): ProfileTab => (
+  value && PROFILE_TABS.includes(value as ProfileTab) ? value as ProfileTab : 'profile'
+);
 const MOCK_PORTFOLIO = [
   'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=300&q=80',
   'https://images.unsplash.com/photo-1519741497674-611481863552?w=300&q=80',
@@ -78,7 +84,8 @@ const MOCK_PROFILE: VendorProfile = {
 };
 
 export function ProfilePage() {
-  const [activeTab, setActiveTab] = useState<'profile' | 'packages' | 'portfolio' | 'kyc'>('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<ProfileTab>(() => getProfileTab(searchParams.get('tab')));
   const [showAddPkg, setShowAddPkg] = useState(false);
   const [newPkg, setNewPkg] = useState({ name: '', packageType: 'BASIC' as PackageType, priceFromPaise: 0, inclusions: '' });
   const [editingPkgId, setEditingPkgId] = useState<string | null>(null);
@@ -133,6 +140,21 @@ export function ProfilePage() {
 
     setPackages(MOCK_PROFILE.packages);
   }, [profile]);
+
+  useEffect(() => {
+    const nextTab = getProfileTab(searchParams.get('tab'));
+    setActiveTab((current) => current === nextTab ? current : nextTab);
+  }, [searchParams]);
+
+  function handleTabChange(tab: ProfileTab) {
+    setActiveTab(tab);
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (tab === 'profile') next.delete('tab');
+      else next.set('tab', tab);
+      return next;
+    }, { replace: true });
+  }
 
   const updateMutation = useMutation({
     mutationFn: (body: Partial<VendorProfile>) => profileApi.updateProfile(body),
@@ -444,7 +466,7 @@ export function ProfilePage() {
         ]).map((tab) => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => handleTabChange(tab.key)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${activeTab === tab.key ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
           >
             {tab.label}

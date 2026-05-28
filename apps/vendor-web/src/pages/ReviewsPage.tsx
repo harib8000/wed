@@ -17,11 +17,36 @@ const MOCK_REVIEWS: VendorReview[] = [
 
 type SortKey = 'newest' | 'highest' | 'lowest';
 
+const RESPONSE_TEMPLATES = [
+  {
+    label: 'Thank You',
+    text: 'Thank you so much for your kind words, {customer}! It was a pleasure being part of your special day. We wish you a lifetime of happiness! 💕',
+  },
+  {
+    label: 'Acknowledgement',
+    text: 'We appreciate you taking the time to share your experience, {customer}. Your feedback helps us improve our services.',
+  },
+  {
+    label: 'Issue Resolution',
+    text: "We're sorry to hear about your experience, {customer}. We take your feedback seriously and would like to discuss this further. Please reach out to us directly so we can make it right.",
+  },
+  {
+    label: 'Follow Up',
+    text: "Thank you for choosing us, {customer}! We'd love to serve you again for any future celebrations. Don't hesitate to reach out!",
+  },
+] as const;
+
+function getCustomerName(customer?: string) {
+  const firstName = customer?.split(/[\s&]+/).find(Boolean);
+  return firstName ?? 'there';
+}
+
 export function ReviewsPage() {
   const [filter, setFilter] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>('newest');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('');
   const queryClient = useQueryClient();
 
   const { data: apiReviews, isError } = useQuery({
@@ -41,6 +66,7 @@ export function ReviewsPage() {
       toast.success('Reply submitted!');
       setReplyingTo(null);
       setReplyText('');
+      setSelectedTemplate('');
       queryClient.invalidateQueries({ queryKey: ['vendor-reviews'] });
     },
     onError: () => toast.error('Failed to submit reply.'),
@@ -70,6 +96,19 @@ export function ReviewsPage() {
         ))}
       </div>
     );
+  }
+
+  function handleToggleReply(reviewId: string) {
+    setReplyingTo((current) => current === reviewId ? null : reviewId);
+    setReplyText('');
+    setSelectedTemplate('');
+  }
+
+  function handleTemplateSelect(templateLabel: string, customer: string) {
+    setSelectedTemplate(templateLabel);
+    const template = RESPONSE_TEMPLATES.find((option) => option.label === templateLabel);
+    if (!template) return;
+    setReplyText(template.text.replace('{customer}', getCustomerName(customer)));
   }
 
   return (
@@ -178,7 +217,7 @@ export function ReviewsPage() {
               </span>
               {!review.reply && (
                 <button
-                  onClick={() => setReplyingTo(replyingTo === review.id ? null : review.id)}
+                  onClick={() => handleToggleReply(review.id)}
                   className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
                 >
                   <MessageCircle size={12} /> Reply
@@ -189,6 +228,22 @@ export function ReviewsPage() {
             {/* Reply textarea */}
             {replyingTo === review.id && (
               <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
+                  <p className="text-xs font-medium text-gray-500">Use a saved response and edit it before sending.</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Use Template</span>
+                    <select
+                      value={selectedTemplate}
+                      onChange={(e) => handleTemplateSelect(e.target.value, review.customer)}
+                      className="text-xs border border-gray-200 rounded-lg px-3 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    >
+                      <option value="">Choose template</option>
+                      {RESPONSE_TEMPLATES.map((template) => (
+                        <option key={template.label} value={template.label}>{template.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
                 <textarea
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
@@ -207,7 +262,7 @@ export function ReviewsPage() {
                     {replyMutation.isPending ? 'Submitting…' : 'Submit Reply'}
                   </button>
                   <button
-                    onClick={() => { setReplyingTo(null); setReplyText(''); }}
+                    onClick={() => { setReplyingTo(null); setReplyText(''); setSelectedTemplate(''); }}
                     className="btn-secondary text-xs py-1.5 px-3"
                   >
                     Cancel

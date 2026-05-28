@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   Heart, Trash2, MapPin, Star, Building2, Camera, Utensils,
-  Sparkles, Music, ChevronRight, Share2, ArrowUpDown, Undo2,
+  Sparkles, Music, ChevronRight, Share2, ArrowUpDown, Undo2, FolderOpen, FolderPlus, FileText,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -31,6 +31,9 @@ interface WishlistItem {
 
 const STORAGE_KEY = 'wedding_os_wishlist';
 const NOTES_STORAGE_KEY = 'wedding_os_wishlist_notes';
+const FOLDERS_STORAGE_KEY = 'wedding_os_wishlist_folders';
+const FOLDER_ASSIGNMENTS_STORAGE_KEY = 'wedding_os_wishlist_folder_assignments';
+const DEFAULT_FOLDER = 'All Saved';
 
 const MOCK_WISHLIST: WishlistItem[] = [
   { id: 'w1', vendorId: 'v1', vendorName: 'Royal Grand Palace', vendorCategory: 'Venue', vendorImage: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=600&q=80', vendorCity: 'Hyderabad', vendorRating: 4.9, vendorReviews: 247, vendorPrice: '₹5L onwards', addedAt: '2025-01-05' },
@@ -108,6 +111,43 @@ function saveNotes(notes: Record<string, string>) {
   } catch { /* quota errors are non-critical */ }
 }
 
+function loadFolders(): string[] {
+  try {
+    const raw = localStorage.getItem(FOLDERS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((folder) => typeof folder === 'string' ? folder.trim() : '')
+      .filter((folder) => folder && folder !== DEFAULT_FOLDER);
+  } catch {
+    return [];
+  }
+}
+
+function saveFolders(folders: string[]) {
+  try {
+    localStorage.setItem(FOLDERS_STORAGE_KEY, JSON.stringify(folders));
+  } catch { /* quota errors are non-critical */ }
+}
+
+function loadFolderAssignments(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(FOLDER_ASSIGNMENTS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveFolderAssignments(assignments: Record<string, string>) {
+  try {
+    localStorage.setItem(FOLDER_ASSIGNMENTS_STORAGE_KEY, JSON.stringify(assignments));
+  } catch { /* quota errors are non-critical */ }
+}
+
 const cardVariants = {
   initial: { opacity: 0, y: 20, scale: 0.95 },
   animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: 'easeOut' } },
@@ -120,10 +160,15 @@ export default function WishlistPage() {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('All');
+  const [selectedFolder, setSelectedFolder] = useState(DEFAULT_FOLDER);
   const [sort, setSort] = useState<SortOption>('recent');
   const [sortOpen, setSortOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [folders, setFolders] = useState<string[]>([]);
+  const [folderAssignments, setFolderAssignments] = useState<Record<string, string>>({});
+  const [newFolderName, setNewFolderName] = useState('');
+  const [editingNotes, setEditingNotes] = useState<Record<string, boolean>>({});
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sortRef = useRef<HTMLDivElement>(null);
 
@@ -151,6 +196,8 @@ export default function WishlistPage() {
       saveToStorage(MOCK_WISHLIST);
     }
     setNotes(loadNotes());
+    setFolders(loadFolders());
+    setFolderAssignments(loadFolderAssignments());
     setIsLoading(false);
   }, [user]);
 
@@ -185,6 +232,13 @@ export default function WishlistPage() {
   });
 
   const displayItems = enrichedItems ?? items;
+  const folderOptions = [DEFAULT_FOLDER, ...folders];
+  const categories = ['All', ...Array.from(new Set((displayItems.length > 0 ? displayItems : MOCK_WISHLIST).map((item) => item.vendorCategory)))];
+  const folderFiltered = selectedFolder === DEFAULT_FOLDER
+    ? displayItems
+    : displayItems.filter((item) => (folderAssignments[item.vendorId] ?? DEFAULT_FOLDER) === selectedFolder);
+  const categoryFiltered = filter === 'All' ? folderFiltered : folderFiltered.filter((item) => item.vendorCategory === filter);
+  const sorted = sortItems(categoryFiltered, sort);
 
   const hasInitialized = useRef(false);
   useEffect(() => {
@@ -200,6 +254,9 @@ export default function WishlistPage() {
     const removedItem = items.find((item) => item.id === id);
     if (!removedItem) return;
 
+    const removedNote = notes[removedItem.vendorId] || '';
+    const removedFolder = folderAssignments[removedItem.vendorId];
+
     setItems((prev) => prev.filter((item) => item.id !== id));
     setNotes((prev) => {
       const next = { ...prev };
@@ -207,10 +264,20 @@ export default function WishlistPage() {
       saveNotes(next);
       return next;
     });
+    setFolderAssignments((prev) => {
+      const next = { ...prev };
+      delete next[removedItem.vendorId];
+      saveFolderAssignments(next);
+      return next;
+    });
+    setEditingNotes((prev) => {
+      const next = { ...prev };
+      delete next[removedItem.vendorId];
+      return next;
+    });
 
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
 
-    const removedNote = notes[removedItem.vendorId] || '';
     const toastId = toast(
       (t) => (
         <div className="flex items-center gap-3">
@@ -223,8 +290,16 @@ export default function WishlistPage() {
                 return [...prev, removedItem];
               });
               setNotes((prev) => {
-                const next = { ...prev, [removedItem.vendorId]: removedNote };
+                const next = removedNote ? { ...prev, [removedItem.vendorId]: removedNote } : prev;
                 saveNotes(next);
+                return next;
+              });
+              setFolderAssignments((prev) => {
+                const next = { ...prev };
+                if (removedFolder) {
+                  next[removedItem.vendorId] = removedFolder;
+                }
+                saveFolderAssignments(next);
                 return next;
               });
               toast.dismiss(t.id);
@@ -246,7 +321,7 @@ export default function WishlistPage() {
       toast.dismiss(toastId);
       undoTimerRef.current = null;
     }, 5000);
-  }, [items, notes]);
+  }, [folderAssignments, items, notes]);
 
   const handleNoteChange = useCallback((vendorId: string, value: string) => {
     setNotes((prev) => ({ ...prev, [vendorId]: value }));
@@ -265,28 +340,86 @@ export default function WishlistPage() {
     });
   }, []);
 
-  const shareWishlist = useCallback(async () => {
-    const url = window.location.href;
-    try {
-      await navigator.clipboard.writeText(url);
-      toast.success('Wishlist link copied for your family!', { duration: 2000, position: 'bottom-center' });
-    } catch {
-      toast.error('Could not copy wishlist link');
+  const toggleNoteEditor = useCallback((vendorId: string) => {
+    setEditingNotes((prev) => {
+      const isOpen = Boolean(prev[vendorId]);
+      if (isOpen) {
+        handleNoteBlur(vendorId);
+      }
+      return { ...prev, [vendorId]: !isOpen };
+    });
+  }, [handleNoteBlur]);
+
+  const createFolder = useCallback(() => {
+    const name = newFolderName.trim();
+    if (!name) {
+      toast.error('Enter a folder name');
+      return;
     }
+    if (name.toLowerCase() === DEFAULT_FOLDER.toLowerCase() || folders.some((folder) => folder.toLowerCase() === name.toLowerCase())) {
+      toast.error('Folder already exists');
+      return;
+    }
+
+    const next = [...folders, name];
+    setFolders(next);
+    saveFolders(next);
+    setNewFolderName('');
+    setSelectedFolder(name);
+    toast.success('Folder created');
+  }, [folders, newFolderName]);
+
+  const assignFolder = useCallback((vendorId: string, folder: string) => {
+    setFolderAssignments((prev) => {
+      const next = { ...prev };
+      if (folder === DEFAULT_FOLDER) {
+        delete next[vendorId];
+      } else {
+        next[vendorId] = folder;
+      }
+      saveFolderAssignments(next);
+      return next;
+    });
+    toast.success(folder === DEFAULT_FOLDER ? 'Moved to All Saved' : `Saved to ${folder}`);
   }, []);
+
+  const shareWishlist = useCallback(async () => {
+    const summaryLines = sorted.map((item, index) => {
+      const folder = folderAssignments[item.vendorId] ?? DEFAULT_FOLDER;
+      const note = notes[item.vendorId]?.trim();
+      const folderText = folder !== DEFAULT_FOLDER ? ` | Folder: ${folder}` : '';
+      const noteText = note ? `\n   Note: ${note}` : '';
+      return `${index + 1}. ${item.vendorName} — ${item.vendorCategory}, ${item.vendorCity}, ${item.vendorPrice}${folderText}${noteText}`;
+    });
+
+    const shareText = [
+      `My WeddingOS wishlist${selectedFolder !== DEFAULT_FOLDER ? ` • ${selectedFolder}` : ''}`,
+      summaryLines.length > 0 ? `${summaryLines.length} saved vendor${summaryLines.length !== 1 ? 's' : ''}` : 'No vendors saved yet',
+      '',
+      ...(summaryLines.length > 0 ? summaryLines : ['Browse vendors and start saving your favourites.']),
+      '',
+      `View: ${window.location.href}`,
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(shareText);
+      toast.success('Wishlist link copied!', { duration: 2000, position: 'bottom-center' });
+    } catch {
+      toast.error('Could not copy wishlist');
+    }
+  }, [folderAssignments, notes, selectedFolder, sorted]);
 
   const clearAll = useCallback(() => {
     setItems([]);
     setNotes({});
+    setFolderAssignments({});
+    setEditingNotes({});
     saveToStorage([]);
     saveNotes({});
+    saveFolderAssignments({});
     setShowClearConfirm(false);
     toast.success('Wishlist cleared', { duration: 2000 });
   }, []);
-
-  const categories = ['All', ...Array.from(new Set((displayItems.length > 0 ? displayItems : MOCK_WISHLIST).map((item) => item.vendorCategory)))];
-  const filtered = filter === 'All' ? displayItems : displayItems.filter((item) => item.vendorCategory === filter);
-  const sorted = sortItems(filtered, sort);
 
   return (
     <>
@@ -300,7 +433,7 @@ export default function WishlistPage() {
                   <Heart className="w-6 h-6 fill-white" />
                   <h1 className="text-2xl font-bold">Wishlist</h1>
                 </div>
-                <p className="text-white/70 text-sm">{items.length} vendor{items.length !== 1 ? 's' : ''} saved</p>
+                <p className="text-white/70 text-sm">{items.length} vendor{items.length !== 1 ? 's' : ''} saved • {folders.length} custom folder{folders.length !== 1 ? 's' : ''}</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -327,6 +460,71 @@ export default function WishlistPage() {
         </div>
 
         <div className="max-w-2xl mx-auto px-4 -mt-6 space-y-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Filter by folder</label>
+                <div className="relative mt-1.5">
+                  <FolderOpen className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <select
+                    value={selectedFolder}
+                    onChange={(e) => setSelectedFolder(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-10 py-2.5 text-sm text-gray-700 focus:border-brand-300 focus:outline-none"
+                    aria-label="Filter wishlist by folder"
+                  >
+                    {folderOptions.map((folder) => (
+                      <option key={folder} value={folder}>{folder}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Create folder</label>
+                <div className="mt-1.5 flex gap-2">
+                  <input
+                    value={newFolderName}
+                    onChange={(e) => setNewFolderName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        createFolder();
+                      }
+                    }}
+                    placeholder="Photographers, Venues..."
+                    className="flex-1 rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-700 placeholder:text-gray-400 focus:border-brand-300 focus:outline-none"
+                    aria-label="Create wishlist folder"
+                  />
+                  <button
+                    onClick={createFolder}
+                    className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-3.5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition"
+                  >
+                    <FolderPlus className="w-4 h-4" />
+                    Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {folders.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {folderOptions.map((folder) => (
+                  <button
+                    key={folder}
+                    onClick={() => setSelectedFolder(folder)}
+                    className={clsx(
+                      'rounded-full px-3 py-1.5 text-xs font-medium transition',
+                      selectedFolder === folder
+                        ? 'bg-brand-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+                    )}
+                  >
+                    {folder}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-3">
             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar flex-1">
               {categories.map((cat) => (
@@ -407,9 +605,11 @@ export default function WishlistPage() {
               </div>
               <h3 className="text-lg font-semibold text-gray-800 mb-2">No saved vendors</h3>
               <p className="text-gray-500 text-sm mb-6">
-                {filter !== 'All'
-                  ? `No ${filter} vendors in your wishlist`
-                  : 'Browse vendors and tap the heart icon to save them here'}
+                {selectedFolder !== DEFAULT_FOLDER
+                  ? `No vendors saved in ${selectedFolder}`
+                  : filter !== 'All'
+                    ? `No ${filter} vendors in your wishlist`
+                    : 'Browse vendors and tap the heart icon to save them here'}
               </p>
               <Link
                 href="/vendors"
@@ -424,6 +624,10 @@ export default function WishlistPage() {
               <AnimatePresence mode="popLayout">
                 {sorted.map((item) => {
                   const CategoryIcon = CATEGORY_ICONS[item.vendorCategory] ?? Building2;
+                  const assignedFolder = folderAssignments[item.vendorId] ?? DEFAULT_FOLDER;
+                  const savedNote = notes[item.vendorId]?.trim();
+                  const isEditingNote = Boolean(editingNotes[item.vendorId]);
+
                   return (
                     <motion.div
                       key={item.id}
@@ -476,6 +680,12 @@ export default function WishlistPage() {
                               <MapPin className="w-3 h-3" />
                               {item.vendorCity}
                             </span>
+                            {assignedFolder !== DEFAULT_FOLDER && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                                <FolderOpen className="w-3 h-3" />
+                                {assignedFolder}
+                              </span>
+                            )}
                           </div>
                           <div className="flex items-center justify-between mt-2">
                             <span className="text-brand-600 font-bold text-sm">{item.vendorPrice}</span>
@@ -487,17 +697,61 @@ export default function WishlistPage() {
                               Book Now
                             </Link>
                           </div>
-                          <div className="mt-3">
-                            <input
-                              type="text"
-                              value={notes[item.vendorId] || ''}
-                              onChange={(e) => handleNoteChange(item.vendorId, e.target.value)}
-                              onBlur={() => handleNoteBlur(item.vendorId)}
-                              placeholder="Add a note"
-                              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-brand-300 focus:outline-none"
-                              aria-label={`Add note for ${item.vendorName}`}
-                            />
+
+                          <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                            <div>
+                              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Folder</label>
+                              <div className="relative mt-1">
+                                <FolderOpen className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                                <select
+                                  value={assignedFolder}
+                                  onChange={(e) => assignFolder(item.vendorId, e.target.value)}
+                                  className="w-full rounded-xl border border-gray-200 bg-white pl-9 pr-8 py-2 text-sm text-gray-700 focus:border-brand-300 focus:outline-none"
+                                  aria-label={`Assign ${item.vendorName} to folder`}
+                                >
+                                  {folderOptions.map((folder) => (
+                                    <option key={folder} value={folder}>{folder}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => toggleNoteEditor(item.vendorId)}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:border-brand-300 hover:text-brand-600 transition"
+                              aria-label={savedNote ? `Edit note for ${item.vendorName}` : `Add note for ${item.vendorName}`}
+                            >
+                              <FileText className="w-4 h-4" />
+                              {savedNote ? 'Edit Note' : 'Add Note'}
+                            </button>
                           </div>
+
+                          {savedNote && !isEditingNote && (
+                            <div className="mt-3 rounded-xl bg-gray-50 px-3 py-2.5">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Note</p>
+                              <p className="mt-1 text-sm text-gray-600 whitespace-pre-line">{savedNote}</p>
+                            </div>
+                          )}
+
+                          <AnimatePresence initial={false}>
+                            {isEditingNote && (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="mt-3 overflow-hidden"
+                              >
+                                <textarea
+                                  value={notes[item.vendorId] || ''}
+                                  onChange={(e) => handleNoteChange(item.vendorId, e.target.value)}
+                                  onBlur={() => handleNoteBlur(item.vendorId)}
+                                  placeholder="Add a short note for family discussions, pricing, or follow-up"
+                                  className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-700 placeholder:text-gray-400 focus:border-brand-300 focus:outline-none min-h-[88px]"
+                                  aria-label={`Add note for ${item.vendorName}`}
+                                />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       </div>
                     </motion.div>

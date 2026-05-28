@@ -1,10 +1,13 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  TrendingUp, Calendar, Star, DollarSign, Clock, CheckCircle,
-  ArrowUpRight, ArrowDownRight, AlertTriangle, MessageSquare, Lightbulb,
+  TrendingUp, Calendar, Star, DollarSign, Clock, CheckCircle, Circle,
+  ArrowUpRight, ArrowDownRight, ArrowRight, AlertTriangle, MessageSquare, Lightbulb, Sparkles,
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { statsApi, bookingApi, type VendorStats, type MonthlyData, type VendorBooking } from '../lib/api';
+import {
+  statsApi, bookingApi, profileApi,
+  type VendorStats, type MonthlyData, type VendorBooking, type VendorProfile,
+} from '../lib/api';
 
 const MOCK_STATS: VendorStats = {
   totalBookings: 47, revenueThisMonth: 240000, avgRating: 4.8,
@@ -25,6 +28,33 @@ const MOCK_PENDING: VendorBooking[] = [
   { id: '2', bookingNumber: 'WB-002', customerId: '2', customerName: 'Ananya & Vikram', customerPhone: '+919876543211', eventDate: '2027-03-20', eventType: 'Wedding', eventCity: 'Mumbai', status: 'QUOTE_SENT', quotedAmountPaise: 5000000, platformFeePaise: null, packageName: 'Silver Basic', createdAt: new Date().toISOString() },
   { id: '3', bookingNumber: 'WB-003', customerId: '3', customerName: 'Meera & Arun', customerPhone: '+919876543212', eventDate: '2027-04-05', eventType: 'Wedding', eventCity: 'Delhi', status: 'CONFIRMED', quotedAmountPaise: 15000000, platformFeePaise: null, packageName: 'Platinum', createdAt: new Date().toISOString() },
 ];
+
+const MOCK_PROFILE: VendorProfile = {
+  id: 'v1',
+  userId: 'u1',
+  businessName: 'Royal Grand Palace',
+  slug: 'royal-grand-palace',
+  category: 'Venue',
+  city: 'Hyderabad',
+  state: 'Telangana',
+  tagline: 'Premier wedding venue',
+  description: "Royal Grand Palace is Hyderabad's premier wedding venue with indoor and outdoor options for up to 2000 guests.",
+  avgRating: 4.8,
+  reviewCount: 47,
+  bookingCount: 120,
+  plusMember: true,
+  status: 'ACTIVE',
+  yearsExperience: 12,
+  teamSize: 25,
+  whatsappNumber: '+919876543210',
+  websiteUrl: 'https://royalgrandpalace.in',
+  instagramUrl: 'https://instagram.com/royalgrand',
+  gstNumber: '36AAACR1234F1Z5',
+  panNumber: 'AAACR1234F',
+  gstVerified: true,
+  panVerified: false,
+  packages: [],
+};
 
 function formatINR(paise: number): string {
   const rupees = paise / 100;
@@ -52,9 +82,17 @@ export function DashboardHome() {
     retry: 1, staleTime: 30_000,
   });
 
+  const { data: vendorProfile } = useQuery({
+    queryKey: ['vendor-profile'],
+    queryFn: profileApi.getProfile,
+    retry: 1,
+    staleTime: 60_000,
+  });
+
   const s = stats ?? MOCK_STATS;
   const chart = chartData ?? MOCK_CHART;
   const pending = recentBookings?.data?.bookings ?? MOCK_PENDING;
+  const profile = vendorProfile ?? MOCK_PROFILE;
   const isMock = statsError;
 
   const reviewCount = (s as VendorStats & { reviewCount?: number }).reviewCount ?? 24;
@@ -64,6 +102,47 @@ export function DashboardHome() {
     : '34%';
   const quotePending = Math.max(pending.filter((b) => b.status === 'QUOTE_SENT').length, 1);
   const reviewsToReply = Math.max(Math.min(Math.round(reviewCount / 12), 4), 2);
+  const availabilityConfigured = Boolean((profile as VendorProfile & { availabilityConfigured?: boolean }).availabilityConfigured);
+  const onboardingSteps = [
+    {
+      title: 'Complete Business Profile',
+      description: 'Add your business name, description, and city so customers can discover you.',
+      done: Boolean(profile.businessName && profile.description && profile.city),
+      href: '/profile',
+      cta: 'Complete profile',
+    },
+    {
+      title: 'Upload Portfolio Photos',
+      description: 'Showcase recent work to build trust and increase enquiries.',
+      done: profile.packages.length > 0,
+      href: '/profile?tab=portfolio',
+      cta: 'Add portfolio',
+    },
+    {
+      title: 'Create First Package',
+      description: 'Publish at least one package so customers can request quotes faster.',
+      done: profile.packages.length > 0,
+      href: '/profile?tab=packages',
+      cta: 'Create package',
+    },
+    {
+      title: 'Set Availability',
+      description: 'Keep your calendar updated so you do not miss qualified leads.',
+      done: availabilityConfigured,
+      href: '/calendar',
+      cta: 'Set availability',
+    },
+    {
+      title: 'Complete KYC',
+      description: 'Verify your business to unlock trust badges and premium features.',
+      done: profile.gstVerified || profile.panVerified,
+      href: '/profile?tab=kyc',
+      cta: 'Finish KYC',
+    },
+  ];
+  const completedOnboardingSteps = onboardingSteps.filter((step) => step.done).length;
+  const onboardingProgress = Math.round((completedOnboardingSteps / onboardingSteps.length) * 100);
+  const onboardingComplete = completedOnboardingSteps === onboardingSteps.length;
 
   const STAT_CARDS = [
     { label: 'Total Bookings', value: String(s.totalBookings), icon: Calendar, change: '▲ 12%', tone: 'text-emerald-600', color: 'text-brand-600 bg-brand-50', meta: s.pendingEnquiries > 0 ? `${s.pendingEnquiries} pending` : 'Steady pipeline' },
@@ -124,6 +203,79 @@ export function DashboardHome() {
           {isMock && <span className="text-amber-600"><AlertTriangle size={13} className="inline mr-1 -mt-0.5" />API unavailable — showing demo data. </span>}
           Welcome back! Here's your business overview.
         </p>
+      </div>
+
+      <div className="mb-8">
+        <div className="card p-5 border border-gray-100">
+          {onboardingComplete ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h2 className="font-semibold text-gray-900">🎉 Setup complete!</h2>
+                    <span className="badge bg-green-100 text-green-700">Ready for enquiries</span>
+                  </div>
+                  <p className="text-sm text-gray-500">Your storefront is set up and ready to convert more leads.</p>
+                </div>
+              </div>
+              <a href="/profile" className="btn-secondary text-sm py-2 px-3 inline-flex items-center gap-2 whitespace-nowrap">
+                View profile <ArrowRight size={14} />
+              </a>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-5">
+                <div className="flex items-start gap-3">
+                  <div className="w-11 h-11 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
+                    <Sparkles size={20} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="font-semibold text-gray-900">Onboarding checklist</h2>
+                      <span className="badge bg-brand-50 text-brand-700">New vendor setup</span>
+                    </div>
+                    <p className="text-sm text-gray-500">Finish these steps to improve trust signals and start converting more enquiries.</p>
+                  </div>
+                </div>
+                <div className="min-w-[140px] rounded-2xl bg-gray-50 px-4 py-3 border border-gray-100">
+                  <div className="text-xs text-gray-500">Progress</div>
+                  <div className="text-lg font-semibold text-gray-900">{completedOnboardingSteps}/{onboardingSteps.length} steps completed</div>
+                </div>
+              </div>
+
+              <div className="w-full bg-gray-100 rounded-full h-2.5 mb-5 overflow-hidden">
+                <div className="bg-gradient-to-r from-brand-500 to-purple-500 h-2.5 rounded-full transition-all" style={{ width: `${onboardingProgress}%` }} />
+              </div>
+
+              <div className="space-y-3">
+                {onboardingSteps.map((step) => (
+                  <div key={step.title} className="rounded-2xl border border-gray-100 p-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className={`mt-0.5 ${step.done ? 'text-green-500' : 'text-gray-300'}`}>
+                        {step.done ? <CheckCircle size={18} /> : <Circle size={18} />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-gray-900">{step.title}</p>
+                          <span className={`badge text-xs ${step.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                            {step.done ? 'Completed' : 'Pending'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">{step.description}</p>
+                      </div>
+                    </div>
+                    <a href={step.href} className="btn-secondary text-xs py-2 px-3 inline-flex items-center gap-1 whitespace-nowrap self-start md:self-center">
+                      {step.cta} <ArrowRight size={13} />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
