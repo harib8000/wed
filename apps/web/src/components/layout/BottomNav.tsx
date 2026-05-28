@@ -9,7 +9,7 @@ const NAV_ITEMS = [
   { label: 'Home', icon: Home, href: '/', badgeKey: null },
   { label: 'Explore', icon: Search, href: '/vendors', badgeKey: null },
   { label: 'Bookings', icon: Calendar, href: '/bookings', badgeKey: 'wos_pending_bookings' },
-  { label: 'Alerts', icon: Bell, href: '/notifications', badgeKey: 'wos_notifications' },
+  { label: 'Notifications', icon: Bell, href: '/notifications', badgeKey: 'wos_notifications' },
   { label: 'Profile', icon: User, href: '/profile', badgeKey: null },
 ] as const;
 

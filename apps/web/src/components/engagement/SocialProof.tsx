@@ -56,10 +56,13 @@ export function SocialProofBadges({ rating, reviews, featured }: { rating: strin
   );
 }
 
+const REVIEWS_PER_BOOKING_ESTIMATE = 20;
+const MAX_RECENT_BOOKINGS_DISPLAY = 15;
+
 // Booking activity indicator for vendor cards
 export function BookingActivityIndicator({ reviews }: { reviews: number }) {
-  // Simulate recent booking activity based on review count
-  const recentBookings = Math.min(Math.floor(reviews / 20), 15);
+  // Estimate recent booking activity based on review count
+  const recentBookings = Math.min(Math.floor(reviews / REVIEWS_PER_BOOKING_ESTIMATE), MAX_RECENT_BOOKINGS_DISPLAY);
 
   if (recentBookings < 3) return null;
 
