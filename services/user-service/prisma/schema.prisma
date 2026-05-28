@@ -96,3 +96,18 @@ model KycDocument {
   @@index([status])
   @@map("kyc_documents")
 }
+
+model ChecklistItem {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  title       String   @db.VarChar(300)
+  detail      String?  @db.VarChar(500)
+  category    String   @default("other") @db.VarChar(50)
+  isDone      Boolean  @default(false) @map("is_done")
+  daysBeforeEvent Int? @map("days_before_event")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("checklist_items")
+}

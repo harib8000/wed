@@ -69,7 +69,7 @@ class ApiClient {
   static Future<Response> getMe() => dio.get('/auth/me');
 
   static Future<void> registerFcmToken(String token) =>
-      dio.post('/users/me/device-token', data: {
+      dio.post('/users/me/push-token', data: {
         'token': token,
         'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
       });
@@ -119,4 +119,42 @@ class ApiClient {
 
   static Future<Response> sendChatMessage(String vendorId, String text) =>
       dio.post('/chat/$vendorId/messages', data: {'text': text});
+
+  // ─── Media ──────────────────────────────────────────────────────────────────
+
+  /// Step 1: Get a presigned S3 upload URL.
+  /// [context] is a hint like 'profile', 'portfolio', 'review', 'kyc'.
+  static Future<Response> getPresignedUploadUrl({
+    String contentType = 'image/jpeg',
+    String context = 'profile',
+  }) =>
+      dio.post('/media/presign', data: {'contentType': contentType, 'context': context});
+
+  /// Step 2: Upload a file directly to S3 using the presigned URL.
+  /// Returns the raw Dio response from the S3 PUT request.
+  static Future<Response> uploadToS3(String presignedUrl, List<int> fileBytes, String contentType) {
+    final s3Dio = Dio();
+    return s3Dio.put(
+      presignedUrl,
+      data: Stream.fromIterable(fileBytes.map((b) => [b])),
+      options: Options(
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': fileBytes.length,
+        },
+        sendTimeout: const Duration(seconds: 120),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+  }
+
+  // ─── Checklist ──────────────────────────────────────────────────────────────
+
+  static Future<Response> getChecklist() => dio.get('/users/me/checklist');
+
+  static Future<Response> createChecklistItem(Map<String, dynamic> data) =>
+      dio.post('/users/me/checklist', data: data);
+
+  static Future<Response> updateChecklistItem(String id, Map<String, dynamic> data) =>
+      dio.patch('/users/me/checklist/$id', data: data);
 }

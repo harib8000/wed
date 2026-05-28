@@ -1,15 +1,62 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _biometricEnabled = false;
+  final _localAuth = LocalAuthentication();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBiometricSetting();
+  }
+
+  Future<void> _loadBiometricSetting() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (mounted) {
+        setState(() => _biometricEnabled = prefs.getBool('biometric_enabled') ?? false);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleBiometric(bool val) async {
+    if (val) {
+      // Check device support before enabling
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isSupported = await _localAuth.isDeviceSupported();
+      if (!canCheck || !isSupported) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Biometric authentication is not available on this device.')),
+          );
+        }
+        return;
+      }
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('biometric_enabled', val);
+    if (mounted) setState(() => _biometricEnabled = val);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark = themeMode == ThemeMode.dark;
     final initials = user?.name?.isNotEmpty == true
         ? user!.name!.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
         : '?';
@@ -86,6 +133,23 @@ class ProfileScreen extends ConsumerWidget {
             _MenuItem(icon: Icons.account_balance_wallet_outlined, title: 'Payments & Escrow', subtitle: 'Transaction history', onTap: () {}),
             _MenuItem(icon: Icons.help_outline, title: 'Help & Support', subtitle: 'FAQs, contact us', onTap: () {}),
             _MenuItem(icon: Icons.info_outline, title: 'About WeddingOS', subtitle: 'Version 1.0.0', onTap: () {}),
+
+            // ─── Preferences ──────────
+            const SizedBox(height: 8),
+            _ToggleMenuItem(
+              icon: isDark ? Icons.dark_mode : Icons.light_mode_outlined,
+              title: 'Dark Mode',
+              subtitle: 'Switch app appearance',
+              value: isDark,
+              onChanged: (val) => ref.read(themeModeProvider.notifier).setThemeMode(val ? ThemeMode.dark : ThemeMode.light),
+            ),
+            _ToggleMenuItem(
+              icon: Icons.fingerprint,
+              title: 'Biometric Login',
+              subtitle: 'Use fingerprint or face ID to sign in',
+              value: _biometricEnabled,
+              onChanged: _toggleBiometric,
+            ),
             const SizedBox(height: 16),
 
             // ─── Logout ──────────────
@@ -163,6 +227,32 @@ class _MenuItem extends StatelessWidget {
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
         subtitle: Text(subtitle, style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
         trailing: Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+        contentPadding: EdgeInsets.zero,
+      ),
+    );
+  }
+}
+
+class _ToggleMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String title, subtitle;
+  final bool value;
+  final void Function(bool) onChanged;
+  const _ToggleMenuItem({required this.icon, required this.title, required this.subtitle, required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(color: AppColors.brandLight, borderRadius: BorderRadius.circular(10)),
+          child: Icon(icon, color: AppColors.brand, size: 20),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+        subtitle: Text(subtitle, style: TextStyle(color: AppColors.textMuted, fontSize: 11)),
+        trailing: Switch(value: value, onChanged: onChanged, activeColor: AppColors.brand),
         contentPadding: EdgeInsets.zero,
       ),
     );

@@ -1,7 +1,8 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:socket_io_client/socket_io_client.dart' as sio;
 import '../../core/theme.dart';
 import '../../core/api_client.dart';
 import '../../models/vendor.dart';
@@ -27,93 +28,135 @@ class ChatMessage {
   });
 }
 
-// ─── Chat Provider (simple local state) ─────────────────────
+// ─── Socket.IO Chat Notifier ─────────────────────────────────
 class ChatNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> {
   final String vendorId;
   final String userId;
-  Timer? _pollTimer;
+  sio.Socket? _socket;
+
+  static const _storage = FlutterSecureStorage();
 
   ChatNotifier(this.vendorId, this.userId) : super(const AsyncValue.loading()) {
-    _loadHistory();
+    _init();
   }
 
-  void _loadHistory() async {
+  Future<void> _init() async {
+    // 1. Load history over REST first
     try {
       final res = await ApiClient.getChatHistory(vendorId);
-      final messages = (res.data['data']['messages'] as List<dynamic>)
-          .map((m) => ChatMessage(
-                id: m['id'] as String,
-                senderId: m['senderId'] as String,
-                text: m['text'] as String,
-                sentAt: DateTime.parse(m['sentAt'] as String),
-                isRead: m['isRead'] as bool? ?? false,
-                imageUrl: m['imageUrl'] as String?,
-              ))
-          .toList();
+      final messages = _parseMessages(res.data['data']['messages'] as List<dynamic>);
       state = AsyncValue.data(messages);
     } catch (e) {
       debugPrint('Chat history load failed, using mock: $e');
-      // Fallback to mock messages for dev
-      state = AsyncValue.data([
-        ChatMessage(
-          id: '1', senderId: vendorId,
-          text: 'Hi! Thank you for enquiring about our services. How can I help you?',
-          sentAt: DateTime.now().subtract(const Duration(minutes: 30)),
-        ),
-        ChatMessage(
-          id: '2', senderId: userId,
-          text: 'We are planning a wedding in March. Can you share your availability?',
-          sentAt: DateTime.now().subtract(const Duration(minutes: 28)),
-        ),
-        ChatMessage(
-          id: '3', senderId: vendorId,
-          text: 'Of course! March is mostly available. Could you share the exact date and approximate guest count?',
-          sentAt: DateTime.now().subtract(const Duration(minutes: 25)),
-        ),
-      ]);
+      state = AsyncValue.data(_mockMessages());
     }
 
-    // Poll for new messages every 10 seconds (until WebSocket is implemented)
-    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) => _pollNewMessages());
+    // 2. Connect Socket.IO for real-time updates
+    await _connectSocket();
   }
 
-  Future<void> _pollNewMessages() async {
+  Future<void> _connectSocket() async {
     try {
-      final res = await ApiClient.getChatHistory(vendorId);
-      final messages = (res.data['data']['messages'] as List<dynamic>)
-          .map((m) => ChatMessage(
-                id: m['id'] as String,
-                senderId: m['senderId'] as String,
-                text: m['text'] as String,
-                sentAt: DateTime.parse(m['sentAt'] as String),
-                isRead: m['isRead'] as bool? ?? false,
-              ))
-          .toList();
-      state = AsyncValue.data(messages);
-    } catch (_) {}
+      final token = await _storage.read(key: 'access_token');
+      if (token == null) return;
+
+      // Derive the Socket.IO base URL from the API base URL (strip /api/v1)
+      final socketUrl = ApiClient.baseUrl.replaceAll(RegExp(r'/api/v\d+$'), '');
+
+      _socket = sio.io(
+        socketUrl,
+        sio.OptionBuilder()
+            .setTransports(['websocket'])
+            .setAuth({'token': token})
+            .disableAutoConnect()
+            .build(),
+      );
+
+      _socket!
+        ..onConnect((_) {
+          debugPrint('[Chat] Socket connected');
+          _socket!.emit('join:conversation', vendorId);
+        })
+        ..on('message:new', (data) {
+          if (data is Map<String, dynamic>) {
+            final incoming = ChatMessage(
+              id: data['id'] as String? ?? DateTime.now().toIso8601String(),
+              senderId: data['senderId'] as String? ?? vendorId,
+              text: data['content'] as String? ?? '',
+              sentAt: data['createdAt'] != null
+                  ? DateTime.tryParse(data['createdAt'] as String) ?? DateTime.now()
+                  : DateTime.now(),
+              isRead: false,
+            );
+            final current = state.value ?? [];
+            if (!current.any((m) => m.id == incoming.id)) {
+              state = AsyncValue.data([...current, incoming]);
+            }
+          }
+        })
+        ..on('message:read', (_) {
+          final current = state.value ?? [];
+          state = AsyncValue.data(current.map((m) => ChatMessage(
+            id: m.id, senderId: m.senderId, text: m.text,
+            sentAt: m.sentAt, isRead: true, imageUrl: m.imageUrl,
+          )).toList());
+        })
+        ..onConnectError((err) => debugPrint('[Chat] Connect error: $err'))
+        ..onDisconnect((_) => debugPrint('[Chat] Socket disconnected'));
+
+      _socket!.connect();
+    } catch (e) {
+      debugPrint('[Chat] Socket setup failed: $e');
+    }
   }
 
   Future<void> sendMessage(String text) async {
     final current = state.value ?? [];
     final msg = ChatMessage(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
       senderId: userId,
       text: text,
       sentAt: DateTime.now(),
     );
-    // Optimistic update
     state = AsyncValue.data([...current, msg]);
-    // Send to API
-    try {
-      await ApiClient.sendChatMessage(vendorId, text);
-    } catch (e) {
-      debugPrint('Send message API failed (local-first): $e');
+
+    if (_socket?.connected == true) {
+      _socket!.emit('message:send', {'bookingId': vendorId, 'content': text});
+    } else {
+      try {
+        await ApiClient.sendChatMessage(vendorId, text);
+      } catch (e) {
+        debugPrint('[Chat] REST send failed: $e');
+      }
     }
   }
 
+  List<ChatMessage> _parseMessages(List<dynamic> raw) => raw.map((m) {
+    final map = m as Map<String, dynamic>;
+    return ChatMessage(
+      id: map['id'] as String? ?? map['_id']?.toString() ?? '',
+      senderId: map['senderId'] as String? ?? '',
+      text: map['text'] as String? ?? map['content'] as String? ?? '',
+      sentAt: map['sentAt'] != null
+          ? DateTime.tryParse(map['sentAt'] as String) ?? DateTime.now()
+          : map['createdAt'] != null
+              ? DateTime.tryParse(map['createdAt'] as String) ?? DateTime.now()
+              : DateTime.now(),
+      isRead: map['isRead'] as bool? ?? false,
+      imageUrl: map['imageUrl'] as String?,
+    );
+  }).toList();
+
+  List<ChatMessage> _mockMessages() => [
+    ChatMessage(id: '1', senderId: vendorId, text: 'Hi! Thank you for enquiring about our services. How can I help you?', sentAt: DateTime.now().subtract(const Duration(minutes: 30))),
+    ChatMessage(id: '2', senderId: userId, text: 'We are planning a wedding in March. Can you share your availability?', sentAt: DateTime.now().subtract(const Duration(minutes: 28))),
+    ChatMessage(id: '3', senderId: vendorId, text: 'Of course! March is mostly available. Could you share the exact date and approximate guest count?', sentAt: DateTime.now().subtract(const Duration(minutes: 25))),
+  ];
+
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _socket?.disconnect();
+    _socket?.dispose();
     super.dispose();
   }
 }
@@ -208,19 +251,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     );
   }
 
-  bool _isSameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
+  bool _isSameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
 
   PreferredSizeWidget _buildAppBar(Vendor vendor) => AppBar(
     titleSpacing: 0,
     title: Row(children: [
-      ClipRRect(borderRadius: BorderRadius.circular(20), child: CachedNetworkImage(imageUrl: vendor.displayImage, width: 36, height: 36, fit: BoxFit.cover)),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: CachedNetworkImage(imageUrl: vendor.displayImage, width: 36, height: 36, fit: BoxFit.cover),
+      ),
       const SizedBox(width: 10),
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(vendor.businessName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         Text(vendor.city, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.normal, color: AppColors.textMuted)),
       ]),
     ]),
-    actions: [Icons.call_outlined, Icons.videocam_outlined, Icons.more_vert].map((icon) => IconButton(icon: Icon(icon, size: 20), onPressed: () {})).toList(),
+    actions: [Icons.call_outlined, Icons.videocam_outlined, Icons.more_vert]
+        .map((icon) => IconButton(tooltip: 'Action', icon: Icon(icon, size: 20), onPressed: () {}))
+        .toList(),
   );
 
   Widget _buildInput() => SafeArea(
@@ -237,16 +286,29 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               maxLines: null,
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => _send(),
-              decoration: const InputDecoration(border: InputBorder.none, hintText: 'Type a message…', contentPadding: EdgeInsets.zero),
+              decoration: const InputDecoration(
+                border: InputBorder.none,
+                hintText: 'Type a message…',
+                contentPadding: EdgeInsets.zero,
+              ),
             ),
           ),
         ),
         const SizedBox(width: 8),
-        GestureDetector(
-          onTap: _sending ? null : _send,
-          child: Container(width: 42, height: 42, decoration: BoxDecoration(color: AppColors.brand, shape: BoxShape.circle), child: _sending
-              ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.send, color: Colors.white, size: 18)),
+        Semantics(
+          button: true,
+          label: 'Send message',
+          child: GestureDetector(
+            onTap: _sending ? null : _send,
+            child: Container(
+              width: 42,
+              height: 42,
+              decoration: const BoxDecoration(color: AppColors.brand, shape: BoxShape.circle),
+              child: _sending
+                  ? const Padding(padding: EdgeInsets.all(10), child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.send, color: Colors.white, size: 18),
+            ),
+          ),
         ),
       ]),
     ),
@@ -269,7 +331,16 @@ class _BubbleTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe) ...[
-            ClipRRect(borderRadius: BorderRadius.circular(14), child: vendorImageUrl != null ? CachedNetworkImage(imageUrl: vendorImageUrl!, width: 28, height: 28, fit: BoxFit.cover) : Container(width: 28, height: 28, decoration: BoxDecoration(color: AppColors.brand, shape: BoxShape.circle), child: const Icon(Icons.store, color: Colors.white, size: 14))),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: vendorImageUrl != null
+                  ? CachedNetworkImage(imageUrl: vendorImageUrl!, width: 28, height: 28, fit: BoxFit.cover)
+                  : Container(
+                      width: 28, height: 28,
+                      decoration: const BoxDecoration(color: AppColors.brand, shape: BoxShape.circle),
+                      child: const Icon(Icons.store, color: Colors.white, size: 14),
+                    ),
+            ),
             const SizedBox(width: 6),
           ],
           Container(
@@ -290,7 +361,10 @@ class _BubbleTile extends StatelessWidget {
               const SizedBox(height: 3),
               Row(mainAxisSize: MainAxisSize.min, children: [
                 Text(time, style: TextStyle(color: isMe ? Colors.white70 : AppColors.textMuted, fontSize: 10)),
-                if (isMe) ...[const SizedBox(width: 3), Icon(msg.isRead ? Icons.done_all : Icons.done, size: 12, color: Colors.white70)],
+                if (isMe) ...[
+                  const SizedBox(width: 3),
+                  Icon(msg.isRead ? Icons.done_all : Icons.done, size: 12, color: Colors.white70),
+                ],
               ]),
             ]),
           ),
@@ -304,19 +378,26 @@ class _BubbleTile extends StatelessWidget {
 class _DateDivider extends StatelessWidget {
   final DateTime date;
   const _DateDivider({required this.date});
+
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final label = date.year == now.year && date.month == now.month && date.day == now.day
-        ? 'Today'
-        : date.year == now.year && date.month == now.month && date.day == now.day - 1
-            ? 'Yesterday'
-            : '${date.day}/${date.month}/${date.year}';
+    String label;
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      label = 'Today';
+    } else if (date.year == now.year && date.month == now.month && date.day == now.day - 1) {
+      label = 'Yesterday';
+    } else {
+      label = '${date.day}/${date.month}/${date.year}';
+    }
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(children: [
         const Expanded(child: Divider()),
-        Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+        ),
         const Expanded(child: Divider()),
       ]),
     );
@@ -326,14 +407,23 @@ class _DateDivider extends StatelessWidget {
 class _EmptyChat extends StatelessWidget {
   final String vendorName;
   const _EmptyChat({required this.vendorName});
+
   @override
   Widget build(BuildContext context) => Center(
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(Icons.chat_bubble_outline, size: 56, color: AppColors.textMuted.withOpacity(0.4)),
       const SizedBox(height: 12),
-      Text('Start a conversation with $vendorName', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
+      Text(
+        'Start a conversation with $vendorName',
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+      ),
       const SizedBox(height: 4),
-      const Text('Ask about availability, pricing, and more', textAlign: TextAlign.center, style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+      const Text(
+        'Ask about availability, pricing, and more',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: AppColors.textMuted, fontSize: 12),
+      ),
     ]),
   );
 }

@@ -69,6 +69,9 @@ class AuthNotifier extends Notifier<AuthState> {
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
+  /// Re-run the token check from secure storage (used after biometric auth).
+  Future<void> refreshFromStorage() => _init();
+
   /// Bypass login with a demo customer account
   void demoCustomerLogin() {
     state = AuthState(

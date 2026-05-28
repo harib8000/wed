@@ -2,13 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'core/router.dart';
 import 'core/theme.dart';
 import 'models/user.dart';
 import 'providers/auth_provider.dart';
+import 'providers/theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Hive for local caching / offline support
+  await Hive.initFlutter();
 
   // Skip Firebase on web (no firebase_options.dart / google-services configured)
   // On native, Firebase + Notifications will be initialized via the services layer
@@ -65,10 +70,14 @@ class _WeddingOSAppState extends ConsumerState<WeddingOSApp> {
     // Watch auth state so the router's refresh notifier can trigger redirects
     ref.listen<AuthState>(authProvider, (_, next) {});
 
+    final themeMode = ref.watch(themeModeProvider);
+
     final app = MaterialApp.router(
       title: 'WeddingOS',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
       routerConfig: _router,
     );
 

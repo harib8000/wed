@@ -1,0 +1,71 @@
+{
+  "@@locale": "en",
+  "appName": "WeddingOS",
+  "@appName": { "description": "Application name" },
+
+  "home": "Home",
+  "explore": "Explore",
+  "bookings": "Bookings",
+  "profile": "Profile",
+  "notifications": "Notifications",
+  "wishlist": "Wishlist",
+  "checklist": "Checklist",
+  "chat": "Chat",
+  "reviews": "Reviews",
+
+  "login": "Sign In",
+  "logout": "Logout",
+  "sendOtp": "Send OTP",
+  "verifyOtp": "Verify OTP",
+  "enterPhone": "Enter your mobile number",
+  "enterOtp": "Enter the 6-digit OTP",
+
+  "vendors": "Vendors",
+  "searchVendors": "Search venues, photographers...",
+  "allCategories": "All",
+  "noVendorsFound": "No vendors found",
+  "noVendorsFoundMsg": "Try adjusting your filters or search term.",
+  "viewAll": "View All",
+  "seeAll": "See All",
+  "bookNow": "Book Now",
+  "enquire": "Send Enquiry",
+  "addToWishlist": "Add to Wishlist",
+  "removeFromWishlist": "Remove from Wishlist",
+
+  "bookingDetail": "Booking Details",
+  "confirmBooking": "Confirm Booking",
+  "cancelBooking": "Cancel Booking",
+  "noBookings": "No bookings yet",
+  "noBookingsMsg": "Start exploring vendors and book your dream wedding services.",
+
+  "paymentSuccessful": "Payment Successful!",
+  "paymentFailed": "Payment Failed",
+  "paymentPending": "Payment Pending",
+  "tryAgain": "Try Again",
+  "goHome": "Go to Home",
+  "viewBooking": "View Booking",
+
+  "kycVerification": "KYC Verification",
+  "chooseDocument": "Choose a document",
+  "submitDocument": "Submit",
+  "retake": "Retake",
+  "uploadPhoto": "Tap to capture or choose photo",
+
+  "weddingChecklist": "Wedding Checklist",
+  "tasksCompleted": "{done} of {total} tasks completed",
+  "@tasksCompleted": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+
+  "offlineBanner": "No internet connection",
+  "errorDefault": "Something went wrong. Please try again.",
+  "retry": "Try Again",
+  "emptyStateDefault": "Nothing here yet",
+
+  "darkMode": "Dark Mode",
+  "lightMode": "Light Mode",
+  "systemTheme": "System Default"
+}

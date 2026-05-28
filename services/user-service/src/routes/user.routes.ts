@@ -8,7 +8,10 @@ import {
   UpdateNotifPrefsSchema,
   RegisterPushTokenSchema,
   UploadKycSchema,
+  CreateChecklistItemSchema,
+  UpdateChecklistItemSchema,
 } from '../types/user.types';
+import { prisma } from '../config/database';
 
 export const userRouter = Router();
 
@@ -156,3 +159,90 @@ userRouter.patch(
 );
 
 userRouter.get('/health', (_req, res) => res.json({ status: 'ok', service: 'user-service' }));
+
+// ── GET /users/me/checklist ────────────────────────────────────────────────────
+
+userRouter.get('/me/checklist', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const items = await prisma.checklistItem.findMany({
+      where: { userId: req.user!.id },
+      orderBy: [{ daysBeforeEvent: 'desc' }, { createdAt: 'asc' }],
+    });
+    res.json({ success: true, data: { items }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── POST /users/me/checklist ───────────────────────────────────────────────────
+
+userRouter.post(
+  '/me/checklist',
+  authenticate,
+  validate(CreateChecklistItemSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { title, detail, category, daysBeforeEvent, isDone } = req.body;
+      const item = await prisma.checklistItem.create({
+        data: {
+          userId: req.user!.id,
+          title,
+          detail,
+          category: category ?? 'other',
+          daysBeforeEvent,
+          isDone: isDone ?? false,
+        },
+      });
+      res.status(201).json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── PATCH /users/me/checklist/:id ─────────────────────────────────────────────
+
+userRouter.patch(
+  '/me/checklist/:id',
+  authenticate,
+  validate(UpdateChecklistItemSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Ensure the item belongs to the authenticated user
+      const existing = await prisma.checklistItem.findFirst({
+        where: { id: req.params.id, userId: req.user!.id },
+      });
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'RES_3001', message: 'Checklist item not found' },
+          meta: meta(req),
+        });
+      }
+      const item = await prisma.checklistItem.update({
+        where: { id: req.params.id },
+        data: req.body,
+      });
+      res.json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── DELETE /users/me/checklist/:id ────────────────────────────────────────────
+
+userRouter.delete(
+  '/me/checklist/:id',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.checklistItem.findFirst({
+        where: { id: req.params.id, userId: req.user!.id },
+      });
+      if (!existing) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'RES_3001', message: 'Checklist item not found' },
+          meta: meta(req),
+        });
+      }
+      await prisma.checklistItem.delete({ where: { id: req.params.id } });
+      res.json({ success: true, data: { message: 'Deleted' }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);

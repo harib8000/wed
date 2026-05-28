@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
 
@@ -111,6 +113,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   int _resendTimer = 0;
   Timer? _timer;
   String? _errorMsg;
+
+  // Biometric auth support
+  final _localAuth = LocalAuthentication();
+  bool _biometricAvailable = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometrics();
+  }
+
+  Future<void> _checkBiometrics() async {
+    try {
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final isDeviceSupported = await _localAuth.isDeviceSupported();
+      final prefs = await SharedPreferences.getInstance();
+      final enabled = prefs.getBool('biometric_enabled') ?? false;
+      if (mounted) {
+        setState(() => _biometricAvailable = canCheck && isDeviceSupported && enabled);
+      }
+      // If biometric is enabled, attempt immediate authentication
+      if (canCheck && isDeviceSupported && enabled) {
+        _authenticateWithBiometrics();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _authenticateWithBiometrics() async {
+    try {
+      final authenticated = await _localAuth.authenticate(
+        localizedReason: 'Sign in to WeddingOS',
+        options: const AuthenticationOptions(stickyAuth: true, biometricOnly: true),
+      );
+      if (authenticated && mounted) {
+        // Trigger a silent re-auth using saved tokens (handled by AuthNotifier._init)
+        await ref.read(authProvider.notifier).refreshFromStorage();
+        if (mounted && ref.read(authProvider).isAuthenticated) {
+          final role = ref.read(authProvider).user?.role ?? 'CUSTOMER';
+          context.go(role == 'VENDOR' ? '/vendor/dashboard' : '/');
+        }
+      }
+    } catch (_) {}
+  }
 
   String get _phone => _phoneController.text.trim();
   String get _otp => _otpControllers.map((c) => c.text).join();

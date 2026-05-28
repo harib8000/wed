@@ -37,5 +37,21 @@ export const UploadKycSchema = z.object({
   contentType: z.string().regex(/^image\/(jpeg|png|webp)|application\/pdf$/),
 });
 
+export const CreateChecklistItemSchema = z.object({
+  title: z.string().min(1).max(300),
+  detail: z.string().max(500).optional(),
+  category: z.string().max(50).optional(),
+  daysBeforeEvent: z.number().int().min(0).optional(),
+  isDone: z.boolean().optional(),
+});
+
+export const UpdateChecklistItemSchema = z.object({
+  title: z.string().min(1).max(300).optional(),
+  detail: z.string().max(500).optional(),
+  category: z.string().max(50).optional(),
+  daysBeforeEvent: z.number().int().min(0).optional(),
+  isDone: z.boolean().optional(),
+});
+
 export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
 export type UpdateNotifPrefsInput = z.infer<typeof UpdateNotifPrefsSchema>;

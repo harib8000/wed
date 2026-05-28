@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../features/home/home_screen.dart';
@@ -13,6 +14,7 @@ import '../features/notifications/notifications_screen.dart';
 import '../features/reviews/write_review_screen.dart';
 import '../features/checklist/checklist_screen.dart';
 import '../features/profile/profile_screen.dart';
+import '../features/payment/payment_result_screen.dart';
 import '../features/vendor_dashboard/vendor_dashboard_screen_v2.dart';
 import '../features/vendor_dashboard/vendor_analytics_screen.dart';
 import '../features/vendor_dashboard/vendor_bookings_screen_v2.dart';
@@ -22,6 +24,7 @@ import '../features/vendor_dashboard/vendor_leads_screen.dart';
 import '../features/vendor_dashboard/vendor_calendar_screen.dart';
 import '../features/vendor_dashboard/vendor_reviews_screen.dart';
 import '../features/vendor_dashboard/vendor_settings_screen.dart';
+import '../features/vendor_dashboard/vendor_kyc_screen.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../shared/widgets/app_shell.dart';
@@ -63,6 +66,10 @@ String? _authRedirect(WidgetRef ref, GoRouterState state) {
 GoRouter buildRouter(WidgetRef ref) => GoRouter(
   initialLocation: '/',
   redirect: (context, state) => _authRedirect(ref, state),
+  // Handle unknown routes gracefully (e.g., from deep links with bad paths)
+  onException: (context, state, router) {
+    router.go('/');
+  },
   routes: [
     // ─── Customer App (ShellRoute with customer bottom nav) ───
     ShellRoute(
@@ -157,6 +164,25 @@ GoRouter buildRouter(WidgetRef ref) => GoRouter(
       ),
     ),
 
+    // ─── Payment result ───────────────────────────────────────────────────────
+    GoRoute(
+      path: '/payment/result',
+      builder: (context, state) {
+        final statusStr = state.uri.queryParameters['status'] ?? 'pending';
+        final status = switch (statusStr) {
+          'success' => PaymentResultStatus.success,
+          'failure' => PaymentResultStatus.failure,
+          _ => PaymentResultStatus.pending,
+        };
+        return PaymentResultScreen(
+          status: status,
+          bookingId: state.uri.queryParameters['bookingId'],
+          amount: state.uri.queryParameters['amount'],
+          errorMessage: state.uri.queryParameters['error'],
+        );
+      },
+    ),
+
     // ─── Vendor/Seller App (ShellRoute with vendor bottom nav) ───
     ShellRoute(
       builder: (context, state, child) => VendorAppShell(child: child),
@@ -200,6 +226,10 @@ GoRouter buildRouter(WidgetRef ref) => GoRouter(
     GoRoute(
       path: '/vendor/settings',
       builder: (context, state) => const VendorSettingsScreen(),
+    ),
+    GoRoute(
+      path: '/vendor/kyc',
+      builder: (context, state) => const VendorKycScreen(),
     ),
   ],
 );
