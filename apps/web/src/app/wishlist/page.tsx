@@ -30,6 +30,7 @@ interface WishlistItem {
 }
 
 const STORAGE_KEY = 'wedding_os_wishlist';
+const NOTES_STORAGE_KEY = 'wedding_os_wishlist_notes';
 
 const MOCK_WISHLIST: WishlistItem[] = [
   { id: 'w1', vendorId: 'v1', vendorName: 'Royal Grand Palace', vendorCategory: 'Venue', vendorImage: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=600&q=80', vendorCity: 'Hyderabad', vendorRating: 4.9, vendorReviews: 247, vendorPrice: '₹5L onwards', addedAt: '2025-01-05' },
@@ -43,13 +44,12 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
   Venue: Building2, Photography: Camera, Catering: Utensils, Decor: Sparkles, Music: Music,
 };
 
-type SortOption = 'recent' | 'rating' | 'price' | 'name';
+type SortOption = 'recent' | 'rating' | 'price';
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'recent', label: 'Recently Added' },
-  { value: 'rating', label: 'Rating (High)' },
-  { value: 'price', label: 'Price (Low)' },
-  { value: 'name', label: 'Name A-Z' },
+  { value: 'price', label: 'Price (Low-High)' },
+  { value: 'rating', label: 'Rating' },
 ];
 
 function parsePriceNumber(price: string): number {
@@ -69,8 +69,6 @@ function sortItems(items: WishlistItem[], sort: SortOption): WishlistItem[] {
       return copy.sort((a, b) => b.vendorRating - a.vendorRating);
     case 'price':
       return copy.sort((a, b) => parsePriceNumber(a.vendorPrice) - parsePriceNumber(b.vendorPrice));
-    case 'name':
-      return copy.sort((a, b) => a.vendorName.localeCompare(b.vendorName));
     default:
       return copy;
   }
@@ -93,6 +91,23 @@ function saveToStorage(items: WishlistItem[]) {
   } catch { /* quota errors are non-critical */ }
 }
 
+function loadNotes(): Record<string, string> {
+  try {
+    const raw = localStorage.getItem(NOTES_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveNotes(notes: Record<string, string>) {
+  try {
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+  } catch { /* quota errors are non-critical */ }
+}
+
 const cardVariants = {
   initial: { opacity: 0, y: 20, scale: 0.95 },
   animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3, ease: 'easeOut' } },
@@ -108,10 +123,10 @@ export default function WishlistPage() {
   const [sort, setSort] = useState<SortOption>('recent');
   const [sortOpen, setSortOpen] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sortRef = useRef<HTMLDivElement>(null);
 
-  // Close sort dropdown on outside click
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
@@ -126,7 +141,6 @@ export default function WishlistPage() {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
 
-  // Load from localStorage (or seed with mock data)
   useEffect(() => {
     if (!user) return;
     const stored = loadFromStorage();
@@ -136,12 +150,12 @@ export default function WishlistPage() {
       setItems(MOCK_WISHLIST);
       saveToStorage(MOCK_WISHLIST);
     }
+    setNotes(loadNotes());
     setIsLoading(false);
   }, [user]);
 
-  // Attempt to enrich wishlist items with fresh vendor data
   const { data: enrichedItems } = useQuery({
-    queryKey: ['wishlist-enrich', items.map(i => i.vendorId)],
+    queryKey: ['wishlist-enrich', items.map((item) => item.vendorId)],
     queryFn: async () => {
       const results = await Promise.allSettled(
         items.map(async (item) => {
@@ -155,23 +169,23 @@ export default function WishlistPage() {
               vendorRating: vendor.rating ?? item.vendorRating,
               vendorReviews: vendor.reviewCount ?? vendor.reviews ?? item.vendorReviews,
               vendorCity: vendor.city || item.vendorCity,
+              vendorPrice: vendor.basePrice ? `₹${Number(vendor.basePrice).toLocaleString('en-IN')} onwards` : item.vendorPrice,
             };
           } catch {
             return item;
           }
-        })
+        }),
       );
-      return results.map(r => r.status === 'fulfilled' ? r.value : items[0]);
+
+      return results.map((result, index) => result.status === 'fulfilled' ? result.value : items[index]);
     },
     enabled: items.length > 0,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     retry: false,
   });
 
-  // Use enriched items if available, otherwise use stored items
   const displayItems = enrichedItems ?? items;
 
-  // Persist whenever items change (skip initial load)
   const hasInitialized = useRef(false);
   useEffect(() => {
     if (isLoading) return;
@@ -183,24 +197,35 @@ export default function WishlistPage() {
   }, [items, isLoading]);
 
   const removeItem = useCallback((id: string) => {
-    const removedItem = items.find(i => i.id === id);
+    const removedItem = items.find((item) => item.id === id);
     if (!removedItem) return;
 
-    setItems(prev => prev.filter(i => i.id !== id));
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    setNotes((prev) => {
+      const next = { ...prev };
+      delete next[removedItem.vendorId];
+      saveNotes(next);
+      return next;
+    });
 
-    // Clear any existing undo timer
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
 
+    const removedNote = notes[removedItem.vendorId] || '';
     const toastId = toast(
       (t) => (
         <div className="flex items-center gap-3">
           <span className="text-sm text-gray-700">Removed from wishlist</span>
           <button
             onClick={() => {
-              setItems(prev => {
-                const exists = prev.some(i => i.id === removedItem.id);
+              setItems((prev) => {
+                const exists = prev.some((item) => item.id === removedItem.id);
                 if (exists) return prev;
                 return [...prev, removedItem];
+              });
+              setNotes((prev) => {
+                const next = { ...prev, [removedItem.vendorId]: removedNote };
+                saveNotes(next);
+                return next;
               });
               toast.dismiss(t.id);
               if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
@@ -221,68 +246,70 @@ export default function WishlistPage() {
       toast.dismiss(toastId);
       undoTimerRef.current = null;
     }, 5000);
-  }, [items]);
+  }, [items, notes]);
+
+  const handleNoteChange = useCallback((vendorId: string, value: string) => {
+    setNotes((prev) => ({ ...prev, [vendorId]: value }));
+  }, []);
+
+  const handleNoteBlur = useCallback((vendorId: string) => {
+    setNotes((prev) => {
+      const next = { ...prev };
+      if (!next[vendorId]?.trim()) {
+        delete next[vendorId];
+      } else {
+        next[vendorId] = next[vendorId].trim();
+      }
+      saveNotes(next);
+      return next;
+    });
+  }, []);
 
   const shareWishlist = useCallback(async () => {
-    const url = `${window.location.origin}/wishlist`;
-    const shareData = {
-      title: 'My Wedding Vendor Wishlist',
-      text: `Check out my wishlist of ${items.length} wedding vendors on Wedding OS!`,
-      url,
-    };
+    const url = window.location.href;
     try {
-      if (navigator.share && navigator.canShare?.(shareData)) {
-        await navigator.share(shareData);
-        toast.success('Shared successfully!', { duration: 2000 });
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast.success('Link copied to clipboard!', { duration: 2000, position: 'bottom-center' });
-      }
-    } catch (err: unknown) {
-      if ((err as Error)?.name !== 'AbortError') {
-        try {
-          await navigator.clipboard.writeText(url);
-          toast.success('Link copied!', { duration: 2000, position: 'bottom-center' });
-        } catch {
-          toast.error('Could not share');
-        }
-      }
+      await navigator.clipboard.writeText(url);
+      toast.success('Wishlist link copied for your family!', { duration: 2000, position: 'bottom-center' });
+    } catch {
+      toast.error('Could not copy wishlist link');
     }
-  }, [items.length]);
+  }, []);
 
   const clearAll = useCallback(() => {
     setItems([]);
+    setNotes({});
     saveToStorage([]);
+    saveNotes({});
     setShowClearConfirm(false);
     toast.success('Wishlist cleared', { duration: 2000 });
   }, []);
 
-  const categories = ['All', ...Array.from(new Set(
-    (displayItems.length > 0 ? displayItems : MOCK_WISHLIST).map(i => i.vendorCategory),
-  ))];
-  const filtered = filter === 'All' ? displayItems : displayItems.filter(i => i.vendorCategory === filter);
+  const categories = ['All', ...Array.from(new Set((displayItems.length > 0 ? displayItems : MOCK_WISHLIST).map((item) => item.vendorCategory)))];
+  const filtered = filter === 'All' ? displayItems : displayItems.filter((item) => item.vendorCategory === filter);
   const sorted = sortItems(filtered, sort);
 
   return (
     <>
       <Navbar />
       <main className="min-h-screen bg-gray-50 pb-24">
-        {/* Header */}
         <div className="bg-gradient-to-r from-pink-500 to-rose-600 text-white px-4 pt-8 pb-16">
           <div className="max-w-2xl mx-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 mb-2">
-                <Heart className="w-6 h-6 fill-white" />
-                <h1 className="text-2xl font-bold">Wishlist</h1>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <Heart className="w-6 h-6 fill-white" />
+                  <h1 className="text-2xl font-bold">Wishlist</h1>
+                </div>
+                <p className="text-white/70 text-sm">{items.length} vendor{items.length !== 1 ? 's' : ''} saved</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={shareWishlist}
-                  aria-label="Share wishlist link"
+                  aria-label="Share this wishlist with family"
                   className="flex items-center gap-2 bg-white/15 hover:bg-white/25 backdrop-blur-sm text-white px-3.5 py-2 rounded-xl text-sm font-medium transition-all"
                 >
                   <Share2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Share</span>
+                  <span className="hidden sm:inline">Share this wishlist with family</span>
                 </button>
                 {items.length > 0 && (
                   <button
@@ -296,16 +323,13 @@ export default function WishlistPage() {
                 )}
               </div>
             </div>
-            <p className="text-white/70 text-sm">{items.length} vendor{items.length !== 1 ? 's' : ''} saved</p>
           </div>
         </div>
 
         <div className="max-w-2xl mx-auto px-4 -mt-6 space-y-4">
-          {/* Toolbar: filters + sort */}
           <div className="flex items-center gap-3">
-            {/* Filter chips */}
             <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar flex-1">
-              {categories.map(cat => (
+              {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setFilter(cat)}
@@ -323,10 +347,9 @@ export default function WishlistPage() {
               ))}
             </div>
 
-            {/* Sort dropdown */}
             <div className="relative flex-shrink-0" ref={sortRef}>
               <button
-                onClick={() => setSortOpen(o => !o)}
+                onClick={() => setSortOpen((open) => !open)}
                 aria-label="Sort wishlist"
                 aria-expanded={sortOpen}
                 className="flex items-center gap-1.5 bg-white border border-gray-200 hover:border-brand-300 text-gray-600 px-3 py-2 rounded-xl text-sm font-medium transition-all"
@@ -341,11 +364,11 @@ export default function WishlistPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.15 }}
-                    className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-30"
+                    className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-30"
                     role="listbox"
                     aria-label="Sort options"
                   >
-                    {SORT_OPTIONS.map(opt => (
+                    {SORT_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         role="option"
@@ -367,10 +390,9 @@ export default function WishlistPage() {
             </div>
           </div>
 
-          {/* List */}
           {isLoading ? (
             <div className="space-y-3">
-              {[1, 2, 3].map(i => (
+              {[1, 2, 3].map((i) => (
                 <div key={i} className="bg-white rounded-2xl h-36 animate-pulse" />
               ))}
             </div>
@@ -400,7 +422,7 @@ export default function WishlistPage() {
           ) : (
             <div className="space-y-3">
               <AnimatePresence mode="popLayout">
-                {sorted.map(item => {
+                {sorted.map((item) => {
                   const CategoryIcon = CATEGORY_ICONS[item.vendorCategory] ?? Building2;
                   return (
                     <motion.div
@@ -465,6 +487,17 @@ export default function WishlistPage() {
                               Book Now
                             </Link>
                           </div>
+                          <div className="mt-3">
+                            <input
+                              type="text"
+                              value={notes[item.vendorId] || ''}
+                              onChange={(e) => handleNoteChange(item.vendorId, e.target.value)}
+                              onBlur={() => handleNoteBlur(item.vendorId)}
+                              placeholder="Add a note"
+                              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder:text-gray-400 focus:border-brand-300 focus:outline-none"
+                              aria-label={`Add note for ${item.vendorName}`}
+                            />
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -475,7 +508,6 @@ export default function WishlistPage() {
           )}
         </div>
 
-        {/* Clear All Confirmation Dialog */}
         <AnimatePresence>
           {showClearConfirm && (
             <motion.div

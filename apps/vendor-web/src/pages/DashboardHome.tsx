@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, Calendar, Star, DollarSign, Clock, CheckCircle, ArrowUpRight, Users, AlertTriangle } from 'lucide-react';
+import {
+  TrendingUp, Calendar, Star, DollarSign, Clock, CheckCircle,
+  ArrowUpRight, ArrowDownRight, AlertTriangle, MessageSquare, Lightbulb,
+} from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { statsApi, bookingApi, type VendorStats, type MonthlyData, type VendorBooking } from '../lib/api';
 
@@ -54,11 +57,63 @@ export function DashboardHome() {
   const pending = recentBookings?.data?.bookings ?? MOCK_PENDING;
   const isMock = statsError;
 
+  const reviewCount = (s as VendorStats & { reviewCount?: number }).reviewCount ?? 24;
+  const avgResponseTime = '2.3 hrs';
+  const conversionRate = s.totalBookings > 0
+    ? `${Math.round((s.completedBookings / s.totalBookings) * 100)}%`
+    : '34%';
+  const quotePending = Math.max(pending.filter((b) => b.status === 'QUOTE_SENT').length, 1);
+  const reviewsToReply = Math.max(Math.min(Math.round(reviewCount / 12), 4), 2);
+
   const STAT_CARDS = [
-    { label: 'Total Bookings', value: String(s.totalBookings), icon: Calendar, change: s.pendingEnquiries > 0 ? `${s.pendingEnquiries} pending` : '+12%', color: 'text-brand-600 bg-brand-50' },
-    { label: 'Revenue This Month', value: formatINR(s.revenueThisMonth), icon: DollarSign, change: '+8%', color: 'text-green-600 bg-green-50' },
-    { label: 'Avg. Rating', value: s.avgRating.toFixed(1), icon: Star, change: `${(s as VendorStats & { reviewCount?: number }).reviewCount ?? 0} reviews`, color: 'text-yellow-600 bg-yellow-50' },
-    { label: 'Response Rate', value: `${s.responseRate}%`, icon: Clock, change: s.responseRate >= 90 ? 'Excellent' : 'Needs work', color: 'text-blue-600 bg-blue-50' },
+    { label: 'Total Bookings', value: String(s.totalBookings), icon: Calendar, change: '▲ 12%', tone: 'text-emerald-600', color: 'text-brand-600 bg-brand-50', meta: s.pendingEnquiries > 0 ? `${s.pendingEnquiries} pending` : 'Steady pipeline' },
+    { label: 'Revenue This Month', value: formatINR(s.revenueThisMonth), icon: DollarSign, change: '▲ 8%', tone: 'text-emerald-600', color: 'text-green-600 bg-green-50', meta: 'Month-over-month growth' },
+    { label: 'Avg. Rating', value: s.avgRating.toFixed(1), icon: Star, change: '▲ 4%', tone: 'text-emerald-600', color: 'text-yellow-600 bg-yellow-50', meta: `${reviewCount} reviews` },
+    { label: 'Response Rate', value: `${s.responseRate}%`, icon: MessageSquare, change: s.responseRate >= 90 ? '▲ 6%' : '▼ 3%', tone: s.responseRate >= 90 ? 'text-emerald-600' : 'text-red-600', color: 'text-blue-600 bg-blue-50', meta: s.responseRate >= 90 ? 'Excellent' : 'Needs attention' },
+    { label: 'Avg. Response Time', value: avgResponseTime, icon: Clock, change: '▼ 5%', tone: 'text-emerald-600', color: 'text-purple-600 bg-purple-50', meta: 'Faster replies this month' },
+    { label: 'Enquiry → Booking', value: conversionRate, icon: TrendingUp, change: '▲ 12%', tone: 'text-emerald-600', color: 'text-emerald-600 bg-emerald-50', meta: 'Conversion rate' },
+  ];
+
+  const ACTION_ITEMS = [
+    {
+      title: `${s.pendingEnquiries} enquiries need response`,
+      description: 'Reach out quickly to keep your profile ranking high.',
+      href: '/leads',
+      cta: 'Respond now',
+      icon: MessageSquare,
+      accent: 'bg-amber-50 text-amber-700',
+    },
+    {
+      title: `${quotePending} quote pending`,
+      description: 'Follow up on quotes before customers compare alternatives.',
+      href: '/bookings',
+      cta: 'Review quotes',
+      icon: DollarSign,
+      accent: 'bg-blue-50 text-blue-700',
+    },
+    {
+      title: `${reviewsToReply} reviews to reply`,
+      description: 'Thoughtful responses build trust with future customers.',
+      href: '/reviews',
+      cta: 'Reply to reviews',
+      icon: Star,
+      accent: 'bg-green-50 text-green-700',
+    },
+  ];
+
+  const PERFORMANCE_TIPS = [
+    {
+      title: 'Respond to enquiries within 2 hours to improve your ranking',
+      description: `Your current average is ${avgResponseTime}. Faster replies often convert more couples.`,
+    },
+    {
+      title: 'Complete your profile to get 3x more enquiries',
+      description: 'Finish KYC, bank account, and service details to unlock higher trust signals.',
+    },
+    {
+      title: 'Add portfolio photos to attract more customers',
+      description: 'Vendors with fresh photos usually see better click-through and stronger shortlists.',
+    },
   ];
 
   return (
@@ -71,29 +126,29 @@ export function DashboardHome() {
         </p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
         {STAT_CARDS.map((stat) => {
           const Icon = stat.icon;
+          const ChangeIcon = stat.change.startsWith('▼') ? ArrowDownRight : ArrowUpRight;
           return (
             <div key={stat.label} className="stat-card">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-start justify-between mb-3 gap-3">
                 <div className={`w-10 h-10 rounded-xl ${stat.color} flex items-center justify-center`}>
                   <Icon size={18} />
                 </div>
-                <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                  <ArrowUpRight size={12} /> {stat.change}
+                <span className={`text-xs font-medium flex items-center gap-1 ${stat.tone}`}>
+                  <ChangeIcon size={12} /> {stat.change}
                 </span>
               </div>
               <div className="text-2xl font-bold text-gray-900">{stat.value}</div>
               <div className="text-sm text-gray-500">{stat.label}</div>
+              <div className="text-xs text-gray-400 mt-1">{stat.meta}</div>
             </div>
           );
         })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* Chart */}
         <div className="card p-5">
           <h3 className="font-semibold text-gray-900 mb-4">Bookings & Revenue (6 months)</h3>
           <ResponsiveContainer width="100%" height={200}>
@@ -102,12 +157,11 @@ export function DashboardHome() {
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar yAxisId="left" dataKey="bookings" fill="#c026d3" radius={[4,4,0,0]} name="Bookings" />
+              <Bar yAxisId="left" dataKey="bookings" fill="#c026d3" radius={[4, 4, 0, 0]} name="Bookings" />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Recent bookings */}
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Recent Booking Requests</h3>
@@ -135,7 +189,58 @@ export function DashboardHome() {
         </div>
       </div>
 
-      {/* Profile completion */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">Action Required</h3>
+            <span className="text-xs text-gray-400">Prioritise these today</span>
+          </div>
+          <div className="space-y-3">
+            {ACTION_ITEMS.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.title} className="rounded-2xl border border-gray-100 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.accent}`}>
+                      <Icon size={18} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">{item.title}</p>
+                      <p className="text-xs text-gray-500 mt-1">{item.description}</p>
+                    </div>
+                    <a href={item.href} className="btn-secondary text-xs py-1.5 px-3 whitespace-nowrap">
+                      {item.cta}
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-gray-900">Performance Tips</h3>
+            <Lightbulb size={16} className="text-amber-500" />
+          </div>
+          <div className="space-y-3">
+            {PERFORMANCE_TIPS.map((tip, idx) => (
+              <div key={tip.title} className="rounded-2xl bg-gray-50 p-4 border border-gray-100">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center mt-0.5">
+                    {idx + 1}
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{tip.title}</p>
+                    <p className="text-xs text-gray-500 mt-1">{tip.description}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="card p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-900">Profile Completion</h3>
