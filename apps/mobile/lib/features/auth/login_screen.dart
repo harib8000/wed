@@ -679,7 +679,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             child: TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(10), _PhoneNumberFormatter()],
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9 ]')), LengthLimitingTextInputFormatter(11), _PhoneNumberFormatter()],
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 1.5),
               decoration: const InputDecoration(
                 hintText: '98765 43210',
