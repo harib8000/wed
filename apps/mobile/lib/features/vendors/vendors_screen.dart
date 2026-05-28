@@ -25,6 +25,7 @@ const _allVendors = [
 
 const _filterCategories = ['All', 'Venue', 'Photography', 'Catering', 'Decor', 'Makeup', 'Music', 'Videography'];
 const _sortOptions = ['Relevance', 'Rating', 'Price: Low to High', 'Price: High to Low', 'Most Reviewed'];
+const _cities = ['All Cities', 'Hyderabad', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai'];
 
 class VendorsScreen extends StatefulWidget {
   final String? initialCategory;
@@ -37,8 +38,14 @@ class VendorsScreen extends StatefulWidget {
 class _VendorsScreenState extends State<VendorsScreen> {
   late String _selectedCategory;
   String _selectedSort = 'Relevance';
+  String _selectedCity = 'All Cities';
+  RangeValues _priceRange = const RangeValues(0, 10);   // in lakhs
+  double _minRating = 0;
   final _searchController = TextEditingController();
   String _searchQuery = '';
+
+  bool get _hasActiveFilters =>
+      _selectedCity != 'All Cities' || _priceRange != const RangeValues(0, 10) || _minRating > 0;
 
   @override
   void initState() {
@@ -59,6 +66,12 @@ class _VendorsScreenState extends State<VendorsScreen> {
     var list = _allVendors.toList();
     if (_selectedCategory != 'All') {
       list = list.where((v) => v.category == _selectedCategory).toList();
+    }
+    if (_selectedCity != 'All Cities') {
+      list = list.where((v) => v.city == _selectedCity).toList();
+    }
+    if (_minRating > 0) {
+      list = list.where((v) => v.rating >= _minRating).toList();
     }
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
@@ -83,8 +96,26 @@ class _VendorsScreenState extends State<VendorsScreen> {
       appBar: AppBar(
         title: const Text('Explore Vendors'),
         actions: [
+          Stack(
+            children: [
+              IconButton(
+                tooltip: 'Filters',
+                icon: const Icon(Icons.tune),
+                onPressed: () => _showFilterSheet(context),
+              ),
+              if (_hasActiveFilters)
+                Positioned(
+                  right: 8, top: 8,
+                  child: Container(
+                    width: 8, height: 8,
+                    decoration: BoxDecoration(color: AppColors.brand, shape: BoxShape.circle),
+                  ),
+                ),
+            ],
+          ),
           IconButton(
-            icon: const Icon(Icons.filter_list),
+            tooltip: 'Sort',
+            icon: const Icon(Icons.sort),
             onPressed: () => _showSortSheet(context),
           ),
         ],
@@ -167,7 +198,7 @@ class _VendorsScreenState extends State<VendorsScreen> {
                         const SizedBox(height: 16),
                         Text('No vendors found', style: TextStyle(color: AppColors.textMuted, fontSize: 16)),
                         const SizedBox(height: 8),
-                        TextButton(onPressed: () => setState(() { _selectedCategory = 'All'; _searchController.clear(); _searchQuery = ''; }), child: const Text('Clear Filters')),
+                        TextButton(onPressed: _clearAllFilters, child: const Text('Clear Filters')),
                       ],
                     ),
                   )
@@ -181,6 +212,17 @@ class _VendorsScreenState extends State<VendorsScreen> {
         ],
       ),
     );
+  }
+
+  void _clearAllFilters() {
+    setState(() {
+      _selectedCategory = 'All';
+      _selectedCity = 'All Cities';
+      _priceRange = const RangeValues(0, 10);
+      _minRating = 0;
+      _searchController.clear();
+      _searchQuery = '';
+    });
   }
 
   void _showSortSheet(BuildContext context) {
@@ -202,6 +244,153 @@ class _VendorsScreenState extends State<VendorsScreen> {
             )),
             const SizedBox(height: 8),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showFilterSheet(BuildContext context) {
+    // Use local state inside the sheet so we can preview before applying
+    String city = _selectedCity;
+    RangeValues price = _priceRange;
+    double rating = _minRating;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (ctx, setSheetState) => DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.65,
+          maxChildSize: 0.85,
+          minChildSize: 0.4,
+          builder: (_, scrollCtrl) => Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+            child: ListView(
+              controller: scrollCtrl,
+              children: [
+                // Handle bar
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 12, bottom: 8),
+                    width: 40, height: 4,
+                    decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                  ),
+                ),
+                // Title row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Filters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    TextButton(
+                      onPressed: () {
+                        setSheetState(() {
+                          city = 'All Cities';
+                          price = const RangeValues(0, 10);
+                          rating = 0;
+                        });
+                      },
+                      child: Text('Reset', style: TextStyle(color: AppColors.brand)),
+                    ),
+                  ],
+                ),
+                const Divider(),
+
+                // ─── City ────────────────────────
+                const Text('City', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8, runSpacing: 8,
+                  children: _cities.map((c) {
+                    final sel = city == c;
+                    return ChoiceChip(
+                      label: Text(c, style: TextStyle(fontSize: 12, color: sel ? Colors.white : AppColors.textPrimary)),
+                      selected: sel,
+                      selectedColor: AppColors.brand,
+                      backgroundColor: Colors.grey.shade100,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      onSelected: (_) => setSheetState(() => city = c),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 20),
+
+                // ─── Price range ──────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Budget', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                    Text(
+                      price.start == 0 && price.end >= 10
+                          ? 'Any budget'
+                          : '₹${price.start.toStringAsFixed(0)}L – ₹${price.end >= 10 ? "10L+" : "${price.end.toStringAsFixed(0)}L"}',
+                      style: TextStyle(color: AppColors.brand, fontSize: 13),
+                    ),
+                  ],
+                ),
+                RangeSlider(
+                  values: price,
+                  min: 0, max: 10,
+                  divisions: 10,
+                  activeColor: AppColors.brand,
+                  labels: RangeLabels(
+                    '₹${price.start.toStringAsFixed(0)}L',
+                    price.end >= 10 ? '₹10L+' : '₹${price.end.toStringAsFixed(0)}L',
+                  ),
+                  onChanged: (v) => setSheetState(() => price = v),
+                ),
+                const SizedBox(height: 10),
+
+                // ─── Min rating ───────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Minimum Rating', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+                    if (rating > 0)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.star, color: AppColors.gold, size: 16),
+                          Text(' ${rating.toStringAsFixed(1)}+', style: const TextStyle(fontSize: 13)),
+                        ],
+                      ),
+                  ],
+                ),
+                Slider(
+                  value: rating,
+                  min: 0, max: 5,
+                  divisions: 10,
+                  activeColor: AppColors.brand,
+                  label: rating == 0 ? 'Any' : '${rating.toStringAsFixed(1)}+',
+                  onChanged: (v) => setSheetState(() => rating = v),
+                ),
+                const SizedBox(height: 20),
+
+                // ─── Apply button ─────────────────
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.brand,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _selectedCity = city;
+                        _priceRange = price;
+                        _minRating = rating;
+                      });
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Apply Filters', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
         ),
       ),
     );

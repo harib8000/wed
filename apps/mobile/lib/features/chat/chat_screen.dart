@@ -60,8 +60,11 @@ class ChatNotifier extends StateNotifier<AsyncValue<List<ChatMessage>>> {
       final token = await _storage.read(key: 'access_token');
       if (token == null) return;
 
-      // Derive the Socket.IO base URL from the API base URL (strip /api/v1)
-      final socketUrl = ApiClient.baseUrl.replaceAll(RegExp(r'/api/v\d+$'), '');
+      // Derive the Socket.IO base URL from the API base URL (strip /api/v1 suffix if present)
+      final base = ApiClient.baseUrl;
+      final socketUrl = base.contains('/api/v')
+          ? base.replaceAll(RegExp(r'/api/v\d+.*$'), '')
+          : base;
 
       _socket = sio.io(
         socketUrl,

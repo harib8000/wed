@@ -4,10 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _kThemeKey = 'app_theme_mode';
 
+/// Persists the user's theme preference in SharedPreferences.
+/// The initial state is [ThemeMode.system]; it updates asynchronously
+/// once the stored preference is loaded from disk.
 class ThemeModeNotifier extends Notifier<ThemeMode> {
   @override
   ThemeMode build() {
-    _loadFromPrefs();
+    // Schedule async load — state starts as system and updates after prefs load
+    Future.microtask(_loadFromPrefs);
     return ThemeMode.system;
   }
 
@@ -22,7 +26,7 @@ class ThemeModeNotifier extends Notifier<ThemeMode> {
       };
       state = mode;
     } catch (_) {
-      // Fallback to system theme
+      // Fallback to system theme on error
     }
   }
 

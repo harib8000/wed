@@ -12,6 +12,9 @@ on:
       - 'apps/mobile/**'
       - '.github/workflows/flutter.yml'
 
+permissions:
+  contents: read
+
 defaults:
   run:
     working-directory: apps/mobile

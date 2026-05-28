@@ -3,6 +3,7 @@ import { profileService } from '../services/profile.service';
 import { authenticate, requireRole } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { getPresignedUploadUrl } from '../utils/s3';
+import { NotFoundError } from '@wedding-os/shared-errors';
 import {
   UpdateProfileSchema,
   UpdateNotifPrefsSchema,
@@ -208,13 +209,7 @@ userRouter.patch(
       const existing = await prisma.checklistItem.findFirst({
         where: { id: req.params.id, userId: req.user!.id },
       });
-      if (!existing) {
-        return res.status(404).json({
-          success: false,
-          error: { code: 'RES_3001', message: 'Checklist item not found' },
-          meta: meta(req),
-        });
-      }
+      if (!existing) throw new NotFoundError('ChecklistItem', req.params.id);
       const item = await prisma.checklistItem.update({
         where: { id: req.params.id },
         data: req.body,
@@ -234,13 +229,7 @@ userRouter.delete(
       const existing = await prisma.checklistItem.findFirst({
         where: { id: req.params.id, userId: req.user!.id },
       });
-      if (!existing) {
-        return res.status(404).json({
-          success: false,
-          error: { code: 'RES_3001', message: 'Checklist item not found' },
-          meta: meta(req),
-        });
-      }
+      if (!existing) throw new NotFoundError('ChecklistItem', req.params.id);
       await prisma.checklistItem.delete({ where: { id: req.params.id } });
       res.json({ success: true, data: { message: 'Deleted' }, meta: meta(req) });
     } catch (err) { next(err); }
