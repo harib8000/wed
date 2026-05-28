@@ -1,6 +1,6 @@
 /**
  * Vendor Portal API Client — Axios instance with JWT auth.
- * Hits the API gateway and surfaces typed helpers for vendor operations.
+ * Hits the API gateway and refreshes vendor JWTs on 401.
  */
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 import Cookies from 'js-cookie';
@@ -22,15 +22,67 @@ vendorApi.interceptors.request.use((cfg) => {
   return cfg;
 });
 
-// ── Response: handle 401 → logout ─────────────────────────────────────────────
+// ── Response: handle 401 with token refresh ───────────────────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (token) resolve(token);
+    else reject(error);
+  });
+  failedQueue = [];
+};
+
+const clearAuthAndRedirect = () => {
+  useAuthStore.getState().logout();
+  window.location.href = '/login';
+};
+
 vendorApi.interceptors.response.use(
   (res) => res,
-  (err: AxiosError) => {
-    if (err.response?.status === 401) {
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+  async (err: AxiosError) => {
+    const originalRequest = err.config;
+    if (!originalRequest || err.response?.status !== 401) {
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
+
+    if (originalRequest.url?.includes('/auth/refresh')) {
+      clearAuthAndRedirect();
+      return Promise.reject(err);
+    }
+
+    if (isRefreshing) {
+      return new Promise<string>((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        originalRequest.headers.Authorization = 'Bearer ' + token;
+        return vendorApi(originalRequest);
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+      const newToken = data?.data?.accessToken;
+
+      if (newToken) {
+        Cookies.set('access_token', newToken, { expires: 1 / 96, sameSite: 'lax' });
+        localStorage.setItem('access_token', newToken);
+        originalRequest.headers.Authorization = 'Bearer ' + newToken;
+        processQueue(null, newToken);
+        return vendorApi(originalRequest);
+      }
+
+      throw new Error('No access token in refresh response');
+    } catch (refreshErr) {
+      processQueue(refreshErr, null);
+      clearAuthAndRedirect();
+      return Promise.reject(refreshErr);
+    } finally {
+      isRefreshing = false;
+    }
   },
 );
 
