@@ -6,6 +6,7 @@ import { Vendors } from './pages/Vendors';
 import { Bookings, Users, Payments } from './pages/Bookings';
 import { Disputes } from './pages/Disputes';
 import { Reports } from './pages/Reports';
+import { Settings } from './pages/Settings';
 import Cookies from 'js-cookie';
 
 function Protect({ children }: { children: React.ReactNode }) {
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="payments" element={<Payments />} />
         <Route path="disputes" element={<Disputes />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

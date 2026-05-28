@@ -18,7 +18,7 @@ import {
 } from '../types/user.types';
 import { prisma } from '../config/database';
 
-export const userRouter = Router();
+export const userRouter: Router = Router();
 
 function meta(req: Request) {
   return { requestId: req.headers['x-request-id'], timestamp: new Date().toISOString() };

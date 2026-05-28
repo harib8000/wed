@@ -1,6 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Avatar, Dropdown, Button } from 'antd';
-import { DashboardOutlined, ShopOutlined, BookOutlined, UserOutlined, DollarOutlined, LogoutOutlined, BellOutlined, ExclamationCircleOutlined, BarChartOutlined } from '@ant-design/icons';
+import { DashboardOutlined, ShopOutlined, BookOutlined, UserOutlined, DollarOutlined, LogoutOutlined, BellOutlined, ExclamationCircleOutlined, BarChartOutlined, SettingOutlined } from '@ant-design/icons';
 import Cookies from 'js-cookie';
 
 const { Sider, Header, Content } = Layout;
@@ -13,6 +13,7 @@ const MENU_ITEMS = [
   { key: '/payments', icon: <DollarOutlined />, label: 'Payments' },
   { key: '/disputes', icon: <ExclamationCircleOutlined />, label: 'Disputes' },
   { key: '/reports', icon: <BarChartOutlined />, label: 'Reports' },
+  { key: '/settings', icon: <SettingOutlined />, label: 'Settings' },
 ];
 
 export function AdminLayout() {

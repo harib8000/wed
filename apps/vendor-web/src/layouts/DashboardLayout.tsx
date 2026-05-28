@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { label: 'Reviews', icon: Star, to: '/reviews' },
   { label: 'Payouts', icon: Wallet, to: '/payouts' },
   { label: 'Analytics', icon: BarChart2, to: '/analytics' },
+  { label: 'Settings', icon: Settings, to: '/settings' },
   { label: 'My Profile', icon: User, to: '/profile' },
 ];
 

@@ -2,12 +2,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Calendar, Heart, CheckSquare, Search, Shield, ArrowRight, Star, MapPin, Building2, Camera, Utensils, Sparkles, Music, Palette, Car, FileText, Users, ChevronRight, TrendingUp, Flame, Zap, Plus, X, Activity, PartyPopper, MessageCircle, ListChecks, UserPlus } from 'lucide-react';
+import { Calendar, Heart, CheckSquare, Search, Shield, ArrowRight, Star, MapPin, Building2, Camera, Utensils, Sparkles, Music, Palette, Car, FileText, Users, ChevronRight, TrendingUp, Flame, Zap, Plus, X, Activity, PartyPopper, MessageCircle, ListChecks, UserPlus, Wallet, PieChart, IndianRupee, Pencil, Trash2, Save } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
-import { authApi, bookingApi, userApi } from '@/lib/api';
+import { authApi, bookingApi, userApi, type BudgetItem } from '@/lib/api';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { SmartNextSteps } from '@/components/engagement/SmartNextSteps';
@@ -59,6 +59,87 @@ const RECENT_ACTIVITIES = [
 
 const fadeIn = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } };
 const TASKS_STORAGE_KEY = 'wedding_os_dashboard_tasks';
+const BUDGET_CATEGORY_OPTIONS = ['VENUE', 'CATERING', 'PHOTOGRAPHY', 'VIDEOGRAPHY', 'DECORATION', 'MAKEUP', 'MUSIC', 'TRANSPORT', 'INVITATION', 'MEHENDI', 'ATTIRE', 'JEWELLERY', 'GIFTS', 'ACCOMMODATION', 'HONEYMOON', 'OTHER'] as const;
+
+type BudgetCategory = typeof BUDGET_CATEGORY_OPTIONS[number];
+type BudgetSummary = {
+  totalEstimated: number;
+  totalActual: number;
+  totalPaid: number;
+  itemCount: number;
+};
+type BudgetData = {
+  items: BudgetItem[];
+  summary: BudgetSummary;
+  byCategory: Record<string, { estimated: number; actual: number; count: number }>;
+};
+type BudgetFormState = {
+  category: BudgetCategory;
+  label: string;
+  estimatedRupees: string;
+  actualRupees: string;
+  vendorName: string;
+  isPaid: boolean;
+  notes: string;
+};
+
+const EMPTY_BUDGET_DATA: BudgetData = {
+  items: [],
+  summary: { totalEstimated: 0, totalActual: 0, totalPaid: 0, itemCount: 0 },
+  byCategory: {},
+};
+
+const DEFAULT_BUDGET_FORM: BudgetFormState = {
+  category: 'VENUE',
+  label: '',
+  estimatedRupees: '',
+  actualRupees: '',
+  vendorName: '',
+  isPaid: false,
+  notes: '',
+};
+
+const BUDGET_CATEGORY_META: Record<BudgetCategory, { label: string; dot: string; bar: string; soft: string }> = {
+  VENUE: { label: 'Venue', dot: 'bg-purple-500', bar: 'from-purple-500 to-violet-500', soft: 'bg-purple-50 text-purple-700' },
+  CATERING: { label: 'Catering', dot: 'bg-orange-500', bar: 'from-orange-500 to-amber-500', soft: 'bg-orange-50 text-orange-700' },
+  PHOTOGRAPHY: { label: 'Photography', dot: 'bg-pink-500', bar: 'from-pink-500 to-rose-500', soft: 'bg-pink-50 text-pink-700' },
+  VIDEOGRAPHY: { label: 'Videography', dot: 'bg-indigo-500', bar: 'from-indigo-500 to-blue-500', soft: 'bg-indigo-50 text-indigo-700' },
+  DECORATION: { label: 'Decoration', dot: 'bg-yellow-500', bar: 'from-yellow-500 to-amber-500', soft: 'bg-yellow-50 text-yellow-700' },
+  MAKEUP: { label: 'Makeup', dot: 'bg-rose-500', bar: 'from-rose-500 to-pink-500', soft: 'bg-rose-50 text-rose-700' },
+  MUSIC: { label: 'Music', dot: 'bg-blue-500', bar: 'from-blue-500 to-cyan-500', soft: 'bg-blue-50 text-blue-700' },
+  TRANSPORT: { label: 'Transport', dot: 'bg-emerald-500', bar: 'from-emerald-500 to-green-500', soft: 'bg-emerald-50 text-emerald-700' },
+  INVITATION: { label: 'Invitation', dot: 'bg-teal-500', bar: 'from-teal-500 to-cyan-500', soft: 'bg-teal-50 text-teal-700' },
+  MEHENDI: { label: 'Mehendi', dot: 'bg-lime-500', bar: 'from-lime-500 to-emerald-500', soft: 'bg-lime-50 text-lime-700' },
+  ATTIRE: { label: 'Attire', dot: 'bg-fuchsia-500', bar: 'from-fuchsia-500 to-purple-500', soft: 'bg-fuchsia-50 text-fuchsia-700' },
+  JEWELLERY: { label: 'Jewellery', dot: 'bg-amber-500', bar: 'from-amber-500 to-yellow-500', soft: 'bg-amber-50 text-amber-700' },
+  GIFTS: { label: 'Gifts', dot: 'bg-red-500', bar: 'from-red-500 to-rose-500', soft: 'bg-red-50 text-red-700' },
+  ACCOMMODATION: { label: 'Accommodation', dot: 'bg-sky-500', bar: 'from-sky-500 to-blue-500', soft: 'bg-sky-50 text-sky-700' },
+  HONEYMOON: { label: 'Honeymoon', dot: 'bg-cyan-500', bar: 'from-cyan-500 to-teal-500', soft: 'bg-cyan-50 text-cyan-700' },
+  OTHER: { label: 'Other', dot: 'bg-gray-500', bar: 'from-gray-500 to-slate-500', soft: 'bg-gray-100 text-gray-700' },
+};
+
+function formatPaise(paise: number) {
+  return `₹${Math.round(paise / 100).toLocaleString('en-IN')}`;
+}
+
+function toPaise(value: string) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) return 0;
+  return Math.round(amount * 100);
+}
+
+function getBudgetFormState(item?: BudgetItem): BudgetFormState {
+  if (!item) return DEFAULT_BUDGET_FORM;
+  return {
+    category: (item.category as BudgetCategory) ?? 'OTHER',
+    label: item.label,
+    estimatedRupees: item.estimatedPaise ? String(item.estimatedPaise / 100) : '',
+    actualRupees: item.actualPaise != null ? String(item.actualPaise / 100) : '',
+    vendorName: item.vendorName ?? '',
+    isPaid: item.isPaid,
+    notes: item.notes ?? '',
+  };
+}
 
 function loadTasksFromStorage(): typeof DEFAULT_TASKS | null {
   try {
@@ -130,9 +211,13 @@ export default function DashboardPage() {
   const [newTaskPriority, setNewTaskPriority] = useState<'high' | 'medium' | 'low'>('medium');
   const [preferences, setPreferences] = useState<ReturnType<typeof getStoredPreferences>>(null);
   const [selectedCity, setSelectedCityState] = useState('All India');
+  const [showBudgetForm, setShowBudgetForm] = useState(false);
+  const [editingBudgetId, setEditingBudgetId] = useState<string | null>(null);
+  const [budgetForm, setBudgetForm] = useState<BudgetFormState>(DEFAULT_BUDGET_FORM);
 
   const nextIdRef = useRef(100);
   const taskInitRef = useRef(false);
+  const queryClient = useQueryClient();
 
   const { data: bookingsData } = useQuery({
     queryKey: ['dashboard-bookings'],
@@ -150,6 +235,13 @@ export default function DashboardPage() {
       const res = await userApi.getProfile();
       return res.data?.data ?? res.data;
     },
+    enabled: !!user,
+    retry: 1,
+  });
+
+  const { data: budgetData = EMPTY_BUDGET_DATA, isLoading: isBudgetLoading } = useQuery<BudgetData>({
+    queryKey: ['dashboard-budget'],
+    queryFn: () => userApi.getBudget(),
     enabled: !!user,
     retry: 1,
   });
@@ -175,18 +267,19 @@ export default function DashboardPage() {
     return () => window.removeEventListener('locationChanged', handleLocationChange as EventListener);
   }, []);
 
-  const countdownTargetDate = preferences?.weddingDate || profileData?.eventDate || profileData?.weddingDate || null;
+  const profile = profileData?.profile ?? profileData;
+  const countdownTargetDate = preferences?.weddingDate || profile?.eventDate || profile?.weddingDate || null;
   const countdown = useMemo(() => getCountdownBreakdown(countdownTargetDate), [countdownTargetDate]);
 
   const smartDaysToGo = useMemo(() => {
     if (countdown) return countdown.totalDays;
-    const eventDate = profileData?.eventDate || profileData?.weddingDate;
+    const eventDate = profile?.eventDate || profile?.weddingDate;
     if (eventDate) {
       const diff = Math.ceil((new Date(eventDate).getTime() - Date.now()) / 86_400_000);
       return diff > 0 ? diff : 0;
     }
     return 247;
-  }, [countdown, profileData]);
+  }, [countdown, profile]);
 
   const daysToGoDisplay = countdown ? String(countdown.totalDays) : '—';
 
@@ -240,6 +333,93 @@ export default function DashboardPage() {
     setTasks((prev) => prev.filter((task) => task.id !== id));
   };
 
+  const createBudgetMutation = useMutation({
+    mutationFn: userApi.createBudgetItem,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-budget'] });
+    },
+  });
+
+  const updateBudgetMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Record<string, unknown> }) => userApi.updateBudgetItem(id, updates),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-budget'] });
+    },
+  });
+
+  const deleteBudgetMutation = useMutation({
+    mutationFn: (id: string) => userApi.deleteBudgetItem(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['dashboard-budget'] });
+    },
+  });
+
+  const resetBudgetForm = () => {
+    setBudgetForm(DEFAULT_BUDGET_FORM);
+    setEditingBudgetId(null);
+    setShowBudgetForm(false);
+  };
+
+  const openBudgetForm = () => {
+    setBudgetForm(DEFAULT_BUDGET_FORM);
+    setEditingBudgetId(null);
+    setShowBudgetForm(true);
+  };
+
+  const startEditingBudgetItem = (item: BudgetItem) => {
+    setBudgetForm(getBudgetFormState(item));
+    setEditingBudgetId(item.id);
+    setShowBudgetForm(true);
+  };
+
+  const submitBudgetItem = async () => {
+    const estimatedPaise = toPaise(budgetForm.estimatedRupees);
+    const actualPaise = budgetForm.actualRupees.trim() ? toPaise(budgetForm.actualRupees) : undefined;
+
+    if (!budgetForm.label.trim()) {
+      toast.error('Add a budget item label');
+      return;
+    }
+
+    if (!budgetForm.estimatedRupees.trim() || estimatedPaise <= 0) {
+      toast.error('Enter an estimated amount');
+      return;
+    }
+
+    const payload = {
+      category: budgetForm.category,
+      label: budgetForm.label.trim(),
+      estimatedPaise,
+      ...(actualPaise !== undefined ? { actualPaise } : {}),
+      ...(budgetForm.vendorName.trim() ? { vendorName: budgetForm.vendorName.trim() } : {}),
+      isPaid: budgetForm.isPaid,
+      ...(budgetForm.notes.trim() ? { notes: budgetForm.notes.trim() } : {}),
+    };
+
+    try {
+      if (editingBudgetId) {
+        await updateBudgetMutation.mutateAsync({ id: editingBudgetId, updates: payload });
+        toast.success('Budget item updated');
+      } else {
+        await createBudgetMutation.mutateAsync(payload);
+        toast.success('Budget item added');
+      }
+      resetBudgetForm();
+    } catch {
+      toast.error(editingBudgetId ? 'Could not update budget item' : 'Could not add budget item');
+    }
+  };
+
+  const handleDeleteBudgetItem = async (item: BudgetItem) => {
+    try {
+      await deleteBudgetMutation.mutateAsync(item.id);
+      if (editingBudgetId === item.id) resetBudgetForm();
+      toast.success(`Removed ${item.label}`);
+    } catch {
+      toast.error('Could not delete budget item');
+    }
+  };
+
   useEffect(() => {
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
     if (!token) {
@@ -254,6 +434,36 @@ export default function DashboardPage() {
   const planningProgressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const planningProgressTone = getProgressTone(planningProgressPercent);
   const unreadMessages = Math.max(1, RECENT_ACTIVITIES.filter((activity) => activity.text.toLowerCase().includes('message')).length);
+  const budgetSummary = budgetData.summary ?? EMPTY_BUDGET_DATA.summary;
+  const budgetItems = budgetData.items ?? EMPTY_BUDGET_DATA.items;
+  const totalBudgetPaise = Number(profile?.estimatedBudgetPaise ?? 0) > 0
+    ? Number(profile?.estimatedBudgetPaise ?? 0)
+    : budgetSummary.totalEstimated;
+  const totalSpentPaise = budgetSummary.totalActual;
+  const totalPaidPaise = budgetSummary.totalPaid;
+  const remainingBudgetPaise = Math.max(totalBudgetPaise - totalSpentPaise, 0);
+  const overBudgetPaise = Math.max(totalSpentPaise - totalBudgetPaise, 0);
+  const budgetUtilizationPercent = totalBudgetPaise > 0 ? Math.min(100, Math.round((totalSpentPaise / totalBudgetPaise) * 100)) : 0;
+  const budgetTone = getProgressTone(Math.max(0, 100 - budgetUtilizationPercent));
+  const categoryBreakdown = useMemo(() => {
+    const base = totalBudgetPaise || budgetSummary.totalEstimated || 1;
+    return Object.entries(budgetData.byCategory ?? {})
+      .map(([category, totals]) => {
+        const normalizedCategory = (category in BUDGET_CATEGORY_META ? category : 'OTHER') as BudgetCategory;
+        return {
+          key: category,
+          category: normalizedCategory,
+          label: BUDGET_CATEGORY_META[normalizedCategory].label,
+          estimated: totals.estimated,
+          actual: totals.actual,
+          count: totals.count,
+          share: Math.max(8, Math.min(100, Math.round((totals.estimated / base) * 100))),
+          meta: BUDGET_CATEGORY_META[normalizedCategory],
+        };
+      })
+      .sort((left, right) => right.estimated - left.estimated);
+  }, [budgetData.byCategory, budgetSummary.totalEstimated, totalBudgetPaise]);
+  const budgetFormBusy = createBudgetMutation.isPending || updateBudgetMutation.isPending || deleteBudgetMutation.isPending;
 
   const recommendedCategoryIds = useMemo(() => {
     const mapping: Record<string, string> = {
@@ -693,41 +903,232 @@ export default function DashboardPage() {
             </div>
 
             <div className="card p-6">
-              <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-semibold text-gray-900">Budget Overview</h2>
-                <Link href="/dashboard/budget" className="text-sm text-brand-600 hover:underline">Manage</Link>
-              </div>
-              <div className="mb-4">
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="text-gray-600">Total Budget</span>
-                  <span className="font-semibold">₹15,00,000</span>
-                </div>
-                <div className="h-3 w-full rounded-full bg-gray-100">
-                  <div className="h-3 rounded-full bg-gradient-to-r from-brand-500 to-purple-500" style={{ width: '28%' }} />
-                </div>
-                <div className="mt-1 flex justify-between text-xs text-gray-500">
-                  <span>₹4,20,000 spent (28%)</span>
-                  <span>₹10,80,000 remaining</span>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {[
-                  { label: 'Venue', amount: '₹2,00,000', percent: 47, color: 'bg-brand-500' },
-                  { label: 'Catering', amount: '₹1,20,000', percent: 28, color: 'bg-blue-500' },
-                  { label: 'Photography', amount: '₹80,000', percent: 19, color: 'bg-gold-500' },
-                  { label: 'Decor', amount: '₹20,000', percent: 6, color: 'bg-green-500' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <div className={`h-2 w-2 shrink-0 rounded-full ${item.color}`} />
-                    <span className="flex-1 text-sm text-gray-600">{item.label}</span>
-                    <span className="text-sm font-medium">{item.amount}</span>
-                    <span className="w-8 text-right text-xs text-gray-400">{item.percent}%</span>
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ${budgetTone.badge}`}>
+                    <Wallet size={14} /> Budget Tracker
                   </div>
-                ))}
+                  <h2 className="mt-4 text-xl font-bold text-gray-900">Keep every rupee on plan</h2>
+                  <p className="mt-2 text-sm text-gray-500">Track estimates, actual spend, and paid vendors without leaving your dashboard.</p>
+                </div>
+                <button
+                  onClick={showBudgetForm && !editingBudgetId ? resetBudgetForm : openBudgetForm}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+                >
+                  <Plus size={16} /> {showBudgetForm && !editingBudgetId ? 'Close form' : 'Add item'}
+                </button>
               </div>
-              <Link href="/dashboard/budget" className="btn-secondary mt-4 block w-full py-2 text-center text-sm">
-                Add Expense
-              </Link>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl bg-brand-50 p-4 ring-1 ring-brand-100">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                    <IndianRupee size={14} /> Total budget
+                  </div>
+                  <div className="mt-3 text-2xl font-bold text-gray-900">{totalBudgetPaise > 0 ? formatPaise(totalBudgetPaise) : '—'}</div>
+                  <p className="mt-1 text-xs text-gray-500">{Number(profile?.estimatedBudgetPaise ?? 0) > 0 ? 'From your wedding profile' : 'Using current planned items'}</p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 ring-1 ring-gray-100">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <PieChart size={14} /> Total spent
+                  </div>
+                  <div className="mt-3 text-2xl font-bold text-gray-900">{formatPaise(totalSpentPaise)}</div>
+                  <p className="mt-1 text-xs text-gray-500">{formatPaise(totalPaidPaise)} already paid · {budgetSummary.itemCount} items tracked</p>
+                </div>
+                <div className="rounded-2xl bg-white p-4 ring-1 ring-gray-100">
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                    <Wallet size={14} /> Remaining
+                  </div>
+                  <div className={`mt-3 text-2xl font-bold ${overBudgetPaise > 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                    {totalBudgetPaise > 0 ? formatPaise(overBudgetPaise > 0 ? overBudgetPaise : remainingBudgetPaise) : '—'}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">{overBudgetPaise > 0 ? 'Over budget' : 'Available to allocate'}</p>
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between text-sm text-gray-600">
+                  <span>Budget utilization</span>
+                  <span className="font-semibold text-gray-900">{budgetUtilizationPercent}%</span>
+                </div>
+                <div className={`h-3 w-full overflow-hidden rounded-full ${budgetTone.track}`}>
+                  <div className={`h-full rounded-full bg-gradient-to-r ${budgetTone.bar}`} style={{ width: `${budgetUtilizationPercent}%` }} />
+                </div>
+                <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                  <span>{formatPaise(totalSpentPaise)} spent</span>
+                  <span>{totalBudgetPaise > 0 ? `${formatPaise(totalBudgetPaise)} planned` : 'Set your budget in profile'}</span>
+                </div>
+              </div>
+
+              {showBudgetForm ? (
+                <div className="mt-5 rounded-2xl border border-brand-100 bg-brand-50/60 p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-900">{editingBudgetId ? 'Edit budget item' : 'Add a budget item'}</h3>
+                      <p className="text-xs text-gray-500">Use rupee amounts — we&apos;ll store them precisely in paise.</p>
+                    </div>
+                    <button onClick={resetBudgetForm} className="text-xs font-medium text-gray-500 hover:text-gray-700">Cancel</button>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="text-xs font-medium text-gray-600">
+                      Category
+                      <select
+                        value={budgetForm.category}
+                        onChange={(event) => setBudgetForm((prev) => ({ ...prev, category: event.target.value as BudgetCategory }))}
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                      >
+                        {BUDGET_CATEGORY_OPTIONS.map((category) => (
+                          <option key={category} value={category}>{BUDGET_CATEGORY_META[category].label}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="text-xs font-medium text-gray-600">
+                      Label
+                      <input
+                        type="text"
+                        value={budgetForm.label}
+                        onChange={(event) => setBudgetForm((prev) => ({ ...prev, label: event.target.value }))}
+                        placeholder="Venue advance, floral decor..."
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                      />
+                    </label>
+                    <label className="text-xs font-medium text-gray-600">
+                      Estimated amount (₹)
+                      <input
+                        type="number"
+                        min="0"
+                        value={budgetForm.estimatedRupees}
+                        onChange={(event) => setBudgetForm((prev) => ({ ...prev, estimatedRupees: event.target.value }))}
+                        placeholder="150000"
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                      />
+                    </label>
+                    <label className="text-xs font-medium text-gray-600">
+                      Actual amount (₹)
+                      <input
+                        type="number"
+                        min="0"
+                        value={budgetForm.actualRupees}
+                        onChange={(event) => setBudgetForm((prev) => ({ ...prev, actualRupees: event.target.value }))}
+                        placeholder="Optional"
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                      />
+                    </label>
+                    <label className="text-xs font-medium text-gray-600">
+                      Vendor name
+                      <input
+                        type="text"
+                        value={budgetForm.vendorName}
+                        onChange={(event) => setBudgetForm((prev) => ({ ...prev, vendorName: event.target.value }))}
+                        placeholder="Optional"
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                      />
+                    </label>
+                    <label className="text-xs font-medium text-gray-600">
+                      Notes
+                      <input
+                        type="text"
+                        value={budgetForm.notes}
+                        onChange={(event) => setBudgetForm((prev) => ({ ...prev, notes: event.target.value }))}
+                        placeholder="Optional details"
+                        className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                      />
+                    </label>
+                  </div>
+                  <label className="mt-3 inline-flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={budgetForm.isPaid}
+                      onChange={(event) => setBudgetForm((prev) => ({ ...prev, isPaid: event.target.checked }))}
+                      className="h-4 w-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    Mark as paid
+                  </label>
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={submitBudgetItem}
+                      disabled={budgetFormBusy}
+                      className="inline-flex items-center gap-2 rounded-xl bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {editingBudgetId ? <Save size={16} /> : <Plus size={16} />} {editingBudgetId ? 'Save changes' : 'Add item'}
+                    </button>
+                    <button onClick={resetBudgetForm} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-white">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">Category breakdown</h3>
+                  <span className="text-xs text-gray-500">Estimated allocation share</span>
+                </div>
+                {categoryBreakdown.length > 0 ? categoryBreakdown.slice(0, 6).map((item) => (
+                  <div key={item.key} className="rounded-2xl border border-gray-100 p-3">
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className={`h-2.5 w-2.5 rounded-full ${item.meta.dot}`} />
+                        <span className="text-sm font-medium text-gray-800">{item.label}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${item.meta.soft}`}>{item.count} item{item.count > 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <div className="font-semibold text-gray-900">{formatPaise(item.estimated)}</div>
+                        <div>{item.actual > 0 ? `${formatPaise(item.actual)} spent` : 'Spend pending'}</div>
+                      </div>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                      <div className={`h-full rounded-full bg-gradient-to-r ${item.meta.bar}`} style={{ width: `${item.share}%` }} />
+                    </div>
+                  </div>
+                )) : (
+                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
+                    Start by adding your first budget item for venue, catering, photography, or any custom wedding expense.
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-semibold text-gray-900">Tracked items</h3>
+                  {isBudgetLoading ? <span className="text-xs text-gray-400">Syncing…</span> : <span className="text-xs text-gray-500">{budgetItems.length} total</span>}
+                </div>
+                {budgetItems.length > 0 ? budgetItems.map((item) => {
+                  const meta = BUDGET_CATEGORY_META[(item.category in BUDGET_CATEGORY_META ? item.category : 'OTHER') as BudgetCategory];
+                  return (
+                    <div key={item.id} className="rounded-2xl border border-gray-100 p-4 transition-colors hover:bg-gray-50">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${meta.soft}`}>{meta.label}</span>
+                            <h4 className="text-sm font-semibold text-gray-900">{item.label}</h4>
+                            {item.isPaid ? <span className="rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-semibold text-green-700">Paid</span> : null}
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Estimated {formatPaise(item.estimatedPaise)}
+                            {item.actualPaise != null ? ` · Actual ${formatPaise(item.actualPaise)}` : ''}
+                            {item.vendorName ? ` · ${item.vendorName}` : ''}
+                          </p>
+                          {item.notes ? <p className="mt-2 text-xs text-gray-500">{item.notes}</p> : null}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => startEditingBudgetItem(item)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-white"
+                          >
+                            <Pencil size={14} /> Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBudgetItem(item)}
+                            className="inline-flex items-center gap-1 rounded-lg border border-red-100 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
+                          >
+                            <Trash2 size={14} /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }) : null}
+              </div>
             </div>
           </motion.div>
 

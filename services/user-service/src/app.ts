@@ -9,7 +9,7 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
 
-export function createApp() {
+export function createApp(): express.Express {
   const app = express();
   app.set('trust proxy', 1);
   app.use(helmet({ contentSecurityPolicy: false }));

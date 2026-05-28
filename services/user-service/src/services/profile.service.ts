@@ -1,9 +1,10 @@
 import { prisma } from '../config/database';
-import type { DocumentType } from '@prisma/client';
 import type { UpdateProfileInput, UpdateNotifPrefsInput } from '../types/user.types';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { logger } from '../utils/logger';
 import { NotFoundError } from '@wedding-os/shared-errors';
+
+type KycDocumentType = 'AADHAAR' | 'PAN' | 'PASSPORT' | 'DRIVING_LICENSE' | 'VOTER_ID' | 'GSTIN' | 'BANK_STATEMENT';
 
 function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {
@@ -87,7 +88,7 @@ export const profileService = {
     return prisma.kycDocument.create({
       data: {
         profileId: profile.id,
-        docType: docType as DocumentType,
+        docType: docType as KycDocumentType,
         s3Key,
         status: 'PENDING',
       },
