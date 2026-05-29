@@ -95,6 +95,29 @@ class ApiClient {
   static Future<Response> submitReview(Map<String, dynamic> data) =>
       dio.post('/reviews', data: data);
 
+  // ─── Vendor Profile ──────────────────────────────────────────────────────────
+
+  static Future<Response> getVendorProfile() => dio.get('/vendors/me');
+
+  static Future<Response> updateVendorProfile(Map<String, dynamic> data) =>
+      dio.put('/vendors/me', data: data);
+
+  static Future<Response> getVendorStats() =>
+      dio.get('/vendors/me/stats');
+
+  // ─── AI Recommendations ──────────────────────────────────────────────────────
+
+  static Future<Response> getAiRecommendations({
+    String? city,
+    int? budgetPaise,
+    String? weddingDate,
+  }) =>
+      dio.get('/ai/recommendations', queryParameters: {
+        if (city != null) 'city': city,
+        if (budgetPaise != null) 'budget': budgetPaise,
+        if (weddingDate != null) 'weddingDate': weddingDate,
+      });
+
   // ─── Notifications ─────────────────────────────────────────────────────────
   static Future<Response> getNotifications() => dio.get('/notifications');
 
@@ -249,4 +272,22 @@ class ApiClient {
         'body': body,
         if (targetRole != null) 'targetRole': targetRole,
       });
+
+  // ─── Budget & Guests ─────────────────────────────────────────────────────────
+
+  static Future<Response> getBudget() => dio.get('/users/me/budget');
+
+  static Future<Response> updateBudget(Map<String, dynamic> data) =>
+      dio.put('/users/me/budget', data: data);
+
+  static Future<Response> getGuests() => dio.get('/users/me/guests');
+
+  static Future<Response> addGuest(Map<String, dynamic> data) =>
+      dio.post('/users/me/guests', data: data);
+
+  static Future<Response> removeGuest(String guestId) =>
+      dio.delete('/users/me/guests/$guestId');
+
+  static Future<Response> updateGuest(String guestId, Map<String, dynamic> data) =>
+      dio.patch('/users/me/guests/$guestId', data: data);
 }
