@@ -450,9 +450,9 @@ export default function TimelinePage() {
                   <span className={task.status === 'DONE' ? 'line-through text-gray-400' : 'text-gray-700'}>
                     {task.title as string}
                   </span>
-                  {task.dueDate && (
+                  {typeof task.dueDate === 'string' && (
                     <span className="text-xs text-gray-400 ml-auto">
-                      {new Date(task.dueDate as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                      {new Date(task.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </span>
                   )}
                 </div>

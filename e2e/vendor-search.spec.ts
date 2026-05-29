@@ -113,7 +113,7 @@ test.describe('Vendor discovery', () => {
       await expect(page.getByText('Srikanth Photography')).toBeVisible();
       await expect(page.getByText('Royal Grand Palace')).toBeHidden();
 
-      await page.getByRole('button', { name: 'Photography' }).click();
+      await page.getByRole('button', { name: 'Filter by Photography' }).click();
       await expect(page.getByText(/Photography/i).first()).toBeVisible();
       await expect(page.getByText('Flavours Catering Co.')).toBeHidden();
     });
