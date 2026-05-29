@@ -1,5 +1,6 @@
 import { esClient } from '../config/elasticsearch';
 import { ValidationError } from '@wedding-os/shared-errors';
+import type { VendorProfile } from '@wedding-os/shared-types';
 import { logger } from '../utils/logger';
 
 interface EsTotal { value: number; relation: string; }

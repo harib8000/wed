@@ -133,6 +133,18 @@ export const paymentService = {
 
     logger.info({ paymentId: updatedPayment.id, bookingId, vendorPayoutPaise, releaseDate }, 'Payment captured and escrow created');
     publishEvent('payment.captured', updatedPayment.id, { paymentId: updatedPayment.id, bookingId, customerId: payment.customerId, vendorId: payment.vendorId, amountPaise: payment.amountPaise });
+    publishEvent('escrow.created', updatedPayment.escrowHold!.id, {
+      escrowHoldId: updatedPayment.escrowHold!.id,
+      paymentId: updatedPayment.id,
+      bookingId,
+      customerId: payment.customerId,
+      vendorId: payment.vendorId,
+      heldAmountPaise: payment.amountPaise,
+      platformFeePaise,
+      gstOnFeePaise,
+      vendorPayoutPaise,
+      releaseScheduledAt: releaseDate.toISOString(),
+    });
 
     return updatedPayment;
   },
@@ -161,8 +173,21 @@ export const paymentService = {
 
     if (event === 'payment.failed') {
       const order_id = paymentEntity?.order_id as string | undefined;
+      const paymentId = paymentEntity?.id as string | undefined;
       if (order_id) {
+        const pmt = await prisma.payment.findUnique({ where: { razorpayOrderId: order_id } });
         await prisma.payment.updateMany({ where: { razorpayOrderId: order_id }, data: { status: 'FAILED' } });
+        if (pmt) {
+          publishEvent('payment.failed', pmt.id, {
+            paymentId: pmt.id,
+            bookingId: pmt.bookingId,
+            customerId: pmt.customerId,
+            vendorId: pmt.vendorId,
+            amountPaise: pmt.amountPaise,
+            razorpayOrderId: order_id,
+            razorpayPaymentId: paymentId ?? null,
+          });
+        }
       }
     }
   },

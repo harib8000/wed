@@ -6,6 +6,7 @@ import { pinoHttp } from 'pino-http';
 import rateLimit from 'express-rate-limit';
 import { authRouter } from './routes/auth.routes';
 import { requestId } from './middleware/requestId';
+import { csrfGuard } from './middleware/csrf.middleware';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
@@ -29,6 +30,7 @@ export function createApp(): Application {
       exposedHeaders: ['X-Request-ID'],
     })
   );
+  app.use(csrfGuard);
 
   // ── Global rate limiter ───────────────────────────────────────────────────
   app.use(

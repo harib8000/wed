@@ -28,6 +28,7 @@ const COMPANY_LINKS = [
   { label: 'Help Center', href: '/help' },
   { label: 'Privacy Policy', href: '/privacy' },
   { label: 'Terms of Service', href: '/terms' },
+  { label: 'Refund Policy', href: '/refund' },
   { label: 'Contact Us', href: '/contact' },
 ];
 

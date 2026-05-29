@@ -7,6 +7,7 @@ import { verifyWebhookSignature } from '../utils/signature';
 import { logger } from '../utils/logger';
 import { prisma } from '../config/database';
 import { NotFoundError } from '@wedding-os/shared-errors';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { z } from 'zod';
 
 export const paymentRouter = Router();
@@ -16,6 +17,15 @@ const escapeHtml = (value: string) => value.replace(/[&<>"']/g, (char) => {
   return map[char] ?? '';
 });
 const formatInvoiceCurrency = (amount: number) => amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
+  try {
+    const bus = getEventBus();
+    bus.publish(type, aggregateId, 'payment', payload).catch((err: unknown) =>
+      logger.warn({ err, type }, 'Event publish failed (non-blocking)')
+    );
+  } catch { /* Event bus not initialized (e.g., in tests) */ }
+}
 
 const CreateOrderSchema = z.object({
   bookingId: z.string().uuid(),
@@ -420,6 +430,30 @@ paymentRouter.post('/admin/disputes', authenticate, async (req, res, next) => {
   try {
     const body = CreateDisputeSchema.parse(req.body);
     const dispute = await prisma.dispute.create({ data: body });
+    publishEvent('booking.disputed', dispute.bookingId, {
+      bookingId: dispute.bookingId,
+      disputeId: dispute.id,
+      customerId: dispute.customerId,
+      vendorId: dispute.vendorId,
+      reason: dispute.reason,
+      status: dispute.status,
+    });
+    publishEvent('escrow.disputed', dispute.id, {
+      disputeId: dispute.id,
+      bookingId: dispute.bookingId,
+      customerId: dispute.customerId,
+      vendorId: dispute.vendorId,
+      reason: dispute.reason,
+      status: dispute.status,
+    });
+    publishEvent('dispute.opened', dispute.id, {
+      disputeId: dispute.id,
+      bookingId: dispute.bookingId,
+      customerId: dispute.customerId,
+      vendorId: dispute.vendorId,
+      reason: dispute.reason,
+      status: dispute.status,
+    });
     res.status(201).json({ success: true, data: { dispute }, meta: meta(req) });
   } catch (err) { next(err); }
 });
@@ -448,6 +482,16 @@ paymentRouter.post('/admin/disputes/:id/resolve', authenticate, requireRole('adm
           .catch((err: unknown) => logger.warn({ err }, 'Dispute refund failed (non-blocking)'));
       }
     }
+
+    publishEvent('dispute.resolved', dispute.id, {
+      disputeId: dispute.id,
+      bookingId: dispute.bookingId,
+      customerId: dispute.customerId,
+      vendorId: dispute.vendorId,
+      status: dispute.status,
+      refundAmountPaise: dispute.refundAmountPaise ?? null,
+      resolvedByAdminId: dispute.resolvedByAdminId ?? null,
+    });
 
     res.json({ success: true, data: { dispute }, meta: meta(req) });
   } catch (err) { next(err); }

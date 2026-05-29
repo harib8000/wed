@@ -1,6 +1,8 @@
 import { prisma } from '../config/database';
 import type { TaskCategory, TaskStatus } from '@prisma/client';
 import { NotFoundError } from '@wedding-os/shared-errors';
+import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
+import { logger } from '../utils/logger';
 
 // Default template tasks generated when a wedding is confirmed
 const DEFAULT_TEMPLATES = [
@@ -17,6 +19,15 @@ const DEFAULT_TEMPLATES = [
   { title: 'Final dress rehearsal & all vendor confirmations', category: 'CEREMONY', dueDaysBeforeWedding: 7, sortOrder: 11 },
   { title: 'Wedding day vendor check-ins', category: 'LOGISTICS', dueDaysBeforeWedding: 0, sortOrder: 12 },
 ];
+
+function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
+  try {
+    const bus = getEventBus();
+    bus.publish(type, aggregateId, 'execution', payload).catch((err: unknown) =>
+      logger.warn({ err, type }, 'Event publish failed (non-blocking)')
+    );
+  } catch { /* Event bus not initialized (e.g., in tests) */ }
+}
 
 export const timelineService = {
   async getOrCreate(customerId: string, weddingDate?: Date) {
@@ -42,6 +53,11 @@ export const timelineService = {
           },
         },
         include: { tasks: { orderBy: { sortOrder: 'asc' } } },
+      });
+      publishEvent('event.created', timeline.id, {
+        timelineId: timeline.id,
+        customerId,
+        weddingDate: timeline.weddingDate.toISOString(),
       });
     }
 
@@ -84,7 +100,7 @@ export const timelineService = {
     const task = await prisma.timelineTask.findFirst({ where: { id: taskId, timelineId: tl.id } });
     if (!task) throw new NotFoundError('Task', taskId);
 
-    return prisma.timelineTask.update({
+    const updatedTask = await prisma.timelineTask.update({
       where: { id: taskId },
       data: {
         ...(data.status && { status: data.status as TaskStatus, completedAt: data.status === 'DONE' ? new Date() : undefined }),
@@ -93,6 +109,31 @@ export const timelineService = {
         ...(data.description !== undefined && { description: data.description }),
       },
     });
+
+    if (data.status === 'DONE') {
+      publishEvent('event.task_completed', updatedTask.id, {
+        taskId: updatedTask.id,
+        timelineId: tl.id,
+        customerId,
+        title: updatedTask.title,
+        category: updatedTask.category,
+        linkedBookingId: updatedTask.linkedBookingId ?? null,
+      });
+
+      const remainingTasks = await prisma.timelineTask.count({
+        where: { timelineId: tl.id, status: { not: 'DONE' } },
+      });
+
+      if (remainingTasks === 0) {
+        publishEvent('event.completed', tl.id, {
+          timelineId: tl.id,
+          customerId,
+          weddingDate: tl.weddingDate.toISOString(),
+        });
+      }
+    }
+
+    return updatedTask;
   },
 
   async deleteTask(customerId: string, taskId: string) {

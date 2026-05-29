@@ -3,6 +3,7 @@ import type { UpdateProfileInput, UpdateNotifPrefsInput } from '../types/user.ty
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { logger } from '../utils/logger';
 import { NotFoundError } from '@wedding-os/shared-errors';
+import type { UserProfile, GuestEntry } from '@wedding-os/shared-types';
 
 type KycDocumentType = 'AADHAAR' | 'PAN' | 'PASSPORT' | 'DRIVING_LICENSE' | 'VOTER_ID' | 'GSTIN' | 'BANK_STATEMENT';
 
