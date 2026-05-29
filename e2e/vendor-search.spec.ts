@@ -94,14 +94,6 @@ async function preparePage(page: import('@playwright/test').Page) {
       body: JSON.stringify({ data: { vendors: MOCK_VENDORS } }),
     });
   });
-
-  await page.route('**/api/vendors**', async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ data: { vendors: MOCK_VENDORS } }),
-    });
-  });
 }
 
 test.describe('Vendor discovery', () => {

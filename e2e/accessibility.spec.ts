@@ -18,11 +18,35 @@ async function preparePage(page: import('@playwright/test').Page) {
   }, CONSENT_KEY);
 }
 
+const MOCK_VENDORS = [
+  {
+    id: 'vendor-1',
+    businessName: 'Royal Grand Palace',
+    category: 'venue',
+    city: 'Hyderabad',
+    citiesServed: ['Hyderabad'],
+    rating: 4.9,
+    totalReviews: 247,
+    totalBookings: 312,
+    basePrice: 500000,
+    coverImage: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=400&q=80',
+    verificationStatus: 'verified',
+    featured: true,
+    responseTimeHours: 2,
+    yearsExperience: 12,
+    teamSize: 50,
+    cancellationRate: 1.4,
+    eventTypes: ['Wedding', 'Reception'],
+    latitude: 17.385,
+    longitude: 78.4867,
+  },
+];
+
 test.describe('Basic accessibility checks', () => {
   test('core pages expose a visible primary heading', async ({ page }) => {
     await preparePage(page);
 
-    for (const path of ['/', '/vendors', '/privacy']) {
+    for (const path of ['/', '/login/couple', '/privacy']) {
       await page.goto(path);
       await expect(page.locator('h1').first()).toBeVisible();
     }
@@ -30,6 +54,13 @@ test.describe('Basic accessibility checks', () => {
 
   test('vendor browsing pages provide alt text for images', async ({ page }) => {
     await preparePage(page);
+    await page.route('**/api/search/vendors**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { vendors: MOCK_VENDORS } }),
+      });
+    });
 
     await page.goto('/vendors');
     await expect(page.locator('img:not([alt])')).toHaveCount(0);
