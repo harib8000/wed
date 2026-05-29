@@ -27,4 +27,7 @@ if (!parsed.success) {
   console.error('[Config] Invalid env:', JSON.stringify(parsed.error.flatten().fieldErrors, null, 2));
   process.exit(1);
 }
-export const config = parsed.data;
+export const config = {
+  ...parsed.data,
+  sentryDsn: process.env.SENTRY_DSN || '',
+};

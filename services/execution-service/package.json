@@ -27,7 +27,9 @@
     "cors": "^2.8.5",
     "socket.io": "^4.7.0",
     "@wedding-os/shared-events": "workspace:*",
-    "@wedding-os/shared-errors": "workspace:*"
+    "@wedding-os/shared-errors": "workspace:*",
+    "@sentry/node": "^8.0.0",
+    "prom-client": "^15.0.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

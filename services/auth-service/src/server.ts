@@ -5,6 +5,16 @@ import { getRedisClient, disconnectRedis } from './config/redis';
 import { logger } from './utils/logger';
 import { config } from './config';
 import { createEventBus } from '@wedding-os/shared-events';
+import * as Sentry from '@sentry/node';
+
+if (config.sentryDsn) {
+  Sentry.init({
+    dsn: config.sentryDsn,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
+  });
+}
+
 
 const PORT = config.PORT;
 

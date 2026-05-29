@@ -9,6 +9,10 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
 import { ensureVendorIndex } from './config/elasticsearch';
+import { register, collectDefaultMetrics } from 'prom-client';
+
+collectDefaultMetrics();
+
 
 export async function createApp() {
   await ensureVendorIndex().catch((err) => logger.warn(err, 'Could not ensure ES index (ES may not be ready)'));
@@ -24,6 +28,15 @@ export async function createApp() {
   app.use(pinoHttp({ logger }));
 
   app.use('/vendors', vendorRouter);
+  app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(String(err));
+  }
+});
+
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'vendor-service' }));
   app.use((_req, res) => res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Not found' } }));
   app.use(errorHandler);

@@ -9,6 +9,10 @@ import { requestId } from './middleware/requestId';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { register, collectDefaultMetrics } from 'prom-client';
+
+collectDefaultMetrics();
+
 
 export function createApp(): express.Express {
   const app = express();
@@ -23,6 +27,15 @@ export function createApp(): express.Express {
 
   app.use('/users/admin', adminRouter);
   app.use('/users', userRouter);
+  app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(String(err));
+  }
+});
+
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'user-service', ts: new Date() }));
 
   app.use((_req, res) => res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Not found' } }));

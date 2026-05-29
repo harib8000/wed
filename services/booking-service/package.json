@@ -29,7 +29,9 @@
     "bullmq": "^5.7.0",
     "axios": "^1.6.0",
     "@wedding-os/shared-errors": "workspace:*",
-    "@wedding-os/shared-utils": "workspace:*"
+    "@wedding-os/shared-utils": "workspace:*",
+    "@sentry/node": "^8.0.0",
+    "prom-client": "^15.0.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

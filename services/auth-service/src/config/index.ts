@@ -42,5 +42,8 @@ if (!parsed.success) {
   process.exit(1);
 }
 
-export const config = parsed.data;
+export const config = {
+  ...parsed.data,
+  sentryDsn: process.env.SENTRY_DSN || '',
+};
 export type Config = typeof config;

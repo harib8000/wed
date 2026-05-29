@@ -30,7 +30,9 @@
     "axios": "^1.6.0",
     "razorpay": "^2.9.0",
     "@wedding-os/shared-errors": "workspace:*",
-    "@wedding-os/shared-utils": "workspace:*"
+    "@wedding-os/shared-utils": "workspace:*",
+    "@sentry/node": "^8.0.0",
+    "prom-client": "^15.0.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

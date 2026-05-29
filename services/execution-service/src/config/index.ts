@@ -10,4 +10,7 @@ const e = z.object({
 });
 const p = e.safeParse(process.env);
 if (!p.success) { console.error(p.error.flatten()); process.exit(1); }
-export const config = p.data;
+export const config = {
+  ...p.data,
+  sentryDsn: process.env.SENTRY_DSN || '',
+};
