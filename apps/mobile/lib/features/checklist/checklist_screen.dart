@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
+import '../../providers/auth_provider.dart';
+import '../../shared/widgets/empty_state_widget.dart';
 
-// ─── Checklist Models ────────────────────────────────────────
 enum ChecklistCategory { venue, catering, photography, decoration, makeup, music, attire, invitations, honeymoon, other }
 
 class ChecklistTask {
@@ -10,42 +12,45 @@ class ChecklistTask {
   final String title;
   final String? detail;
   final ChecklistCategory category;
-  final int daysBeforeEvent; // days before wedding to complete
-  bool isDone;
+  final int daysBeforeEvent;
+  final bool isDone;
 
-  ChecklistTask({
-    required this.id,
-    required this.title,
-    this.detail,
-    required this.category,
-    required this.daysBeforeEvent,
-    this.isDone = false,
-  });
+  const ChecklistTask({required this.id, required this.title, this.detail, required this.category, required this.daysBeforeEvent, this.isDone = false});
 
-  ChecklistTask copyWith({bool? isDone}) => ChecklistTask(
-    id: id, title: title, detail: detail, category: category,
-    daysBeforeEvent: daysBeforeEvent, isDone: isDone ?? this.isDone,
-  );
+  ChecklistTask copyWith({bool? isDone}) {
+    return ChecklistTask(
+      id: id,
+      title: title,
+      detail: detail,
+      category: category,
+      daysBeforeEvent: daysBeforeEvent,
+      isDone: isDone ?? this.isDone,
+    );
+  }
 }
 
-// ─── Checklist Provider ──────────────────────────────────────
 class ChecklistNotifier extends StateNotifier<List<ChecklistTask>> {
   ChecklistNotifier() : super(_defaultTasks);
 
   void toggle(String taskId) {
-    state = state.map((t) => t.id == taskId ? t.copyWith(isDone: !t.isDone) : t).toList();
+    state = state.map((task) => task.id == taskId ? task.copyWith(isDone: !task.isDone) : task).toList();
+  }
+
+  void addTask(ChecklistTask task) {
+    state = [...state, task];
+  }
+
+  void clearCompleted() {
+    state = state.where((task) => !task.isDone).toList();
   }
 
   int get totalCount => state.length;
-  int get doneCount => state.where((t) => t.isDone).length;
+  int get doneCount => state.where((task) => task.isDone).length;
   double get progress => totalCount == 0 ? 0 : doneCount / totalCount;
 }
 
-final checklistProvider = StateNotifierProvider<ChecklistNotifier, List<ChecklistTask>>(
-  (ref) => ChecklistNotifier(),
-);
+final checklistProvider = StateNotifierProvider<ChecklistNotifier, List<ChecklistTask>>((ref) => ChecklistNotifier());
 
-// ─── Default tasks (wedding checklist) ──────────────────────
 final _defaultTasks = [
   ChecklistTask(id: 'cl1', title: 'Finalise wedding date & venue', category: ChecklistCategory.venue, daysBeforeEvent: 365, detail: 'Book venue at least 12 months in advance for popular dates'),
   ChecklistTask(id: 'cl2', title: 'Set a wedding budget', category: ChecklistCategory.other, daysBeforeEvent: 365),
@@ -56,7 +61,7 @@ final _defaultTasks = [
   ChecklistTask(id: 'cl7', title: 'Book DJ / live music / band', category: ChecklistCategory.music, daysBeforeEvent: 240),
   ChecklistTask(id: 'cl8', title: 'Select wedding decoration theme', category: ChecklistCategory.decoration, daysBeforeEvent: 210),
   ChecklistTask(id: 'cl9', title: 'Shop for bridal outfit & jewellery', category: ChecklistCategory.attire, daysBeforeEvent: 180, detail: 'Allow 3-4 months for custom alterations'),
-  ChecklistTask(id: 'cl10', title: 'Grooming outfit selection (groom)', category: ChecklistCategory.attire, daysBeforeEvent: 180),
+  ChecklistTask(id: 'cl10', title: 'Groom outfit selection', category: ChecklistCategory.attire, daysBeforeEvent: 180),
   ChecklistTask(id: 'cl11', title: 'Send save-the-dates', category: ChecklistCategory.invitations, daysBeforeEvent: 150),
   ChecklistTask(id: 'cl12', title: 'Finalise decoration layout & flowers', category: ChecklistCategory.decoration, daysBeforeEvent: 120),
   ChecklistTask(id: 'cl13', title: 'Order wedding invitations', category: ChecklistCategory.invitations, daysBeforeEvent: 120),
@@ -71,7 +76,6 @@ final _defaultTasks = [
   ChecklistTask(id: 'cl22', title: 'Enjoy your wedding day!', category: ChecklistCategory.other, daysBeforeEvent: 0),
 ];
 
-// ─── Checklist Screen ────────────────────────────────────────
 class ChecklistScreen extends ConsumerStatefulWidget {
   const ChecklistScreen({super.key});
 
@@ -95,74 +99,194 @@ class _ChecklistScreenState extends ConsumerState<ChecklistScreen> {
     ChecklistCategory.other: (Icons.checklist_outlined, 'Other', const Color(0xFF4B5563)),
   };
 
-  static (IconData, String, Color) _meta(ChecklistCategory c) =>
-      _categoryMeta[c] ?? (Icons.checklist_outlined, 'Other', const Color(0xFF4B5563));
+  static (IconData, String, Color) _meta(ChecklistCategory category) => _categoryMeta[category] ?? (Icons.checklist_outlined, 'Other', const Color(0xFF4B5563));
+
+  DateTime _eventDate() {
+    final user = ref.read(currentUserProvider);
+    return DateTime.tryParse(user?.weddingDate ?? '') ?? DateTime.now().add(const Duration(days: 180));
+  }
+
+  Future<void> _showAddTaskSheet() async {
+    final titleController = TextEditingController();
+    final detailController = TextEditingController();
+    ChecklistCategory category = ChecklistCategory.other;
+    double timeline = 30;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Add custom task', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Task title')),
+              const SizedBox(height: 12),
+              TextField(controller: detailController, maxLines: 3, decoration: const InputDecoration(labelText: 'Notes (optional)')),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<ChecklistCategory>(
+                value: category,
+                items: ChecklistCategory.values.map((item) {
+                  final meta = _meta(item);
+                  return DropdownMenuItem(value: item, child: Text(meta.$2));
+                }).toList(),
+                onChanged: (value) => setState(() => category = value ?? category),
+                decoration: const InputDecoration(labelText: 'Category'),
+              ),
+              const SizedBox(height: 12),
+              Text('Complete this about ${timeline.round()} days before the event', style: const TextStyle(fontWeight: FontWeight.w600)),
+              Slider(value: timeline, min: 0, max: 365, divisions: 73, activeColor: AppColors.brand, onChanged: (value) => setState(() => timeline = value)),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    if (titleController.text.trim().isEmpty) return;
+                    ref.read(checklistProvider.notifier).addTask(
+                          ChecklistTask(
+                            id: DateTime.now().millisecondsSinceEpoch.toString(),
+                            title: titleController.text.trim(),
+                            detail: detailController.text.trim().isEmpty ? null : detailController.text.trim(),
+                            category: category,
+                            daysBeforeEvent: timeline.round(),
+                          ),
+                        );
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.brand, foregroundColor: Colors.white),
+                  child: const Text('Add Task'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    titleController.dispose();
+    detailController.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final tasks = ref.watch(checklistProvider);
     final notifier = ref.read(checklistProvider.notifier);
-    final filtered = _filterCategory == null ? tasks : tasks.where((t) => t.category == _filterCategory).toList();
+    final eventDate = _eventDate();
+    final filtered = _filterCategory == null ? tasks : tasks.where((task) => task.category == _filterCategory).toList();
+    final grouped = <ChecklistCategory, List<ChecklistTask>>{};
+    for (final task in filtered) {
+      grouped.putIfAbsent(task.category, () => []).add(task);
+    }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Wedding Checklist')),
-      body: Column(children: [
-        _ProgressHeader(notifier: notifier),
-        _CategoryFilterRow(selected: _filterCategory, onSelect: (c) => setState(() => _filterCategory = c), meta: _meta),
-        Expanded(
-          child: filtered.isEmpty
-              ? const Center(child: Text('No tasks in this category', style: TextStyle(color: AppColors.textMuted)))
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  itemCount: filtered.length,
-                  itemBuilder: (context, i) {
-                    final task = filtered[i];
-                    return _TaskTile(task: task, meta: _meta(task.category), onToggle: () => notifier.toggle(task.id));
-                  },
-                ),
-        ),
-      ]),
+      appBar: AppBar(
+        title: const Text('Wedding Checklist'),
+        actions: [
+          if (tasks.any((task) => task.isDone))
+            TextButton(
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                notifier.clearCompleted();
+              },
+              child: const Text('Clear done'),
+            ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddTaskSheet,
+        backgroundColor: AppColors.brand,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_task),
+        label: const Text('Add Task'),
+      ),
+      body: Column(
+        children: [
+          _ProgressHeader(eventDate: eventDate),
+          _CategoryFilterRow(selected: _filterCategory, onSelect: (value) => setState(() => _filterCategory = value), meta: _meta),
+          Expanded(
+            child: grouped.isEmpty
+                ? const EmptyStateWidget(icon: Icons.checklist_outlined, title: 'No checklist items', message: 'Add a custom task or reset the filters to see your wedding checklist.')
+                : ListView(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+                    children: grouped.entries.map((entry) {
+                      final meta = _meta(entry.key);
+                      final tasks = entry.value;
+                      final done = tasks.where((task) => task.isDone).length;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.border)),
+                        child: ExpansionTile(
+                          initiallyExpanded: true,
+                          leading: CircleAvatar(backgroundColor: meta.$3.withOpacity(0.1), child: Icon(meta.$1, color: meta.$3, size: 18)),
+                          title: Text(meta.$2, style: const TextStyle(fontWeight: FontWeight.w700)),
+                          subtitle: Text('$done/${tasks.length} done', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                          children: tasks.map((task) => _TaskTile(task: task, meta: meta, eventDate: eventDate, onToggle: () => notifier.toggle(task.id))).toList(),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ─── Progress Header ─────────────────────────────────────────
 class _ProgressHeader extends ConsumerWidget {
-  final ChecklistNotifier notifier;
-  const _ProgressHeader({required this.notifier});
+  final DateTime eventDate;
+  const _ProgressHeader({required this.eventDate});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tasks = ref.watch(checklistProvider);
-    final done = tasks.where((t) => t.isDone).length;
+    final done = tasks.where((task) => task.isDone).length;
     final total = tasks.length;
     final pct = total == 0 ? 0.0 : done / total;
+    final overdue = tasks.where((task) => !task.isDone && eventDate.subtract(Duration(days: task.daysBeforeEvent)).isBefore(DateTime.now())).length;
 
     return Container(
       padding: const EdgeInsets.all(16),
       color: Colors.white,
-      child: Column(children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('$done of $total tasks completed', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            Text('${(pct * 100).round()}% of your wedding prep done', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-          ]),
-          Container(
-            width: 52, height: 52,
-            child: Stack(alignment: Alignment.center, children: [
-              CircularProgressIndicator(value: pct, backgroundColor: Colors.grey.shade200, color: AppColors.brand, strokeWidth: 5),
-              Text('${(pct * 100).round()}%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-            ]),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('$done of $total tasks completed', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text('${(pct * 100).round()}% done · $overdue overdue', style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+                ],
+              ),
+              SizedBox(
+                width: 54,
+                height: 54,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(value: pct, backgroundColor: Colors.grey.shade200, color: AppColors.brand, strokeWidth: 5),
+                    Text('${(pct * 100).round()}%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ]),
-        const SizedBox(height: 8),
-        ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: pct, backgroundColor: Colors.grey.shade200, color: AppColors.brand, minHeight: 6)),
-      ]),
+          const SizedBox(height: 10),
+          ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: pct, backgroundColor: Colors.grey.shade200, color: AppColors.brand, minHeight: 6)),
+        ],
+      ),
     );
   }
 }
 
-// ─── Category Filter ─────────────────────────────────────────
 class _CategoryFilterRow extends StatelessWidget {
   final ChecklistCategory? selected;
   final ValueChanged<ChecklistCategory?> onSelect;
@@ -170,20 +294,22 @@ class _CategoryFilterRow extends StatelessWidget {
   const _CategoryFilterRow({required this.selected, required this.onSelect, required this.meta});
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: 48,
-    child: ListView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      children: [
-        _FilterChip(label: 'All', icon: Icons.apps, selected: selected == null, color: AppColors.brand, onTap: () => onSelect(null)),
-        ...ChecklistCategory.values.map((c) {
-          final m = meta(c);
-          return _FilterChip(label: m.$2, icon: m.$1, selected: selected == c, color: m.$3, onTap: () => onSelect(selected == c ? null : c));
-        }),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 48,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        children: [
+          _FilterChip(label: 'All', icon: Icons.apps, selected: selected == null, color: AppColors.brand, onTap: () => onSelect(null)),
+          ...ChecklistCategory.values.map((category) {
+            final item = meta(category);
+            return _FilterChip(label: item.$2, icon: item.$1, selected: selected == category, color: item.$3, onTap: () => onSelect(selected == category ? null : category));
+          }),
+        ],
+      ),
+    );
+  }
 }
 
 class _FilterChip extends StatelessWidget {
@@ -195,79 +321,98 @@ class _FilterChip extends StatelessWidget {
   const _FilterChip({required this.label, required this.icon, required this.selected, required this.color, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: selected ? color : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: selected ? color : AppColors.border),
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(right: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(color: selected ? color : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: selected ? color : AppColors.border)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: selected ? Colors.white : color),
+            const SizedBox(width: 4),
+            Text(label, style: TextStyle(fontSize: 12, color: selected ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 14, color: selected ? Colors.white : color),
-        const SizedBox(width: 4),
-        Text(label, style: TextStyle(fontSize: 12, color: selected ? Colors.white : AppColors.textSecondary, fontWeight: FontWeight.w500)),
-      ]),
-    ),
-  );
+    );
+  }
 }
 
-// ─── Task Tile ────────────────────────────────────────────────
 class _TaskTile extends StatelessWidget {
   final ChecklistTask task;
   final (IconData, String, Color) meta;
+  final DateTime eventDate;
   final VoidCallback onToggle;
-  const _TaskTile({required this.task, required this.meta, required this.onToggle});
+  const _TaskTile({required this.task, required this.meta, required this.eventDate, required this.onToggle});
+
+  bool get _isOverdue => !task.isDone && eventDate.subtract(Duration(days: task.daysBeforeEvent)).isBefore(DateTime.now());
 
   @override
   Widget build(BuildContext context) {
-    final (icon, label, color) = meta;
+    final (_, label, color) = meta;
     return GestureDetector(
-      onTap: onToggle,
-      child: Container(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onToggle();
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: task.isDone ? Colors.grey.shade50 : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: task.isDone ? Colors.grey.shade200 : AppColors.border),
-        ),
-        child: Row(children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 26, height: 26,
-            decoration: BoxDecoration(
-              color: task.isDone ? Colors.green : Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(color: task.isDone ? Colors.green : color, width: 2),
+        decoration: BoxDecoration(color: task.isDone ? Colors.grey.shade50 : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _isOverdue ? AppColors.error.withOpacity(0.25) : task.isDone ? Colors.grey.shade200 : AppColors.border)),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(color: task.isDone ? Colors.green : Colors.white, shape: BoxShape.circle, border: Border.all(color: task.isDone ? Colors.green : color, width: 2)),
+              child: task.isDone ? const Icon(Icons.check, color: Colors.white, size: 14) : null,
             ),
-            child: task.isDone ? const Icon(Icons.check, color: Colors.white, size: 14) : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(
-              task.title,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: task.isDone ? AppColors.textMuted : AppColors.textPrimary,
-                decoration: task.isDone ? TextDecoration.lineThrough : null,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(task.title, style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: task.isDone ? AppColors.textMuted : AppColors.textPrimary, decoration: task.isDone ? TextDecoration.lineThrough : null)),
+                  if (task.detail != null) ...[
+                    const SizedBox(height: 4),
+                    Text(task.detail!, style: TextStyle(fontSize: 11, color: AppColors.textMuted.withOpacity(task.isDone ? 0.5 : 1))),
+                  ],
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      _TaskTag(color: color, label: label),
+                      _TaskTag(color: _isOverdue ? AppColors.error : AppColors.textMuted, label: task.daysBeforeEvent == 0 ? 'Day of event' : '${task.daysBeforeEvent}d before'),
+                      if (_isOverdue) const _TaskTag(color: AppColors.error, label: 'Overdue'),
+                    ],
+                  ),
+                ],
               ),
             ),
-            if (task.detail != null) Text(task.detail!, style: TextStyle(fontSize: 11, color: AppColors.textMuted.withOpacity(task.isDone ? 0.5 : 1))),
-            const SizedBox(height: 3),
-            Row(children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-              const SizedBox(width: 4),
-              Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w500)),
-              const SizedBox(width: 8),
-              if (task.daysBeforeEvent > 0) Text('${task.daysBeforeEvent}d before wedding', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
-            ]),
-          ])),
-        ]),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _TaskTag extends StatelessWidget {
+  final Color color;
+  final String label;
+  const _TaskTag({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
     );
   }
 }

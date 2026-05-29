@@ -136,17 +136,21 @@ class _VendorsScreenState extends ConsumerState<VendorsScreen> {
 
   void _toggleCompare(Vendor vendor) {
     HapticFeedback.lightImpact();
+    final alreadySelected = _compareIds.contains(vendor.id);
+    final isAtLimit = !alreadySelected && _compareIds.length >= 3;
+    if (isAtLimit) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('You can compare up to 3 vendors at a time.')));
+      return;
+    }
     setState(() {
-      if (_compareIds.contains(vendor.id)) {
+      if (alreadySelected) {
         _compareIds.remove(vendor.id);
-      } else if (_compareIds.length < 3) {
+      } else {
         _compareIds.add(vendor.id);
       }
     });
-    if (_compareIds.length == 3 || !_compareIds.contains(vendor.id)) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Select up to 3 vendors to compare.')));
   }
 
   @override
@@ -189,7 +193,10 @@ class _VendorsScreenState extends ConsumerState<VendorsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: TextField(
               controller: _searchController,
-              onChanged: (_) => _scheduleSearch(),
+              onChanged: (_) {
+                setState(() {});
+                _scheduleSearch();
+              },
               decoration: InputDecoration(
                 hintText: 'Search vendors, categories, locations...',
                 prefixIcon: const Icon(Icons.search, size: 20),

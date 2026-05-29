@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/booking_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/vendor_provider.dart';
+import '../checklist/checklist_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -15,8 +19,13 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  static const _avatarPathKey = 'profile_avatar_path';
+  static const _planningStyleKey = 'planning_styles';
   bool _biometricEnabled = false;
+  String? _avatarPath;
+  final Set<String> _planningStyles = <String>{};
   final _localAuth = LocalAuthentication();
+  final _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -28,9 +37,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       if (mounted) {
-        setState(() => _biometricEnabled = prefs.getBool('biometric_enabled') ?? false);
+        setState(() {
+          _biometricEnabled = prefs.getBool('biometric_enabled') ?? false;
+          _avatarPath = prefs.getString(_avatarPathKey);
+          _planningStyles
+            ..clear()
+            ..addAll(prefs.getStringList(_planningStyleKey) ?? const []);
+        });
       }
     } catch (_) {}
+  }
+
+  Future<void> _pickAvatar() async {
+    final image = await _imagePicker.pickImage(source: ImageSource.gallery, imageQuality: 75);
+    if (image == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_avatarPathKey, image.path);
+    if (mounted) setState(() => _avatarPath = image.path);
   }
 
   Future<void> _toggleBiometric(bool val) async {
@@ -100,12 +123,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       return;
     }
 
+    const cities = ['Hyderabad', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai'];
+    const styles = ['Classic', 'Royal', 'Minimal', 'Destination', 'Traditional'];
     final nameController = TextEditingController(text: user.name ?? '');
     final emailController = TextEditingController(text: user.email ?? '');
     final weddingDateController = TextEditingController(text: user.weddingDate ?? '');
     final partnerNameController = TextEditingController(text: user.partnerName ?? '');
     final cityController = TextEditingController(text: user.city ?? '');
     DateTime? selectedWeddingDate = _parseWeddingDate(user.weddingDate);
+    String selectedCity = user.city != null && cities.contains(user.city) ? user.city! : cities.first;
+    double budgetLakhs = ((user.budgetPaise ?? 1500000000) / 10000000).clamp(5, 100).toDouble();
+    final selectedStyles = {..._planningStyles};
     bool isSaving = false;
 
     final updated = await showModalBottomSheet<bool>(
@@ -136,12 +164,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             Future<void> saveProfile() async {
               setModalState(() => isSaving = true);
               try {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.setStringList(_planningStyleKey, selectedStyles.toList());
                 await ref.read(authProvider.notifier).updateProfile({
                   'name': nameController.text.trim(),
                   'email': emailController.text.trim(),
                   'weddingDate': weddingDateController.text.trim(),
                   'partnerName': partnerNameController.text.trim(),
-                  'city': cityController.text.trim(),
+                  'city': selectedCity,
+                  'budgetPaise': (budgetLakhs * 10000000).round(),
                 });
                 if (sheetContext.mounted) Navigator.of(sheetContext).pop(true);
               } catch (_) {
@@ -221,13 +252,55 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      TextField(
-                        controller: cityController,
-                        textCapitalization: TextCapitalization.words,
+                      DropdownButtonFormField<String>(
+                        value: selectedCity,
                         decoration: const InputDecoration(
                           labelText: 'City',
                           prefixIcon: Icon(Icons.location_on_outlined),
                         ),
+                        items: cities.map((city) => DropdownMenuItem(value: city, child: Text(city))).toList(),
+                        onChanged: (value) => setModalState(() {
+                          selectedCity = value ?? selectedCity;
+                          cityController.text = selectedCity;
+                        }),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Budget', style: TextStyle(fontWeight: FontWeight.w600)),
+                          Text('₹${budgetLakhs.toStringAsFixed(0)}L', style: const TextStyle(color: AppColors.brand, fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                      Slider(
+                        value: budgetLakhs,
+                        min: 5,
+                        max: 100,
+                        divisions: 95,
+                        activeColor: AppColors.brand,
+                        onChanged: (value) => setModalState(() => budgetLakhs = value),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text('Planning style', style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: styles.map((style) {
+                          final selected = selectedStyles.contains(style);
+                          return FilterChip(
+                            label: Text(style),
+                            selected: selected,
+                            selectedColor: AppColors.brandLight,
+                            onSelected: (_) => setModalState(() {
+                              if (selected) {
+                                selectedStyles.remove(style);
+                              } else {
+                                selectedStyles.add(style);
+                              }
+                            }),
+                          );
+                        }).toList(),
                       ),
                       const SizedBox(height: 20),
                       Row(
@@ -391,6 +464,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    final bookings = ref.watch(bookingsProvider).valueOrNull ?? const [];
+    final wishlist = ref.watch(wishlistProvider);
+    final checklistTasks = ref.watch(checklistProvider);
+    final doneTasks = checklistTasks.where((task) => task.isDone).length;
     final themeMode = ref.watch(themeModeProvider);
     final isDark = themeMode == ThemeMode.dark;
     final initials = user?.name?.isNotEmpty == true
@@ -421,7 +498,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: Colors.white.withOpacity(0.2),
-                    child: Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                    child: _avatarPath == null
+                        ? Text(initials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20))
+                        : const Icon(Icons.person, color: Colors.white, size: 24),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -437,13 +516,26 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ],
                     ),
                   ),
-                  GestureDetector(
-                    onTap: _showPersonalDetailsSheet,
-                    child: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                      child: const Icon(Icons.edit, color: Colors.white, size: 18),
-                    ),
+                  Column(
+                    children: [
+                      GestureDetector(
+                        onTap: _showPersonalDetailsSheet,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.edit, color: Colors.white, size: 18),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: _pickAvatar,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.photo_camera_outlined, color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -452,12 +544,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             // ─── Stats Row ────────────
             Row(
-              children: const [
-                _StatCard(value: '4', label: 'Bookings', icon: Icons.event, color: Colors.blue),
-                SizedBox(width: 12),
-                _StatCard(value: '12', label: 'Wishlisted', icon: Icons.favorite, color: Colors.red),
-                SizedBox(width: 12),
-                _StatCard(value: '22', label: 'Tasks Done', icon: Icons.checklist, color: Colors.green),
+              children: [
+                _StatCard(value: '${bookings.length}', label: 'Bookings', icon: Icons.event, color: Colors.blue),
+                const SizedBox(width: 12),
+                _StatCard(value: '${wishlist.length}', label: 'Wishlisted', icon: Icons.favorite, color: Colors.red),
+                const SizedBox(width: 12),
+                _StatCard(value: '$doneTasks', label: 'Tasks Done', icon: Icons.checklist, color: Colors.green),
               ],
             ),
             const SizedBox(height: 24),
@@ -468,7 +560,21 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             _MenuItem(icon: Icons.favorite_border, title: 'Wishlist', subtitle: 'Saved vendors', onTap: () => context.go('/wishlist')),
             _MenuItem(icon: Icons.notifications_outlined, title: 'Notifications', subtitle: 'Booking updates & reminders', onTap: () => context.push('/notifications')),
             _MenuItem(icon: Icons.checklist, title: 'Wedding Checklist', subtitle: 'Track your wedding prep', onTap: () => context.push('/checklist')),
-            _MenuItem(icon: Icons.chat_outlined, title: 'Messages', subtitle: 'Chat with vendors', onTap: () => context.go('/chat')),
+            _MenuItem(
+              icon: Icons.chat_outlined,
+              title: 'Messages',
+              subtitle: 'Chat with vendors',
+              onTap: () {
+                final firstBooking = bookings.isNotEmpty ? bookings.first : null;
+                if (firstBooking == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Start a booking to unlock vendor chat.')),
+                  );
+                  return;
+                }
+                context.push('/chat/${firstBooking.vendorId}');
+              },
+            ),
             _MenuItem(icon: Icons.account_balance_wallet_outlined, title: 'Payments & Escrow', subtitle: 'Transaction history', onTap: () => context.go('/bookings')),
             _MenuItem(icon: Icons.help_outline, title: 'Help & Support', subtitle: 'FAQs, contact us', onTap: _showHelpSupportSheet),
             _MenuItem(icon: Icons.info_outline, title: 'About WeddingOS', subtitle: 'Version 1.0.0', onTap: _showAboutWeddingOs),
