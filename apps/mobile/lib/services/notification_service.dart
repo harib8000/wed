@@ -102,6 +102,18 @@ class NotificationService {
       description: 'New messages from vendors.',
       importance: Importance.high,
     );
+    const coordinatorTasksChannel = AndroidNotificationChannel(
+      'coordinator_tasks',
+      'Coordinator Tasks',
+      description: 'Task assignments, milestone alerts and vendor messages for coordinators.',
+      importance: Importance.high,
+    );
+    const adminAlertsChannel = AndroidNotificationChannel(
+      'admin_alerts',
+      'Admin Alerts',
+      description: 'KYC submissions, disputes and platform alerts for admins.',
+      importance: Importance.high,
+    );
 
     final plugin = _localNotifications
         .resolvePlatformSpecificImplementation<
@@ -110,6 +122,8 @@ class NotificationService {
     await plugin?.createNotificationChannel(paymentChannel);
     await plugin?.createNotificationChannel(reminderChannel);
     await plugin?.createNotificationChannel(chatChannel);
+    await plugin?.createNotificationChannel(coordinatorTasksChannel);
+    await plugin?.createNotificationChannel(adminAlertsChannel);
   }
 
   // ─── Show Local Notification ─────────────────────────────────────────────────
@@ -181,6 +195,14 @@ class NotificationService {
         return 'reminders';
       case 'CHAT':
         return 'chat_messages';
+      case 'TASK_ASSIGNED':
+      case 'MILESTONE_DUE':
+      case 'VENDOR_MESSAGE':
+        return 'coordinator_tasks';
+      case 'KYC_SUBMITTED':
+      case 'DISPUTE_RAISED':
+      case 'NEW_VENDOR_REGISTERED':
+        return 'admin_alerts';
       default:
         return 'booking_updates';
     }
@@ -196,6 +218,10 @@ class NotificationService {
         return 'Reminders';
       case 'chat_messages':
         return 'Chat Messages';
+      case 'coordinator_tasks':
+        return 'Coordinator Tasks';
+      case 'admin_alerts':
+        return 'Admin Alerts';
       default:
         return 'WeddingOS';
     }

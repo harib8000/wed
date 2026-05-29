@@ -94,7 +94,7 @@ final _roles = [
     bgGradientEnd: const Color(0xFFE0E7FF),
     onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoCoordinatorLogin();
-      ctx.go('/');
+      ctx.go('/coordinator/dashboard');
     },
   ),
   _RoleConfig(
@@ -112,7 +112,7 @@ final _roles = [
     bgGradientEnd: const Color(0xFFFDE68A),
     onDemoLogin: (ref, ctx) {
       ref.read(authProvider.notifier).demoAdminLogin();
-      ctx.go('/');
+      ctx.go('/admin/dashboard');
     },
   ),
 ];

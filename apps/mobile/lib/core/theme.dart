@@ -14,6 +14,12 @@ class AppColors {
   static const border = Color(0xFFE5E7EB);
   static const success = Color(0xFF22C55E);
   static const error = Color(0xFFEF4444);
+  // Coordinator (indigo)
+  static const coordinator = Color(0xFF4F46E5);
+  static const coordinatorLight = Color(0xFFEEF2FF);
+  // Admin (amber)
+  static const admin = Color(0xFFD97706);
+  static const adminLight = Color(0xFFFEF3C7);
 
   // Dark mode equivalents
   static const darkSurface = Color(0xFF111827);

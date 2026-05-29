@@ -168,4 +168,85 @@ class ApiClient {
 
   static Future<Response> getVendorBookings({String? status}) =>
       dio.get('/bookings', queryParameters: status != null ? {'status': status} : null);
+
+  // ─── Coordinator ─────────────────────────────────────────────────────────────
+
+  static Future<Response> getCoordinatorEvents() =>
+      dio.get('/bookings/coordinator/events');
+
+  static Future<Response> getEventTimeline(String eventId) =>
+      dio.get('/timelines/$eventId');
+
+  static Future<Response> createTimelineItem(String eventId, Map<String, dynamic> data) =>
+      dio.post('/timelines/$eventId', data: data);
+
+  static Future<Response> updateTimelineItem(
+          String eventId, String itemId, Map<String, dynamic> data) =>
+      dio.patch('/timelines/$eventId/items/$itemId', data: data);
+
+  static Future<Response> deleteTimelineItem(String eventId, String itemId) =>
+      dio.delete('/timelines/$eventId/items/$itemId');
+
+  static Future<Response> getEventTasks(String eventId) =>
+      dio.get('/timelines/$eventId/tasks');
+
+  static Future<Response> createTask(String eventId, Map<String, dynamic> data) =>
+      dio.post('/timelines/$eventId/tasks', data: data);
+
+  static Future<Response> updateTask(
+          String eventId, String taskId, Map<String, dynamic> data) =>
+      dio.patch('/timelines/$eventId/tasks/$taskId', data: data);
+
+  static Future<Response> getCoordinatorVendors() =>
+      dio.get('/vendors/coordinator/linked');
+
+  // ─── Admin ────────────────────────────────────────────────────────────────────
+
+  static Future<Response> getAdminStats() => dio.get('/admin/stats');
+
+  static Future<Response> getAdminActivityFeed() => dio.get('/admin/activity');
+
+  static Future<Response> getAllUsers(Map<String, dynamic> params) =>
+      dio.get('/admin/users', queryParameters: params);
+
+  static Future<Response> updateUserStatus(String userId, String status) =>
+      dio.patch('/admin/users/$userId/status', data: {'status': status});
+
+  static Future<Response> getAllVendorsAdmin(Map<String, dynamic> params) =>
+      dio.get('/admin/vendors', queryParameters: params);
+
+  static Future<Response> approveKyc(String vendorId) =>
+      dio.post('/vendors/$vendorId/kyc/approve');
+
+  static Future<Response> rejectKyc(String vendorId, String reason) =>
+      dio.post('/vendors/$vendorId/kyc/reject', data: {'reason': reason});
+
+  static Future<Response> updateVendorFeatured(String vendorId, {required bool featured}) =>
+      dio.patch('/admin/vendors/$vendorId/featured', data: {'isFeatured': featured});
+
+  static Future<Response> getAllBookingsAdmin(Map<String, dynamic> params) =>
+      dio.get('/admin/bookings', queryParameters: params);
+
+  static Future<Response> overrideBookingStatus(String bookingId, String status) =>
+      dio.patch('/admin/bookings/$bookingId/status', data: {'status': status});
+
+  static Future<Response> getDisputes(Map<String, dynamic> params) =>
+      dio.get('/admin/disputes', queryParameters: params);
+
+  static Future<Response> resolveDispute(String disputeId, String action) =>
+      dio.post('/admin/disputes/$disputeId/resolve', data: {'action': action});
+
+  static Future<Response> getPlatformReports(Map<String, dynamic> params) =>
+      dio.get('/admin/reports', queryParameters: params);
+
+  static Future<Response> broadcastNotification({
+    required String title,
+    required String body,
+    String? targetRole,
+  }) =>
+      dio.post('/admin/notifications/broadcast', data: {
+        'title': title,
+        'body': body,
+        if (targetRole != null) 'targetRole': targetRole,
+      });
 }

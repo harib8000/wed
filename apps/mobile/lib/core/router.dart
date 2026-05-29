@@ -26,10 +26,26 @@ import '../features/vendor_dashboard/vendor_calendar_screen.dart';
 import '../features/vendor_dashboard/vendor_reviews_screen.dart';
 import '../features/vendor_dashboard/vendor_settings_screen.dart';
 import '../features/vendor_dashboard/vendor_kyc_screen.dart';
+import '../features/coordinator_dashboard/coordinator_dashboard_screen.dart';
+import '../features/coordinator_dashboard/coordinator_events_screen.dart';
+import '../features/coordinator_dashboard/coordinator_event_detail_screen.dart';
+import '../features/coordinator_dashboard/coordinator_timeline_screen.dart';
+import '../features/coordinator_dashboard/coordinator_tasks_screen.dart';
+import '../features/coordinator_dashboard/coordinator_vendors_screen.dart';
+import '../features/coordinator_dashboard/coordinator_profile_screen.dart';
+import '../features/admin_dashboard/admin_dashboard_screen.dart';
+import '../features/admin_dashboard/admin_users_screen.dart';
+import '../features/admin_dashboard/admin_vendors_screen.dart';
+import '../features/admin_dashboard/admin_bookings_screen.dart';
+import '../features/admin_dashboard/admin_disputes_screen.dart';
+import '../features/admin_dashboard/admin_reports_screen.dart';
+import '../features/admin_dashboard/admin_settings_screen.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../shared/widgets/app_shell.dart';
 import '../shared/widgets/vendor_app_shell.dart';
+import '../shared/widgets/coordinator_app_shell.dart';
+import '../shared/widgets/admin_app_shell.dart';
 
 // Public routes that don't require authentication
 const _publicRoutes = {'/login', '/onboarding'};
@@ -42,26 +58,44 @@ String? _authRedirect(WidgetRef ref, GoRouterState state) {
 
   if (_publicRoutes.contains(location)) {
     if (authStatus == AuthStatus.authenticated) {
-      // Redirect based on role
       final role = authState.user?.role ?? 'CUSTOMER';
-      return role == 'VENDOR' ? '/vendor/dashboard' : '/';
+      return _homeForRole(role);
     }
     return null;
   }
   if (authStatus != AuthStatus.authenticated) return '/login';
 
-  // Role-based access control
+  // Role-based access control — prevent cross-role route access
   final role = authState.user?.role ?? 'CUSTOMER';
   final isVendorRoute = location.startsWith('/vendor');
+  final isCoordinatorRoute = location.startsWith('/coordinator');
+  final isAdminRoute = location.startsWith('/admin');
 
-  if (role == 'VENDOR' && !isVendorRoute && location != '/notifications') {
-    return '/vendor/dashboard';
-  }
-  if (role == 'CUSTOMER' && isVendorRoute) {
-    return '/';
+  switch (role) {
+    case 'VENDOR':
+      if (!isVendorRoute && location != '/notifications') return '/vendor/dashboard';
+    case 'COORDINATOR':
+      if (!isCoordinatorRoute && location != '/notifications') return '/coordinator/dashboard';
+    case 'ADMIN':
+      if (!isAdminRoute && location != '/notifications') return '/admin/dashboard';
+    default: // CUSTOMER
+      if (isVendorRoute || isCoordinatorRoute || isAdminRoute) return '/';
   }
 
   return null;
+}
+
+String _homeForRole(String role) {
+  switch (role) {
+    case 'VENDOR':
+      return '/vendor/dashboard';
+    case 'COORDINATOR':
+      return '/coordinator/dashboard';
+    case 'ADMIN':
+      return '/admin/dashboard';
+    default:
+      return '/';
+  }
 }
 
 GoRouter buildRouter(WidgetRef ref) => GoRouter(
@@ -237,6 +271,84 @@ GoRouter buildRouter(WidgetRef ref) => GoRouter(
     GoRoute(
       path: '/vendor/kyc',
       builder: (context, state) => const VendorKycScreen(),
+    ),
+
+    // ─── Coordinator App (ShellRoute with coordinator bottom nav) ───
+    ShellRoute(
+      builder: (context, state, child) => CoordinatorAppShell(child: child),
+      routes: [
+        GoRoute(
+          path: '/coordinator/dashboard',
+          builder: (context, state) => const CoordinatorDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/coordinator/events',
+          builder: (context, state) => const CoordinatorEventsScreen(),
+        ),
+        GoRoute(
+          path: '/coordinator/tasks',
+          builder: (context, state) => const CoordinatorTasksScreen(),
+        ),
+        GoRoute(
+          path: '/coordinator/vendors',
+          builder: (context, state) => const CoordinatorVendorsScreen(),
+        ),
+        GoRoute(
+          path: '/coordinator/profile',
+          builder: (context, state) => const CoordinatorProfileScreen(),
+        ),
+      ],
+    ),
+
+    // Coordinator sub-screens (full-screen, no bottom nav)
+    GoRoute(
+      path: '/coordinator/events/:id',
+      builder: (context, state) => CoordinatorEventDetailScreen(
+        eventId: state.pathParameters['id']!,
+      ),
+    ),
+    GoRoute(
+      path: '/coordinator/events/:id/timeline',
+      builder: (context, state) => CoordinatorTimelineScreen(
+        eventId: state.pathParameters['id']!,
+      ),
+    ),
+
+    // ─── Admin App (ShellRoute with admin bottom nav) ───
+    ShellRoute(
+      builder: (context, state, child) => AdminAppShell(child: child),
+      routes: [
+        GoRoute(
+          path: '/admin/dashboard',
+          builder: (context, state) => const AdminDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/admin/users',
+          builder: (context, state) => const AdminUsersScreen(),
+        ),
+        GoRoute(
+          path: '/admin/vendors',
+          builder: (context, state) => const AdminVendorsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/bookings',
+          builder: (context, state) => const AdminBookingsScreen(),
+        ),
+        GoRoute(
+          path: '/admin/reports',
+          builder: (context, state) => const AdminReportsScreen(),
+        ),
+      ],
+    ),
+
+    // Admin sub-screens (full-screen, no bottom nav)
+    GoRoute(
+      path: '/admin/disputes',
+      builder: (context, state) => const AdminDisputesScreen(),
+    ),
+    GoRoute(
+      path: '/admin/settings',
+      builder: (context, state) => const AdminSettingsScreen(),
     ),
   ],
 );
