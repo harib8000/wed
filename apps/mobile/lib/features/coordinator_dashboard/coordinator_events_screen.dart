@@ -7,6 +7,7 @@ import '../../models/coordinator.dart';
 import '../../providers/coordinator_provider.dart';
 import '../../shared/widgets/empty_state_widget.dart';
 import '../../shared/widgets/error_state_widget.dart';
+import '../../shared/widgets/shimmer_state_widget.dart';
 
 class CoordinatorEventsScreen extends ConsumerWidget {
   const CoordinatorEventsScreen({super.key});
@@ -30,7 +31,7 @@ class CoordinatorEventsScreen extends ConsumerWidget {
         ],
       ),
       body: eventsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ShimmerStateWidget(itemCount: 4, itemHeight: 120),
         error: (e, _) => ErrorStateWidget(
           message: 'Failed to load events.',
           onRetry: () => ref.invalidate(coordinatorEventsProvider),

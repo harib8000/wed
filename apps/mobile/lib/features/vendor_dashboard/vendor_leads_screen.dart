@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../models/vendor_analytics.dart';
 import '../../providers/vendor_analytics_provider.dart';
+import '../../shared/widgets/empty_state_widget.dart';
+import '../../shared/widgets/error_state_widget.dart';
+import '../../shared/widgets/shimmer_state_widget.dart';
 
 class VendorLeadsScreen extends ConsumerWidget {
   const VendorLeadsScreen({super.key});
@@ -97,8 +100,11 @@ class VendorLeadsScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
       ),
       body: leadsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const ShimmerStateWidget(itemCount: 5, itemHeight: 104),
+        error: (e, _) => ErrorStateWidget(
+          message: 'Leads could not be fetched. Check your connection and retry.',
+          onRetry: () => ref.refresh(vendorLeadsProvider.future),
+        ),
         data: (leads) => _LeadsBody(leads: leads),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -137,14 +143,11 @@ class _LeadsBodyState extends State<_LeadsBody> {
         // Lead list
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.inbox_outlined, size: 48, color: AppColors.textMuted),
-                    SizedBox(height: 8),
-                    Text('No leads here', style: TextStyle(color: AppColors.textMuted)),
-                  ],
-                ))
+              ? const EmptyStateWidget(
+                  icon: Icons.inbox_outlined,
+                  title: 'No leads yet',
+                  message: 'Fresh enquiries from Hyderabad couples and families will appear here first.',
+                )
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: filtered.length,

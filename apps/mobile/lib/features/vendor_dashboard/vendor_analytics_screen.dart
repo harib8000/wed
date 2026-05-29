@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../models/vendor_analytics.dart';
 import '../../providers/vendor_analytics_provider.dart';
+import '../../shared/widgets/error_state_widget.dart';
+import '../../shared/widgets/shimmer_state_widget.dart';
 
 class VendorAnalyticsScreen extends ConsumerWidget {
   const VendorAnalyticsScreen({super.key});
@@ -39,8 +41,11 @@ class VendorAnalyticsScreen extends ConsumerWidget {
         ],
       ),
       body: analyticsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const ShimmerStateWidget(itemCount: 5, itemHeight: 140),
+        error: (e, _) => ErrorStateWidget(
+          message: 'Analytics are taking longer than expected to load.',
+          onRetry: () => ref.refresh(vendorAnalyticsProvider.future),
+        ),
         data: (a) => _AnalyticsBody(analytics: a),
       ),
     );

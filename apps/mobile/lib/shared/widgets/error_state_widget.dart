@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme.dart';
+import '../../core/theme.dart';
 
 /// Reusable error-state widget with a retry button.
 class ErrorStateWidget extends StatelessWidget {

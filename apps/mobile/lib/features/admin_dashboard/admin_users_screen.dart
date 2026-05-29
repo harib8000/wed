@@ -5,7 +5,7 @@ import '../../models/admin.dart';
 import '../../providers/admin_provider.dart';
 import '../../shared/widgets/empty_state_widget.dart';
 import '../../shared/widgets/error_state_widget.dart';
-
+import '../../shared/widgets/shimmer_state_widget.dart';
 class AdminUsersScreen extends ConsumerWidget {
   const AdminUsersScreen({super.key});
 
@@ -41,7 +41,7 @@ class AdminUsersScreen extends ConsumerWidget {
         ),
       ),
       body: usersAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ShimmerStateWidget(itemCount: 5, itemHeight: 96),
         error: (e, _) => ErrorStateWidget(
           message: 'Failed to load users.',
           onRetry: () => ref.invalidate(adminUsersProvider),

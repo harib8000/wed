@@ -6,7 +6,7 @@ import '../../models/admin.dart';
 import '../../providers/admin_provider.dart';
 import '../../shared/widgets/empty_state_widget.dart';
 import '../../shared/widgets/error_state_widget.dart';
-
+import '../../shared/widgets/shimmer_state_widget.dart';
 class AdminBookingsScreen extends ConsumerWidget {
   const AdminBookingsScreen({super.key});
 
@@ -42,7 +42,7 @@ class AdminBookingsScreen extends ConsumerWidget {
         ),
       ),
       body: bookingsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ShimmerStateWidget(itemCount: 5, itemHeight: 104),
         error: (e, _) => ErrorStateWidget(
           message: 'Failed to load bookings.',
           onRetry: () => ref.invalidate(adminBookingsProvider),

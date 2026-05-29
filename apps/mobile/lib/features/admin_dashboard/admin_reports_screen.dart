@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../models/admin.dart';
 import '../../providers/admin_provider.dart';
 import '../../shared/widgets/error_state_widget.dart';
+import '../../shared/widgets/shimmer_state_widget.dart';
 
 class AdminReportsScreen extends ConsumerWidget {
   const AdminReportsScreen({super.key});
@@ -32,7 +33,7 @@ class AdminReportsScreen extends ConsumerWidget {
         ],
       ),
       body: reportsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ShimmerStateWidget(itemCount: 4, itemHeight: 128),
         error: (e, _) => ErrorStateWidget(
           message: 'Failed to load reports.',
           onRetry: () => ref.invalidate(platformReportsProvider),

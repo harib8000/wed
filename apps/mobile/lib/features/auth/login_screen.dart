@@ -194,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         await ref.read(authProvider.notifier).refreshFromStorage();
         if (mounted && ref.read(authProvider).isAuthenticated) {
           final role = ref.read(authProvider).user?.role ?? 'CUSTOMER';
-          context.go(role == 'VENDOR' ? '/vendor/dashboard' : '/');
+          context.go(_homeForRole(role));
         }
       }
     } catch (_) {}
@@ -202,6 +202,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   String get _phone => _phoneController.text.replaceAll(' ', '').trim();
   String get _otp => _otpControllers.map((c) => c.text).join();
+
+  String _homeForRole(String role) {
+    switch (role) {
+      case 'VENDOR':
+        return '/vendor/dashboard';
+      case 'COORDINATOR':
+        return '/coordinator/dashboard';
+      case 'ADMIN':
+        return '/admin/dashboard';
+      default:
+        return '/';
+    }
+  }
 
   @override
   void dispose() {
@@ -286,8 +299,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     try {
       await ref.read(authProvider.notifier).verifyOtp(_phone, _otp);
       if (!mounted) return;
+      final role = ref.read(authProvider).user?.role ?? 'CUSTOMER';
       setState(() => _isLoading = false);
-      context.go('/');
+      context.go(_homeForRole(role));
     } catch (e) {
       if (!mounted) return;
       setState(() {

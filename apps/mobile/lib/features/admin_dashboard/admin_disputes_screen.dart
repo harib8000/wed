@@ -7,7 +7,7 @@ import '../../models/admin.dart';
 import '../../providers/admin_provider.dart';
 import '../../shared/widgets/empty_state_widget.dart';
 import '../../shared/widgets/error_state_widget.dart';
-
+import '../../shared/widgets/shimmer_state_widget.dart';
 class AdminDisputesScreen extends ConsumerWidget {
   const AdminDisputesScreen({super.key});
 
@@ -30,7 +30,7 @@ class AdminDisputesScreen extends ConsumerWidget {
         ],
       ),
       body: disputesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const ShimmerStateWidget(itemCount: 4, itemHeight: 116),
         error: (e, _) => ErrorStateWidget(
           message: 'Failed to load disputes.',
           onRetry: () => ref.invalidate(adminDisputesProvider),

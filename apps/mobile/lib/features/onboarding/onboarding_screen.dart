@@ -25,33 +25,33 @@ class _OnboardingPage {
 
 const _pages = [
   _OnboardingPage(
-    title: 'Discover Top Wedding Vendors',
+    title: 'Discover trusted event partners',
     description:
-        'Browse thousands of verified vendors — photographers, decorators, caterers & more — all in one place.',
+        'Explore verified venues, photographers, caterers, and decorators across Hyderabad and beyond for weddings, engagements, and family celebrations.',
     icon: Icons.explore,
     iconBgColor: Color(0xFFFDF4FF),
     iconColor: Color(0xFFC026D3),
   ),
   _OnboardingPage(
-    title: 'Book & Pay Securely',
+    title: 'Book with escrow confidence',
     description:
-        'Escrow-protected payments ensure your money is safe. Pay only when you\'re satisfied with the service.',
+        'Pay securely in ₹ with protected milestones, clear package pricing, and status updates that keep every booking transparent.',
     icon: Icons.lock,
     iconBgColor: Color(0xFFECFDF5),
     iconColor: Color(0xFF059669),
   ),
   _OnboardingPage(
-    title: 'Plan Your Dream Wedding',
+    title: 'Plan every ceremony smoothly',
     description:
-        'Checklists, budgets, guest lists & timelines — everything you need to plan the perfect celebration.',
+        'Manage checklists, timelines, budgets, and guest details for haldi, mehendi, reception, and wedding day in one app.',
     icon: Icons.checklist,
     iconBgColor: Color(0xFFFEF3C7),
     iconColor: Color(0xFFD97706),
   ),
   _OnboardingPage(
-    title: 'Real-Time Chat & Updates',
+    title: 'Stay connected in real time',
     description:
-        'Message vendors directly, get instant booking updates, and stay on top of every detail.',
+        'Chat with vendors, track bookings, and get instant alerts so your family and coordinator always know what happens next.',
     icon: Icons.chat_bubble_outline,
     iconBgColor: Color(0xFFEEF2FF),
     iconColor: Color(0xFF4F46E5),

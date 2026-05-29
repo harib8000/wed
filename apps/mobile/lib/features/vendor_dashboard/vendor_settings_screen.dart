@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/theme.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 
 class VendorSettingsScreen extends ConsumerStatefulWidget {
   const VendorSettingsScreen({super.key});
@@ -438,6 +439,8 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
+    final themeMode = ref.watch(themeModeProvider);
+    final isDarkMode = themeMode == ThemeMode.dark;
     _seedProfile(user);
 
     return Scaffold(
@@ -670,6 +673,26 @@ class _VendorSettingsScreenState extends ConsumerState<VendorSettingsScreen> {
                   if (selectedValues == null) return;
                   setState(() => _languagesSupported = selectedValues);
                   _showSnackBar('Supported languages updated.');
+                },
+              ),
+            ]),
+
+            const SizedBox(height: 16),
+
+            // ─── Appearance ───────────────────
+            _SectionHeader(title: 'Appearance'),
+            _SettingsCard(children: [
+              _ToggleTile(
+                icon: isDarkMode ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                label: 'Dark Mode',
+                value: isDarkMode,
+                onChanged: (value) {
+                  ref.read(themeModeProvider.notifier).setThemeMode(
+                        value ? ThemeMode.dark : ThemeMode.light,
+                      );
+                  _showSnackBar(
+                    value ? 'Dark mode enabled.' : 'Light mode enabled.',
+                  );
                 },
               ),
             ]),

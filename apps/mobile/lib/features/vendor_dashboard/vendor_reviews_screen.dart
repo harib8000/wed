@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../models/vendor_analytics.dart';
 import '../../providers/vendor_analytics_provider.dart';
+import '../../shared/widgets/error_state_widget.dart';
+import '../../shared/widgets/shimmer_state_widget.dart';
 
 class VendorReviewsScreen extends ConsumerWidget {
   const VendorReviewsScreen({super.key});
@@ -19,8 +21,11 @@ class VendorReviewsScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
       ),
       body: reviewsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const ShimmerStateWidget(itemCount: 4, itemHeight: 132),
+        error: (e, _) => ErrorStateWidget(
+          message: 'Reviews could not load at the moment.',
+          onRetry: () => ref.refresh(vendorReviewsListProvider.future),
+        ),
         data: (reviews) {
           final perf = analyticsAsync.valueOrNull?.performance;
           return _ReviewsBody(reviews: reviews, perf: perf);
