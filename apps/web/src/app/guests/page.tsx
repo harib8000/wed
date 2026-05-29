@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -29,6 +29,7 @@ import {
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { AddGuestModal } from '@/components/guests/AddGuestModal';
+import { guestApi } from '@/lib/api';
 
 type RsvpStatus = 'pending' | 'accepted' | 'declined' | 'maybe';
 type GuestSide = 'bride' | 'groom' | 'mutual';
@@ -644,10 +645,8 @@ function BulkImportModal({
 }
 
 export default function GuestsPage() {
-  const [guests, setGuests] = useState<Guest[]>(() => {
-    if (typeof window === 'undefined') return MOCK_GUESTS;
-    return loadGuestsFromStorage() ?? MOCK_GUESTS;
-  });
+  const [guests, setGuests] = useState<Guest[]>([]);
+  const [guestsLoading, setGuestsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sideTab, setSideTab] = useState<SideTab>('all');
   const [rsvpFilter, setRsvpFilter] = useState<RsvpFilter>('all');
@@ -656,14 +655,28 @@ export default function GuestsPage() {
   const [showImportModal, setShowImportModal] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
 
-  const guestInitRef = useRef(false);
   useEffect(() => {
-    if (!guestInitRef.current) {
-      guestInitRef.current = true;
-      return;
-    }
-    saveGuestsToStorage(guests);
-  }, [guests]);
+    guestApi.list()
+      .then((res) => {
+        const raw: unknown[] = res.data.data?.guests ?? [];
+        setGuests(raw.map((g) => {
+          const guest = g as Record<string, unknown>;
+          return {
+            ...guest,
+            side: (guest.side as string).toLowerCase() as GuestSide,
+            group: (guest.group as string).toLowerCase() as GuestGroup,
+            rsvpStatus: (guest.rsvpStatus as string).toLowerCase() as RsvpStatus,
+            mealPreference: (guest.mealPreference as string).toLowerCase() as MealPreference,
+            createdAt: new Date(guest.createdAt as string),
+            inviteSentAt: guest.inviteSentAt ? new Date(guest.inviteSentAt as string) : undefined,
+            rsvpRespondedAt: guest.rsvpRespondedAt ? new Date(guest.rsvpRespondedAt as string) : undefined,
+            plusOnes: (guest.plusOnes as number) ?? 0,
+          } as Guest;
+        }));
+      })
+      .catch(() => setGuests([]))
+      .finally(() => setGuestsLoading(false));
+  }, []);
 
   const stats = useMemo(() => {
     const total = guests.length;
@@ -773,6 +786,25 @@ export default function GuestsPage() {
       createdAt: new Date(),
     };
 
+    // Persist to backend
+    const payload = {
+      name: newGuest.name,
+      phone: newGuest.phone,
+      email: newGuest.email,
+      side: (newGuest.side as string).toUpperCase(),
+      group: (newGuest.group as string).toUpperCase(),
+      rsvpStatus: (newGuest.rsvpStatus as string).toUpperCase(),
+      mealPreference: (newGuest.mealPreference as string).toUpperCase(),
+      plusOnes: newGuest.plusOnes,
+      tableNumber: newGuest.tableNumber,
+      notes: newGuest.notes,
+    };
+    guestApi.create(payload).then((res) => {
+      const created = res.data.data?.guest as Record<string, unknown> | undefined;
+      if (created?.id) {
+        setGuests((prev) => prev.map((g) => g.id === newGuest.id ? { ...g, id: created.id as string } : g));
+      }
+    }).catch(() => {}); // optimistic - keep local add
     setGuests((prev) => [newGuest, ...prev]);
     toast.success(`${data.name} added to guest list!`, { duration: 2000 });
   }
@@ -1204,7 +1236,9 @@ export default function GuestsPage() {
             )}
           </div>
 
-          {filtered.length === 0 ? (
+          {guestsLoading ? (
+            <div className="text-center py-20 text-sm text-gray-500">Loading guests...</div>
+          ) : filtered.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1340,6 +1374,7 @@ export default function GuestsPage() {
                           )}
                           <button
                             onClick={() => {
+                              guestApi.remove(guest.id).catch(() => {}); // fire-and-forget
                               setGuests((prev) => prev.filter((entry) => entry.id !== guest.id));
                               toast.success(`${guest.name} removed`, { duration: 2000 });
                             }}

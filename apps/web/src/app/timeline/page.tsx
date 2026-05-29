@@ -1,9 +1,12 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, CheckCircle2, AlertTriangle, Phone, MessageCircle, MapPin, CalendarDays, ChevronRight, Sparkles, UserCircle, Plus } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { executionApi } from '@/lib/api';
+import { useAuthStore } from '@/store/authStore';
 
 // ─── Types ─────────────────────────────────────────────────
 type EntryStatus = 'upcoming' | 'in_progress' | 'completed' | 'delayed';
@@ -324,8 +327,54 @@ function TimelineCard({ entry, index, onAssign, onAddNote }: { entry: TimelineEn
 
 // ─── Main Page ─────────────────────────────────────────────
 export default function TimelinePage() {
+  const queryClient = useQueryClient();
+  const user = useAuthStore((s) => s.user);
   const [activeTab, setActiveTab] = useState<EventFunction>('Wedding');
   const [timelineData, setTimelineData] = useState(MOCK_TIMELINE);
+  const [showWeddingDateWizard, setShowWeddingDateWizard] = useState(false);
+  const [weddingDateInput, setWeddingDateInput] = useState('');
+  const [wizardSubmitting, setWizardSubmitting] = useState(false);
+
+  const { data: apiTimeline, isLoading: timelineLoading, isError: timelineError } = useQuery({
+    queryKey: ['timeline'],
+    queryFn: async () => {
+      try {
+        const res = await executionApi.getTimeline();
+        return res.data.data?.timeline ?? null;
+      } catch (err) {
+        const error = err as { response?: { status?: number } };
+        if (error.response?.status === 404) return null;
+        throw err;
+      }
+    },
+    enabled: !!user,
+    retry: 0,
+  });
+
+  const createTimelineMutation = useMutation({
+    mutationFn: (data: { weddingDate: string }) => executionApi.createTimeline(data),
+  });
+
+  const handleCreateTimeline = async () => {
+    if (!weddingDateInput) return;
+    setWizardSubmitting(true);
+    try {
+      await createTimelineMutation.mutateAsync({ weddingDate: weddingDateInput });
+      await queryClient.invalidateQueries({ queryKey: ['timeline'] });
+      setShowWeddingDateWizard(false);
+    } catch {
+      // ignore
+    } finally {
+      setWizardSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!timelineLoading && !timelineError && !apiTimeline && user) {
+      setShowWeddingDateWizard(true);
+    }
+  }, [timelineLoading, timelineError, apiTimeline, user]);
+
   const entries = timelineData[activeTab];
 
   const handleAssign = (id: string, assignee: string) => {
@@ -373,6 +422,87 @@ export default function TimelinePage() {
         <div className="mb-6">
           <CountdownBanner />
         </div>
+
+        {/* Planning Tasks from API */}
+        {apiTimeline && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 bg-white rounded-xl border border-purple-100 p-4 shadow-sm"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-purple-500" />
+                Planning Checklist
+              </h3>
+              <span className="text-xs text-gray-400">
+                {apiTimeline.tasks?.filter((t: Record<string, unknown>) => t.status === 'DONE').length ?? 0}/{apiTimeline.tasks?.length ?? 0} done
+              </span>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {(apiTimeline.tasks as Array<Record<string, unknown>>)?.slice(0, 5).map((task) => (
+                <div key={task.id as string} className="flex items-center gap-2 text-sm">
+                  <div className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                    task.status === 'DONE' ? 'bg-green-500 border-green-500' :
+                    task.status === 'IN_PROGRESS' ? 'bg-blue-500 border-blue-500' :
+                    'bg-white border-gray-300'
+                  }`} />
+                  <span className={task.status === 'DONE' ? 'line-through text-gray-400' : 'text-gray-700'}>
+                    {task.title as string}
+                  </span>
+                  {task.dueDate && (
+                    <span className="text-xs text-gray-400 ml-auto">
+                      {new Date(task.dueDate as string).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            {(apiTimeline.tasks as Array<unknown>)?.length > 5 && (
+              <p className="text-xs text-gray-400 mt-2 text-center">
+                +{(apiTimeline.tasks as Array<unknown>).length - 5} more tasks
+              </p>
+            )}
+          </motion.div>
+        )}
+
+        {/* Wedding Date Wizard */}
+        {showWeddingDateWizard && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="mb-6 bg-gradient-to-r from-rose-50 to-purple-50 rounded-xl border border-rose-200 p-5"
+          >
+            <h3 className="font-semibold text-gray-800 mb-1 flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-rose-500" />
+              Set your wedding date
+            </h3>
+            <p className="text-sm text-gray-500 mb-3">
+              Enter your wedding date to generate a personalised planning checklist.
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={weddingDateInput}
+                onChange={(e) => setWeddingDateInput(e.target.value)}
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
+              />
+              <button
+                onClick={handleCreateTimeline}
+                disabled={!weddingDateInput || wizardSubmitting}
+                className="px-4 py-2 bg-rose-500 text-white rounded-lg text-sm font-medium hover:bg-rose-600 disabled:opacity-50 transition"
+              >
+                {wizardSubmitting ? 'Creating…' : 'Create Plan'}
+              </button>
+              <button
+                onClick={() => setShowWeddingDateWizard(false)}
+                className="px-3 py-2 text-gray-400 hover:text-gray-600 transition"
+              >
+                ✕
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Event Tabs */}
         <motion.div

@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { profileService } from '../services/profile.service';
 import { authenticate, requireRole } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
@@ -433,4 +434,60 @@ userRouter.delete(
     } catch (err) { next(err); }
   }
 );
+
+// ── Guests ──────────────────────────────────────────────────────
+const GuestCreateSchema = z.object({
+  name: z.string().min(1).max(200),
+  phone: z.string().max(20).optional(),
+  email: z.string().email().optional(),
+  side: z.enum(['BRIDE', 'GROOM', 'MUTUAL']).default('MUTUAL'),
+  group: z.enum(['FAMILY', 'FRIENDS', 'COLLEAGUES', 'NEIGHBOURS', 'OTHERS']).default('OTHERS'),
+  rsvpStatus: z.enum(['PENDING', 'ACCEPTED', 'DECLINED', 'MAYBE']).default('PENDING'),
+  mealPreference: z.enum(['VEG', 'NON_VEG', 'JAIN', 'VEGAN', 'NO_PREFERENCE']).default('NO_PREFERENCE'),
+  plusOnes: z.number().int().min(0).max(20).default(0),
+  tableNumber: z.string().max(50).optional(),
+  roomAllocation: z.string().max(100).optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+const GuestUpdateSchema = GuestCreateSchema.partial();
+
+userRouter.get('/me/guests', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const guests = await prisma.guest.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: { guests }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+userRouter.post('/me/guests', authenticate, validate(GuestCreateSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const guest = await prisma.guest.create({ data: { ...req.body, userId: req.user!.id } });
+    res.status(201).json({ success: true, data: { guest }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+userRouter.patch('/me/guests/:id', authenticate, validate(GuestUpdateSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.guest.findFirst({ where: { id: req.params.id, userId: req.user!.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Guest not found' }, meta: meta(req) });
+    }
+    const guest = await prisma.guest.update({ where: { id: req.params.id }, data: req.body });
+    res.json({ success: true, data: { guest }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+userRouter.delete('/me/guests/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.guest.findFirst({ where: { id: req.params.id, userId: req.user!.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Guest not found' }, meta: meta(req) });
+    }
+    await prisma.guest.delete({ where: { id: req.params.id } });
+    res.json({ success: true, data: { message: 'Guest removed' }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
 

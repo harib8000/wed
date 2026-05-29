@@ -203,6 +203,7 @@ export default function BookingsPage() {
   const { user, isLoading: authLoading } = useAuthStore();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [activeTab, setActiveTab] = useState('ALL');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list');
@@ -214,8 +215,8 @@ export default function BookingsPage() {
   useEffect(() => {
     if (!user) return;
     bookingApi.list()
-      .then((res) => setBookings(res.data.data.bookings))
-      .catch(() => setBookings(MOCK_BOOKINGS))
+      .then((res) => setBookings(res.data.data.bookings ?? res.data.data ?? []))
+      .catch(() => { setLoadError(true); setBookings([]); })
       .finally(() => setIsLoading(false));
   }, [user]);
 
@@ -340,6 +341,23 @@ export default function BookingsPage() {
               {[1, 2, 3].map(i => (
                 <div key={i} className="bg-white rounded-2xl border border-gray-100 h-32 animate-pulse" />
               ))}
+            </div>
+          ) : loadError ? (
+            <div className="text-center py-16">
+              <p className="text-gray-500 mb-4">Failed to load bookings. Please try again.</p>
+              <button
+                onClick={() => {
+                  setLoadError(false);
+                  setIsLoading(true);
+                  bookingApi.list()
+                    .then((res) => setBookings(res.data.data.bookings ?? res.data.data ?? []))
+                    .catch(() => setLoadError(true))
+                    .finally(() => setIsLoading(false));
+                }}
+                className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition"
+              >
+                Retry
+              </button>
             </div>
           ) : filteredBookings.length === 0 ? (
             <EmptyState tab={TABS.find(t => t.value === activeTab)?.label ?? 'All'} />

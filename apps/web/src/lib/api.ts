@@ -228,9 +228,20 @@ export const userApi = {
 };
 
 export const executionApi = {
-  getTimeline: (customerId: string) => api.get(`/execution/timeline/${customerId}`),
-  createTimeline: <T extends object>(data: T) => api.post('/execution/timeline', data),
-  updateTask: <T extends object>(taskId: string, data: T) => api.put(`/execution/tasks/${taskId}`, data),
+  getTimeline: () => api.get('/execution/timeline'),
+  createTimeline: (data: { weddingDate: string }) => api.post('/execution/timeline', data),
+  addTask: (data: { title: string; category?: string; description?: string; dueDate?: string }) =>
+    api.post('/execution/timeline/tasks', data),
+  updateTask: (taskId: string, data: { status?: string; title?: string; dueDate?: string; description?: string }) =>
+    api.patch(`/execution/timeline/tasks/${taskId}`, data),
+  deleteTask: (taskId: string) => api.delete(`/execution/timeline/tasks/${taskId}`),
+};
+
+export const guestApi = {
+  list: () => api.get('/users/me/guests'),
+  create: (data: Record<string, unknown>) => api.post('/users/me/guests', data),
+  update: (id: string, data: Record<string, unknown>) => api.patch(`/users/me/guests/${id}`, data),
+  remove: (id: string) => api.delete(`/users/me/guests/${id}`),
 };
 
 export const reviewApi = {

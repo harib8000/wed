@@ -576,26 +576,20 @@ function VendorsPageInner() {
     queryFn: async () => {
       try {
         const res = await searchApi.search(apiParams);
-        return { vendors: res.data.data?.vendors || res.data.data || res.data, isDemo: false };
+        return { vendors: res.data.data?.vendors || res.data.data || res.data };
       } catch {
-        try {
-          const res = await vendorApi.search(apiParams);
-          return { vendors: res.data.data?.vendors || res.data.data || res.data, isDemo: false };
-        } catch {
-          return null;
-        }
+        const res = await vendorApi.search(apiParams);
+        return { vendors: res.data.data?.vendors || res.data.data || res.data };
       }
     },
-    retry: 0,
+    retry: 1,
     staleTime: 30_000,
   });
 
-  const isDemo = !vendorData || vendorData.isDemo || isError;
-
   const allVendors: VendorItem[] = useMemo(() => {
-    const baseVendors = !isDemo && vendorData?.vendors && Array.isArray(vendorData.vendors)
+    const baseVendors = !isError && vendorData?.vendors && Array.isArray(vendorData.vendors)
       ? vendorData.vendors.map((vendor: Record<string, unknown>) => normalizeVendor(vendor, selectedCity))
-      : MOCK_VENDORS;
+      : [];
 
     return filterAndSortVendors(
       baseVendors,
@@ -608,7 +602,7 @@ function VendorsPageInner() {
       userLocation,
       radiusKm,
     );
-  }, [debouncedSearch, isDemo, locationActive, radiusKm, selectedCategory, selectedCity, selectedEventType, sortBy, userLocation, vendorData]);
+  }, [debouncedSearch, isError, locationActive, radiusKm, selectedCategory, selectedCity, selectedEventType, sortBy, userLocation, vendorData]);
 
   const visibleVendors = allVendors.slice(0, visibleCount);
   const hasMore = visibleCount < allVendors.length;
@@ -853,7 +847,6 @@ function VendorsPageInner() {
                     {selectedCategory !== 'All' && <> · <strong>{selectedCategory}</strong></>}
                     {selectedEventType !== 'All Events' && <> · <strong>{selectedEventType}</strong></>}
                   </p>
-                  {isDemo && <DemoModeBadge />}
                 </div>
                 {activeFilterCount > 0 && (
                   <button
@@ -908,6 +901,13 @@ function VendorsPageInner() {
                     </div>
                   )}
                 </>
+              ) : isError || !vendorData ? (
+                <div className="text-center py-16">
+                  <p className="text-gray-500 mb-4">Unable to load vendors. Please try again.</p>
+                  <button onClick={() => window.location.reload()} className="px-4 py-2 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition">
+                    Retry
+                  </button>
+                </div>
               ) : (
                 <EmptyState onClear={clearFilters} />
               )}

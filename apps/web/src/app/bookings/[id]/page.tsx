@@ -110,7 +110,7 @@ export default function BookingDetailPage() {
     if (!params.id) return;
     bookingApi.getById(params.id)
       .then((res) => setBooking(res.data.data.booking))
-      .catch(() => setBooking(MOCK_DETAIL[params.id] ?? null))
+      .catch(() => { setBooking(null); })
       .finally(() => setIsLoading(false));
   }, [params.id]);
 
