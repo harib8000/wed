@@ -118,6 +118,7 @@ export const bookingService = {
     }
 
     await notify('booking.quote_sent', { bookingId: updated.id, customerId: booking.customerId, quotedAmountPaise: data.quotedAmountPaise });
+    publishEvent('booking.quote_sent', updated.id, { bookingId: updated.id, vendorId, customerId: booking.customerId, quotedAmountPaise: data.quotedAmountPaise });
     return updated;
   },
 
@@ -195,6 +196,24 @@ export const bookingService = {
 
     await notify('booking.cancelled', { bookingId, actorRole, reason });
     publishEvent('booking.cancelled', bookingId, { bookingId, actorId, actorRole, reason: reason ?? '', customerId: booking.customerId, vendorId: booking.vendorId });
+    return updated;
+  },
+
+  async completeBooking(bookingId: string, actorId: string, actorRole: 'admin' | 'system') {
+    const booking = await prisma.booking.findFirst({ where: { id: bookingId, status: 'CONFIRMED' } });
+    if (!booking) throw new NotFoundError('Booking', bookingId);
+
+    const updated = await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: 'COMPLETED' as BookingStatus,
+        version: { increment: 1 },
+        events: { create: { eventType: 'BOOKING_COMPLETED', actorId, actorRole, payload: {} } },
+      },
+    });
+
+    await notify('booking.completed', { bookingId: updated.id, customerId: booking.customerId, vendorId: booking.vendorId });
+    publishEvent('booking.completed', updated.id, { bookingId: updated.id, customerId: booking.customerId, vendorId: booking.vendorId });
     return updated;
   },
 

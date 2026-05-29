@@ -4,6 +4,9 @@ import { notificationService } from '../services/notification.service';
 import { authenticate, requireInternalOrAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { prisma } from '../config/database';
+import { sendEmail } from '../channels/email.channel';
+import { config } from '../config';
+import { logger } from '../utils/logger';
 
 // ── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -81,6 +84,43 @@ notificationRouter.post('/internal/notify', requireInternalOrAdmin, validate(Int
     const { event, payload } = req.body;
     await notificationService.handleEvent(event, payload);
     res.json({ status: 'queued' });
+  } catch (err) { next(err); }
+});
+
+// ── POST /contact (public contact form → email to support) ───────────────────
+
+const ContactSchema = z.object({
+  name: z.string().min(2).max(200),
+  email: z.string().email(),
+  phone: z.string().max(20).optional(),
+  subject: z.enum(['general', 'vendor', 'payment', 'technical', 'other']).default('general'),
+  message: z.string().min(10).max(5000),
+});
+
+notificationRouter.post('/contact', validate(ContactSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, email, phone, subject, message } = req.body as z.infer<typeof ContactSchema>;
+    const supportEmail = config.SUPPORT_EMAIL ?? 'support@weddingos.in';
+
+    await sendEmail({
+      to: supportEmail,
+      subject: `[WeddingOS Contact] ${subject} — ${name}`,
+      templateName: 'contact_form',
+      templateVars: { name, email, phone: phone ?? 'N/A', subject, message },
+      text: `Name: ${name}\nEmail: ${email}\nPhone: ${phone ?? 'N/A'}\nSubject: ${subject}\n\n${message}`,
+    });
+
+    // Send auto-reply to user
+    await sendEmail({
+      to: email,
+      subject: 'We received your message — WeddingOS Support',
+      templateName: 'contact_autoreply',
+      templateVars: { name },
+      text: `Hi ${name},\n\nThank you for contacting WeddingOS. We have received your message and will get back to you within 24 hours.\n\nWarm regards,\nWeddingOS Support Team`,
+    });
+
+    logger.info({ name, email, subject }, 'Contact form submitted');
+    res.json({ success: true, data: { message: 'Your message has been sent. We will get back to you shortly.' } });
   } catch (err) { next(err); }
 });
 

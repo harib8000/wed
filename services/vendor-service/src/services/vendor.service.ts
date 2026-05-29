@@ -104,6 +104,10 @@ export const vendorService = {
     });
   },
 
+  async getById(id: string) {
+    return prisma.vendor.findUnique({ where: { id } });
+  },
+
   async getByUserId(userId: string) {
     return prisma.vendor.findUnique({
       where: { userId },

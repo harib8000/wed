@@ -293,3 +293,12 @@ bookingRouter.patch('/:id/vendor-note', authenticate, requireRole('vendor'), val
     res.json({ success: true, data: { booking: updated }, meta: meta(req) });
   } catch (err) { next(err); }
 });
+
+// ── Admin: mark booking as completed ─────────────────────────────────────────
+
+bookingRouter.post('/:id/complete', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const booking = await bookingService.completeBooking(req.params.id, req.user!.id, 'admin');
+    res.json({ success: true, data: { booking }, meta: meta(req) });
+  } catch (err) { next(err); }
+});

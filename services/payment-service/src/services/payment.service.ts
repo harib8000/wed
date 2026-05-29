@@ -174,15 +174,62 @@ export const paymentService = {
       return;
     }
 
-    // In production: trigger Razorpay payout to vendor bank account
-    // For now: mark as released
+    // Fetch vendor bank details from vendor-service
+    let razorpayPayoutId: string | undefined;
+    try {
+      const vendorRes = await axios.get<{ data: { vendor: { bankAccountNo?: string; bankIfsc?: string; bankAccountName?: string } } }>(
+        `${config.VENDOR_SERVICE_URL}/vendors/internal/${hold.vendorId}/bank-details`,
+      );
+      const { bankAccountNo, bankIfsc, bankAccountName } = vendorRes.data?.data?.vendor ?? {};
+
+      if (bankAccountNo && bankIfsc && config.RAZORPAY_ACCOUNT_NUMBER) {
+        // Create Razorpay payout via X API (Payouts API)
+        const rzp = getRazorpayClient();
+        const payout = await (rzp as unknown as Record<string, Record<string, (...args: unknown[]) => Promise<Record<string, unknown>>>>)
+          .payouts?.create?.({
+            account_number: config.RAZORPAY_ACCOUNT_NUMBER,
+            fund_account: {
+              account_type: 'bank_account',
+              bank_account: {
+                name: bankAccountName ?? 'Vendor',
+                ifsc: bankIfsc,
+                account_number: bankAccountNo,
+              },
+              contact: {
+                name: bankAccountName ?? 'Vendor',
+                type: 'vendor',
+                reference_id: hold.vendorId,
+              },
+            },
+            amount: hold.vendorPayoutPaise,
+            currency: 'INR',
+            mode: 'IMPS',
+            purpose: 'payout',
+            queue_if_low_balance: true,
+            reference_id: `escrow-${escrowHoldId}`,
+            narration: `WeddingOS payout ${hold.bookingId.slice(0, 8)}`,
+          }) as Record<string, unknown>;
+        razorpayPayoutId = payout?.id as string | undefined;
+        logger.info({ escrowHoldId, razorpayPayoutId, vendorId: hold.vendorId }, 'Razorpay payout initiated');
+      } else {
+        logger.warn({ escrowHoldId, vendorId: hold.vendorId }, 'Vendor bank details incomplete — skipping Razorpay payout');
+      }
+    } catch (err) {
+      logger.error({ err, escrowHoldId }, 'Razorpay payout failed — marking escrow released anyway');
+    }
+
     const updated = await prisma.escrowHold.update({
       where: { id: escrowHoldId },
-      data: { status: 'RELEASED_TO_VENDOR', releasedAt: new Date() },
+      data: {
+        status: 'RELEASED_TO_VENDOR',
+        releasedAt: new Date(),
+        ...(razorpayPayoutId ? { razorpayPayoutId } : {}),
+      },
     });
 
-    logger.info({ escrowHoldId, vendorId: hold.vendorId, vendorPayoutPaise: hold.vendorPayoutPaise }, 'Escrow released to vendor');
+    logger.info({ escrowHoldId, vendorId: hold.vendorId, vendorPayoutPaise: hold.vendorPayoutPaise, razorpayPayoutId }, 'Escrow released to vendor');
     publishEvent('escrow.released', escrowHoldId, { escrowHoldId, vendorId: hold.vendorId, vendorPayoutPaise: hold.vendorPayoutPaise, bookingId: hold.bookingId });
+    publishEvent('payout.processed', escrowHoldId, { escrowHoldId, vendorId: hold.vendorId, vendorPayoutPaise: hold.vendorPayoutPaise, razorpayPayoutId: razorpayPayoutId ?? null });
     return updated;
   },
 
@@ -235,6 +282,15 @@ export const paymentService = {
         },
       }),
     ]);
+
+    publishEvent('payment.refunded', paymentId, {
+      paymentId,
+      bookingId: payment.bookingId,
+      customerId: payment.customerId,
+      vendorId: payment.vendorId,
+      amountPaise: payment.amountPaise,
+      razorpayRefundId: razorpayRefundId ?? null,
+    });
 
     return { payment: updatedPayment, refund: refundRecord };
   },

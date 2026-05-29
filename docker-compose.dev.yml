@@ -198,10 +198,12 @@ services:
       RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_placeholder}
       RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-test_secret}
       RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-webhook_secret}
+      RAZORPAY_ACCOUNT_NUMBER: ${RAZORPAY_ACCOUNT_NUMBER:-}
       PLATFORM_COMMISSION_RATE: 0.10
       ESCROW_AUTO_RELEASE_DAYS: 7
       BOOKING_SERVICE_URL: http://booking-service:4004
       NOTIFICATION_SERVICE_URL: http://notification-service:4008
+      VENDOR_SERVICE_URL: http://vendor-service:4003
     ports:
       - '4005:4005'
     volumes:
@@ -287,13 +289,13 @@ services:
     depends_on:
       redis:
         condition: service_healthy
-      mongo:
+      mongodb:
         condition: service_healthy
     environment:
       NODE_ENV: development
       PORT: 4010
       REDIS_URL: redis://:redis_dev_password@redis:6379
-      MONGODB_URI: mongodb://weddingos:mongo_dev_password@mongo:27017/weddingos_chat?authSource=admin
+      MONGODB_URI: mongodb://weddingos:mongo_dev_password@mongodb:27017/weddingos_chat?authSource=admin
       AUTH_SERVICE_URL: http://auth-service:4001
     ports:
       - '4010:4010'

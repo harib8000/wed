@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Contact Form Submission</title>
+  <style>
+    body { margin: 0; padding: 0; font-family: 'Helvetica Neue', Arial, sans-serif; background: #f8f9fa; color: #1a1a2e; }
+    .container { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 16px rgba(0,0,0,.08); }
+    .header { background: linear-gradient(135deg, #7c3aed 0%, #c026d3 100%); padding: 32px 40px; text-align: center; }
+    .header h1 { margin: 0; font-size: 24px; color: #ffffff; font-weight: 700; }
+    .header p { margin: 6px 0 0; font-size: 13px; color: rgba(255,255,255,.75); }
+    .body { padding: 40px; }
+    .field { margin-bottom: 16px; }
+    .label { font-size: 12px; font-weight: 600; text-transform: uppercase; color: #7c3aed; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .value { font-size: 15px; color: #374151; line-height: 1.6; }
+    .message-box { background: #f9fafb; border-left: 4px solid #7c3aed; padding: 16px; border-radius: 0 8px 8px 0; }
+    .footer { background: #f3f4f6; padding: 20px 40px; text-align: center; font-size: 12px; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>💍 WeddingOS</h1>
+      <p>New Contact Form Submission</p>
+    </div>
+    <div class="body">
+      <div class="field">
+        <div class="label">Name</div>
+        <div class="value">{{ name }}</div>
+      </div>
+      <div class="field">
+        <div class="label">Email</div>
+        <div class="value">{{ email }}</div>
+      </div>
+      <div class="field">
+        <div class="label">Phone</div>
+        <div class="value">{{ phone }}</div>
+      </div>
+      <div class="field">
+        <div class="label">Subject</div>
+        <div class="value">{{ subject }}</div>
+      </div>
+      <div class="field">
+        <div class="label">Message</div>
+        <div class="value message-box">{{ message }}</div>
+      </div>
+    </div>
+    <div class="footer">
+      <p>Submitted via WeddingOS contact form</p>
+    </div>
+  </div>
+</body>
+</html>

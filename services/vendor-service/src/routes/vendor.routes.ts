@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { vendorService } from '../services/vendor.service';
 import { searchService } from '../services/search.service';
-import { authenticate, requireRole } from '../middleware/auth.middleware';
+import { authenticate, requireRole, requireInternalOrAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { getPresignedUploadUrl } from '../utils/s3';
 import { z } from 'zod';
@@ -233,6 +233,27 @@ vendorRouter.patch('/:id/suspend', authenticate, requireRole('admin'), async (re
   try {
     const vendor = await vendorService.suspendVendor(req.params.id, req.body.note);
     res.json({ success: true, data: { vendor }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── GET /vendors/internal/:id/bank-details (service-to-service) ───────────────
+
+vendorRouter.get('/internal/:id/bank-details', requireInternalOrAdmin, async (req, res, next) => {
+  try {
+    const vendor = await vendorService.getById(req.params.id);
+    if (!vendor) return res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Vendor not found' }, meta: meta(req) });
+    res.json({
+      success: true,
+      data: {
+        vendor: {
+          id: vendor.id,
+          bankAccountNo: vendor.bankAccountNo,
+          bankIfsc: vendor.bankIfsc,
+          bankAccountName: vendor.bankAccountName,
+        },
+      },
+      meta: meta(req),
+    });
   } catch (err) { next(err); }
 });
 
