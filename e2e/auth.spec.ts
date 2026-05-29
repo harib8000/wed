@@ -53,7 +53,7 @@ test.describe('Authentication flows', () => {
     await expect(page).toHaveTitle(/Wedding OS/i);
     await expect(page.getByRole('heading', { name: 'Couple Sign In' })).toBeVisible();
 
-    const phoneInput = page.getByLabel('Mobile Number');
+    const phoneInput = page.getByPlaceholder('9876543210');
     const submitButton = page.getByRole('button', { name: /Get OTP/i });
 
     await expect(phoneInput).toBeVisible();
@@ -65,17 +65,17 @@ test.describe('Authentication flows', () => {
     await submitButton.click();
 
     await expect(page.getByRole('heading', { name: 'Verify OTP' })).toBeVisible();
-    await expect(page.getByLabel('6-Digit OTP')).toBeVisible();
+    await expect(page.getByPlaceholder('• • • • • •')).toBeVisible();
     await expect(page.getByText('Sent to +91 9876543210')).toBeVisible();
   });
 
-  test('phone entry keeps Indian mobile formatting', async ({ page }) => {
+  test('phone entry enforces a 10-digit Indian mobile number', async ({ page }) => {
     await dismissCookieBanner(page);
 
     await page.goto('/login/couple');
 
-    const phoneInput = page.getByLabel('Mobile Number');
-    await phoneInput.fill('98ab76 54!3210');
+    const phoneInput = page.getByPlaceholder('9876543210');
+    await phoneInput.fill('9876543210123');
 
     await expect(phoneInput).toHaveValue('9876543210');
     await expect(page.locator('text=+91').first()).toBeVisible();

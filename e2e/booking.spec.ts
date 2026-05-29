@@ -55,13 +55,15 @@ test.describe('Booking flow', () => {
     await expect(page).toHaveTitle(/Wedding OS/i);
     await page.getByRole('button', { name: /Quick Enquiry/i }).first().click();
 
+    const enquiryForm = page.locator('form').filter({ has: page.locator('#eq-date') });
+
     await expect(page.getByRole('heading', { name: 'Quick Enquiry' })).toBeVisible();
     await expect(page.getByLabel('Event Date')).toHaveAttribute('required', '');
     await expect(page.getByLabel('Expected Guests')).toHaveAttribute('required', '');
     await expect(page.getByLabel(/Message/i)).toBeVisible();
 
-    await page.getByRole('button', { name: /Send Enquiry/i }).click();
-    await expect(page.locator('input:invalid')).toHaveCount(2);
+    await enquiryForm.getByRole('button', { name: /Send Enquiry/i }).click();
+    await expect(enquiryForm.locator('input:invalid')).toHaveCount(2);
   });
 
   test('booking detail page shows escrow and payment structure', async ({ page }) => {

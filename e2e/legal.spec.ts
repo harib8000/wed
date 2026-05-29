@@ -45,7 +45,7 @@ test.describe('Legal pages', () => {
 
       await expect(page).toHaveTitle(/Wedding OS/i);
       await expect(page.getByRole('heading', { name: legalPage.heading })).toBeVisible();
-      await expect(page.getByText(legalPage.content)).toBeVisible();
+      await expect(page.locator('summary').filter({ hasText: legalPage.content }).first()).toBeVisible();
       await expect(page.getByText(/Last Updated: May 2026/i)).toBeVisible();
     });
   }

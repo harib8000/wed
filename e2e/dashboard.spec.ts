@@ -93,9 +93,9 @@ test.describe('Dashboard', () => {
 
       await expect(page).toHaveTitle(/Wedding OS/i);
       await expect(page.getByRole('heading', { name: 'Welcome back!' })).toBeVisible();
-      await expect(page.getByText('Planning Progress')).toBeVisible();
+      await expect(page.getByRole('heading', { name: /Wedding Planning Progress/i })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Your Planning Tools' })).toBeVisible();
-      await expect(page.getByText('Budget Tracker')).toBeVisible();
+      await expect(page.getByText('Budget Tracker').first()).toBeVisible();
     });
   }
 });

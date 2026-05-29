@@ -82,11 +82,11 @@ test.describe('Basic accessibility checks', () => {
     });
 
     await page.goto('/login/couple');
-    await expect(page.getByLabel('Mobile Number')).toBeVisible();
+    await expect(page.getByPlaceholder('9876543210')).toBeVisible();
 
-    await page.getByLabel('Mobile Number').fill('9876543210');
+    await page.getByPlaceholder('9876543210').fill('9876543210');
     await page.getByRole('button', { name: /Get OTP/i }).click();
-    await expect(page.getByLabel('6-Digit OTP')).toBeVisible();
+    await expect(page.getByPlaceholder('• • • • • •')).toBeVisible();
 
     await page.goto('/vendors/vendor-1');
     await page.getByRole('button', { name: /Quick Enquiry/i }).first().click();
