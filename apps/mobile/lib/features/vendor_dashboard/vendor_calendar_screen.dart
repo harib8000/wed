@@ -1,14 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:table_calendar/table_calendar.dart';
+
 import '../../core/theme.dart';
 import '../../models/vendor_analytics.dart';
 import '../../providers/vendor_analytics_provider.dart';
+import '../../shared/widgets/empty_state_widget.dart';
+import '../../shared/widgets/error_state_widget.dart';
+import '../../shared/widgets/shimmer_state_widget.dart';
 
-class VendorCalendarScreen extends ConsumerWidget {
+class VendorCalendarScreen extends ConsumerStatefulWidget {
   const VendorCalendarScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VendorCalendarScreen> createState() => _VendorCalendarScreenState();
+}
+
+class _VendorCalendarScreenState extends ConsumerState<VendorCalendarScreen> {
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+  final Set<DateTime> _blockedDates = <DateTime>{};
+
+  Future<void> _blockDates() async {
+    final pickedRange = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2024, 1, 1),
+      lastDate: DateTime(2027, 12, 31),
+      helpText: 'Select dates to block',
+    );
+
+    if (pickedRange == null || !mounted) {
+      return;
+    }
+
+    final blocked = <DateTime>{};
+    for (
+      DateTime day = DateTime(
+        pickedRange.start.year,
+        pickedRange.start.month,
+        pickedRange.start.day,
+      );
+      !day.isAfter(pickedRange.end);
+      day = day.add(const Duration(days: 1))
+    ) {
+      blocked.add(DateTime(day.year, day.month, day.day));
+    }
+
+    setState(() {
+      _blockedDates.addAll(blocked);
+    });
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Blocked ${blocked.length} day${blocked.length == 1 ? '' : 's'} for your calendar.',
+          ),
+        ),
+      );
+  }
+
+  List<CalendarEvent> _eventsForDay(List<CalendarEvent> events, DateTime day) {
+    final normalized = DateTime(day.year, day.month, day.day);
+    final scheduled = events.where(
+      (event) =>
+          event.date.year == normalized.year &&
+          event.date.month == normalized.month &&
+          event.date.day == normalized.day,
+    );
+
+    final blocked = _blockedDates.contains(normalized)
+        ? [
+            CalendarEvent(
+              id: 'blocked-${normalized.toIso8601String()}',
+              title: 'Date blocked',
+              customerName: 'Unavailable',
+              date: normalized,
+              timeSlot: 'Full Day',
+              type: CalendarEventType.blocked,
+            ),
+          ]
+        : const <CalendarEvent>[];
+
+    return [...scheduled, ...blocked];
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final eventsAsync = ref.watch(vendorCalendarProvider);
 
     return Scaffold(
@@ -18,337 +97,260 @@ class VendorCalendarScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         actions: [
           TextButton.icon(
-            onPressed: () {},
+            onPressed: _blockDates,
             icon: const Icon(Icons.block, size: 16, color: AppColors.error),
-            label: const Text('Block Dates', style: TextStyle(color: AppColors.error, fontSize: 12)),
+            label: const Text(
+              'Block Dates',
+              style: TextStyle(color: AppColors.error, fontSize: 12),
+            ),
           ),
         ],
       ),
       body: eventsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (events) => _CalendarBody(events: events),
+        loading: () => const ShimmerStateWidget(itemCount: 5, itemHeight: 110),
+        error: (error, _) => ErrorStateWidget(
+          message: 'Calendar could not load right now. Pull to try again.',
+          onRetry: () => ref.refresh(vendorCalendarProvider.future),
+        ),
+        data: (events) => RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(vendorCalendarProvider);
+            await ref.read(vendorCalendarProvider.future);
+          },
+          child: _CalendarBody(
+            focusedDay: _focusedDay,
+            selectedDay: _selectedDay,
+            events: events,
+            blockedDates: _blockedDates,
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = DateTime(
+                  selectedDay.year,
+                  selectedDay.month,
+                  selectedDay.day,
+                );
+                _focusedDay = focusedDay;
+              });
+            },
+            onPageChanged: (focusedDay) {
+              setState(() => _focusedDay = focusedDay);
+            },
+            eventsForDay: (day) => _eventsForDay(events, day),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _CalendarBody extends StatefulWidget {
+class _CalendarBody extends StatelessWidget {
+  final DateTime focusedDay;
+  final DateTime? selectedDay;
   final List<CalendarEvent> events;
-  const _CalendarBody({required this.events});
+  final Set<DateTime> blockedDates;
+  final void Function(DateTime selectedDay, DateTime focusedDay) onDaySelected;
+  final ValueChanged<DateTime> onPageChanged;
+  final List<CalendarEvent> Function(DateTime day) eventsForDay;
 
-  @override
-  State<_CalendarBody> createState() => _CalendarBodyState();
-}
-
-class _CalendarBodyState extends State<_CalendarBody> {
-  late DateTime _selectedMonth;
-  DateTime? _selectedDate;
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedMonth = DateTime(2025, 4); // Start on a month with events
-  }
+  const _CalendarBody({
+    required this.focusedDay,
+    required this.selectedDay,
+    required this.events,
+    required this.blockedDates,
+    required this.onDaySelected,
+    required this.onPageChanged,
+    required this.eventsForDay,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final eventsOnDay = _selectedDate == null
-        ? widget.events
-        : widget.events.where((e) =>
-            e.date.year == _selectedDate!.year &&
-            e.date.month == _selectedDate!.month &&
-            e.date.day == _selectedDate!.day).toList();
+    final activeDay = selectedDay ?? focusedDay;
+    final dayEvents = eventsForDay(activeDay);
 
-    return Column(
+    return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       children: [
-        // Calendar grid
-        _MonthCalendar(
-          month: _selectedMonth,
-          events: widget.events,
-          selectedDate: _selectedDate,
-          onDateTap: (d) => setState(() => _selectedDate = _selectedDate == d ? null : d),
-          onMonthChange: (m) => setState(() { _selectedMonth = m; _selectedDate = null; }),
+        _SummaryHeader(
+          monthLabel:
+              '${_monthName(focusedDay.month)} ${focusedDay.year}',
+          confirmedCount: events.where((e) => e.type == CalendarEventType.confirmed).length,
+          tentativeCount: events.where((e) => e.type == CalendarEventType.tentative).length,
+          blockedCount: blockedDates.length,
         ),
-
-        // Legend
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              _Legend(color: const Color(0xFF10B981), label: 'Confirmed'),
-              const SizedBox(width: 12),
-              _Legend(color: const Color(0xFFF59E0B), label: 'Tentative'),
-              const SizedBox(width: 12),
-              _Legend(color: const Color(0xFFEF4444), label: 'Blocked'),
-              const Spacer(),
-              if (_selectedDate != null)
-                GestureDetector(
-                  onTap: () => setState(() => _selectedDate = null),
-                  child: const Text('Show all', style: TextStyle(color: AppColors.brand, fontSize: 12, fontWeight: FontWeight.w500)),
-                ),
-            ],
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: TableCalendar<CalendarEvent>(
+            firstDay: DateTime(2024, 1, 1),
+            lastDay: DateTime(2027, 12, 31),
+            focusedDay: focusedDay,
+            selectedDayPredicate: (day) => isSameDay(selectedDay, day),
+            eventLoader: eventsForDay,
+            onDaySelected: onDaySelected,
+            onPageChanged: onPageChanged,
+            calendarFormat: CalendarFormat.month,
+            headerStyle: const HeaderStyle(
+              formatButtonVisible: false,
+              titleCentered: true,
+            ),
+            calendarStyle: CalendarStyle(
+              todayDecoration: BoxDecoration(
+                color: AppColors.brand.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              selectedDecoration: const BoxDecoration(
+                color: AppColors.brand,
+                shape: BoxShape.circle,
+              ),
+              markerDecoration: const BoxDecoration(
+                color: AppColors.brand,
+                shape: BoxShape.circle,
+              ),
+              markersMaxCount: 3,
+              outsideTextStyle: const TextStyle(color: AppColors.textMuted),
+            ),
           ),
         ),
-
-        // Event list
-        Expanded(
-          child: eventsOnDay.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.event_available, size: 48, color: AppColors.textMuted.withOpacity(0.5)),
-                      const SizedBox(height: 8),
-                      Text(
-                        _selectedDate != null ? 'No events on this day' : 'No events this month',
-                        style: const TextStyle(color: AppColors.textMuted),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: eventsOnDay.length,
-                  itemBuilder: (_, i) => _EventCard(event: eventsOnDay[i]),
-                ),
+        const SizedBox(height: 12),
+        const Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          children: [
+            _LegendChip(color: Color(0xFF10B981), label: 'Confirmed'),
+            _LegendChip(color: Color(0xFFF59E0B), label: 'Tentative'),
+            _LegendChip(color: Color(0xFFEF4444), label: 'Blocked'),
+          ],
         ),
+        const SizedBox(height: 16),
+        Text(
+          'Plans for ${activeDay.day} ${_monthName(activeDay.month)}',
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (dayEvents.isEmpty)
+          const EmptyStateWidget(
+            icon: Icons.event_available,
+            title: 'No events scheduled',
+            message: 'This date is free for new enquiries, walkthroughs, or quick client calls.',
+          )
+        else
+          ...dayEvents.map((event) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _EventCard(event: event),
+              )),
       ],
     );
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// MONTH CALENDAR
-// ──────────────────────────────────────────────────────────────────────────────
+class _SummaryHeader extends StatelessWidget {
+  final String monthLabel;
+  final int confirmedCount;
+  final int tentativeCount;
+  final int blockedCount;
 
-class _MonthCalendar extends StatelessWidget {
-  final DateTime month;
-  final List<CalendarEvent> events;
-  final DateTime? selectedDate;
-  final ValueChanged<DateTime> onDateTap;
-  final ValueChanged<DateTime> onMonthChange;
-
-  const _MonthCalendar({required this.month, required this.events, required this.selectedDate, required this.onDateTap, required this.onMonthChange});
-
-  static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  static const _months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-  List<CalendarEventType> _eventTypesOn(DateTime d) {
-    return events
-        .where((e) => e.date.year == d.year && e.date.month == d.month && e.date.day == d.day)
-        .map((e) => e.type)
-        .toSet()
-        .toList();
-  }
-
-  Color _dotColor(CalendarEventType t) {
-    switch (t) {
-      case CalendarEventType.confirmed: return const Color(0xFF10B981);
-      case CalendarEventType.tentative: return const Color(0xFFF59E0B);
-      case CalendarEventType.blocked: return const Color(0xFFEF4444);
-    }
-  }
+  const _SummaryHeader({
+    required this.monthLabel,
+    required this.confirmedCount,
+    required this.tentativeCount,
+    required this.blockedCount,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final firstDay = DateTime(month.year, month.month, 1);
-    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
-    final startWeekday = firstDay.weekday; // 1=Mon, 7=Sun
-
     return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF065F46), Color(0xFF059669)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Month header
+          Text(
+            monthLabel,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.82),
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Availability snapshot',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 16),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                icon: const Icon(Icons.chevron_left, size: 20),
-                onPressed: () => onMonthChange(DateTime(month.year, month.month - 1)),
+              Expanded(
+                child: _StatPill(label: 'Confirmed', value: '$confirmedCount'),
               ),
-              Text('${_months[month.month]} ${month.year}',
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              IconButton(
-                icon: const Icon(Icons.chevron_right, size: 20),
-                onPressed: () => onMonthChange(DateTime(month.year, month.month + 1)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StatPill(label: 'Tentative', value: '$tentativeCount'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _StatPill(label: 'Blocked', value: '$blockedCount'),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-
-          // Weekday headers
-          Row(
-            children: _weekdays.map((d) => Expanded(
-              child: Center(child: Text(d, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.textMuted))),
-            )).toList(),
-          ),
-          const SizedBox(height: 8),
-
-          // Day grid
-          ...List.generate(6, (week) {
-            return Row(
-              children: List.generate(7, (col) {
-                final dayIndex = week * 7 + col + 1 - (startWeekday - 1);
-                if (dayIndex < 1 || dayIndex > daysInMonth) {
-                  return const Expanded(child: SizedBox(height: 44));
-                }
-
-                final date = DateTime(month.year, month.month, dayIndex);
-                final types = _eventTypesOn(date);
-                final isSelected = selectedDate != null &&
-                    selectedDate!.year == date.year &&
-                    selectedDate!.month == date.month &&
-                    selectedDate!.day == date.day;
-                final isToday = DateTime.now().year == date.year &&
-                    DateTime.now().month == date.month &&
-                    DateTime.now().day == date.day;
-
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => onDateTap(date),
-                    child: Container(
-                      height: 44,
-                      margin: const EdgeInsets.all(1),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppColors.brand.withOpacity(0.1)
-                            : isToday
-                                ? AppColors.surface
-                                : null,
-                        borderRadius: BorderRadius.circular(8),
-                        border: isSelected ? Border.all(color: AppColors.brand, width: 1.5) : null,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '$dayIndex',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isToday || isSelected ? FontWeight.w700 : FontWeight.normal,
-                              color: isSelected ? AppColors.brand : isToday ? AppColors.brand : AppColors.textPrimary,
-                            ),
-                          ),
-                          if (types.isNotEmpty)
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: types.take(3).map((t) => Container(
-                                width: 5, height: 5,
-                                margin: const EdgeInsets.only(top: 2, left: 1, right: 1),
-                                decoration: BoxDecoration(color: _dotColor(t), shape: BoxShape.circle),
-                              )).toList(),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-            );
-          }),
         ],
       ),
     );
   }
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// EVENT CARD
-// ──────────────────────────────────────────────────────────────────────────────
+class _StatPill extends StatelessWidget {
+  final String label;
+  final String value;
 
-class _EventCard extends StatelessWidget {
-  final CalendarEvent event;
-  const _EventCard({required this.event});
-
-  Color get _typeColor {
-    switch (event.type) {
-      case CalendarEventType.confirmed: return const Color(0xFF10B981);
-      case CalendarEventType.tentative: return const Color(0xFFF59E0B);
-      case CalendarEventType.blocked: return const Color(0xFFEF4444);
-    }
-  }
-
-  String get _typeLabel {
-    switch (event.type) {
-      case CalendarEventType.confirmed: return 'Confirmed';
-      case CalendarEventType.tentative: return 'Tentative';
-      case CalendarEventType.blocked: return 'Blocked';
-    }
-  }
-
-  String get _emoji {
-    if (event.type == CalendarEventType.blocked) return '🚫';
-    if (event.title.contains('Wedding')) return '💒';
-    if (event.title.contains('Reception')) return '🎉';
-    if (event.title.contains('Sangeet')) return '🎵';
-    if (event.title.contains('Engagement')) return '💍';
-    return '📅';
-  }
+  const _StatPill({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
-    final dateStr = '${event.date.day}/${event.date.month}/${event.date.year}';
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _typeColor.withOpacity(0.3)),
+        color: Colors.white.withOpacity(0.16),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Left: emoji
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: _typeColor.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(child: Text(_emoji, style: const TextStyle(fontSize: 20))),
-          ),
-          const SizedBox(width: 12),
-          // Middle: info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(event.title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Text('$dateStr · ${event.timeSlot}',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
-                  ],
-                ),
-                if (event.packageName != null)
-                  Text(event.packageName!, style: TextStyle(color: _typeColor, fontSize: 11, fontWeight: FontWeight.w500)),
-              ],
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
             ),
           ),
-          // Right: status + amount
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: _typeColor.withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                child: Text(_typeLabel, style: TextStyle(color: _typeColor, fontSize: 10, fontWeight: FontWeight.w600)),
-              ),
-              if (event.amountPaise != null) ...[
-                const SizedBox(height: 4),
-                Text(_formatAmount(event.amountPaise!),
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-              ],
-            ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.86),
+              fontSize: 11,
+            ),
           ),
         ],
       ),
@@ -356,27 +358,181 @@ class _EventCard extends StatelessWidget {
   }
 }
 
-class _Legend extends StatelessWidget {
+class _LegendChip extends StatelessWidget {
   final Color color;
   final String label;
-  const _Legend({required this.color, required this.label});
+
+  const _LegendChip({required this.color, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        ),
       ],
     );
   }
 }
 
+class _EventCard extends StatelessWidget {
+  final CalendarEvent event;
+
+  const _EventCard({required this.event});
+
+  Color get _typeColor {
+    switch (event.type) {
+      case CalendarEventType.confirmed:
+        return const Color(0xFF10B981);
+      case CalendarEventType.tentative:
+        return const Color(0xFFF59E0B);
+      case CalendarEventType.blocked:
+        return const Color(0xFFEF4444);
+    }
+  }
+
+  String get _statusLabel {
+    switch (event.type) {
+      case CalendarEventType.confirmed:
+        return 'Confirmed';
+      case CalendarEventType.tentative:
+        return 'Tentative';
+      case CalendarEventType.blocked:
+        return 'Blocked';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _typeColor.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _typeColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              event.type == CalendarEventType.blocked
+                  ? Icons.block
+                  : Icons.event_available,
+              color: _typeColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  event.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${event.customerName} · ${event.timeSlot}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                if (event.packageName != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    event.packageName!,
+                    style: TextStyle(
+                      color: _typeColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _typeColor.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  _statusLabel,
+                  style: TextStyle(
+                    color: _typeColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              if (event.amountPaise != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _formatAmount(event.amountPaise!),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _monthName(int month) {
+  const months = [
+    '',
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return months[month];
+}
+
 String _formatAmount(int paise) {
   final rupees = paise ~/ 100;
-  if (rupees >= 100000) return '₹${(rupees / 100000).toStringAsFixed(1)}L';
-  if (rupees >= 1000) return '₹${(rupees / 1000).toStringAsFixed(0)}K';
+  if (rupees >= 100000) {
+    return '₹${(rupees / 100000).toStringAsFixed(1)}L';
+  }
+  if (rupees >= 1000) {
+    return '₹${(rupees / 1000).toStringAsFixed(0)}K';
+  }
   return '₹$rupees';
 }

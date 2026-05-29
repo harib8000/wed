@@ -1,0 +1,4160 @@
+openapi: 3.0.3
+info:
+  title: WeddingOS Unified API
+  version: 1.0.0
+  description: |
+    Unified OpenAPI 3.0 specification for the WeddingOS microservices platform.
+
+    This document was assembled from the actual service route files and related
+    Zod / Prisma / Pydantic definitions in the monorepo. Paths are documented as
+    gateway-facing routes using the service prefixes requested by the user
+    (`/auth`, `/users`, `/vendors`, `/bookings`, `/payments`, `/execution`,
+    `/notifications`, `/reviews`, `/search`, `/media`, `/chat`, `/ai`).
+
+    Notes:
+    - Most services return a common JSON envelope with `success`, `data`, and often `meta`.
+    - Internal routes may accept either a bearer token with admin role or `x-internal-api-key`.
+    - Chat real-time Socket.IO events are described in tag descriptions and README, while this spec focuses on HTTP endpoints.
+servers:
+  - url: http://localhost:8000
+    description: Local API gateway
+  - url: https://api-staging.weddingos.in
+    description: Staging
+  - url: https://api.weddingos.in
+    description: Production
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: OTP login, token rotation, session lifecycle, and vendor account bootstrap.
+  - name: Users
+    description: User profiles, notification preferences, KYC, budget planner data, checklist, and guest list.
+  - name: Vendors
+    description: Vendor profile management, public catalog/search endpoints, packages, portfolio, availability, and admin moderation.
+  - name: Bookings
+    description: Enquiry, quote, booking lifecycle, admin analytics, and vendor dashboard analytics.
+  - name: Payments
+    description: Razorpay order flow, payment verification, invoice generation, escrow, refunds, disputes, and revenue analytics.
+  - name: Execution
+    description: Wedding timeline creation and task management.
+  - name: Notifications
+    description: In-app notifications, internal event fan-out, and public contact form.
+  - name: Reviews
+    description: Customer reviews, vendor replies, helpful votes, and review analytics.
+  - name: Search
+    description: Elasticsearch-backed vendor search, autocomplete, and internal indexing.
+  - name: Media
+    description: Presigned upload URL generation and media deletion.
+  - name: Chat
+    description: |
+      Chat HTTP endpoints for conversation discovery and message history.
+
+      Socket.IO real-time events implemented by chat-service but not modeled as OpenAPI operations:
+      - `join:conversation`
+      - `message:send`
+      - `typing:start`
+      - `typing:stop`
+  - name: AI
+    description: AI-powered budget planning, vendor recommendation guidance, and assistant chat.
+paths:
+  /auth/send-otp:
+    post:
+      tags: [Auth]
+      summary: Send login OTP
+      description: Sends a 6-digit OTP to an Indian mobile number. Rate limiting and temporary account lock responses are explicit in the implementation.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendOtpRequest'
+      responses:
+        '200':
+          description: OTP sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: OTP sent successfully
+                      expiresInMinutes:
+                        type: integer
+                        example: 10
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '423':
+          $ref: '#/components/responses/Locked'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/verify-otp:
+    post:
+      tags: [Auth]
+      summary: Verify OTP and issue tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOtpRequest'
+      responses:
+        '200':
+          description: Authenticated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      expiresIn:
+                        type: integer
+                        example: 900
+                      user:
+                        $ref: '#/components/schemas/AuthUserSummary'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '423':
+          $ref: '#/components/responses/Locked'
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rotate refresh token
+      description: Accepts the refresh token from the httpOnly cookie or fallback request body.
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Access token rotated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      expiresIn:
+                        type: integer
+                        example: 900
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current session
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refreshToken:
+                  type: string
+                  description: Optional fallback when not using the refresh cookie.
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get authenticated user
+      responses:
+        '200':
+          description: Current auth user record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/AuthUser'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /auth/register-vendor:
+    post:
+      tags: [Auth]
+      summary: Create vendor-role auth account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterVendorRequest'
+      responses:
+        '201':
+          description: Vendor auth account created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                      userId:
+                        type: string
+                        format: uuid
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /auth/health:
+    get:
+      tags: [Auth]
+      summary: Auth service health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get or create my profile
+      responses:
+        '200':
+          description: Profile record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    put:
+      tags: [Users]
+      summary: Update my profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/notifications:
+    put:
+      tags: [Users]
+      summary: Update notification preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNotifPrefsRequest'
+      responses:
+        '200':
+          description: Updated profile with notification preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /users/me/avatar/presign:
+    post:
+      tags: [Users]
+      summary: Get presigned avatar upload URL
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contentType:
+                  type: string
+                  example: image/jpeg
+      responses:
+        '200':
+          description: Presigned upload data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /users/me/push-token:
+    post:
+      tags: [Users]
+      summary: Register push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPushTokenRequest'
+      responses:
+        '200':
+          description: Token registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    delete:
+      tags: [Users]
+      summary: Deactivate push token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Token removed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /users/me/kyc/presign:
+    post:
+      tags: [Users]
+      summary: Initiate KYC upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadKycRequest'
+      responses:
+        '201':
+          description: Presigned upload data and KYC document record
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/PresignResult'
+                      - type: object
+                        properties:
+                          kycDocumentId:
+                            type: string
+                            format: uuid
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /users/{userId}:
+    get:
+      tags: [Users]
+      summary: Get profile by user id
+      description: Admin-only lookup.
+      parameters:
+        - $ref: '#/components/parameters/UserIdPath'
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/kyc/{docId}/review:
+    patch:
+      tags: [Users]
+      summary: Review KYC document
+      parameters:
+        - $ref: '#/components/parameters/DocIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KycReviewRequest'
+      responses:
+        '200':
+          description: Reviewed KYC document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      doc:
+                        $ref: '#/components/schemas/KycDocument'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/me/budget:
+    get:
+      tags: [Users]
+      summary: List budget items and summary
+      responses:
+        '200':
+          description: Budget items and rollups
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetListEnvelope'
+    post:
+      tags: [Users]
+      summary: Create budget item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBudgetItemRequest'
+      responses:
+        '201':
+          description: Created budget item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetItemEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /users/me/budget/{id}:
+    patch:
+      tags: [Users]
+      summary: Update budget item
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateBudgetItemRequest'
+      responses:
+        '200':
+          description: Updated budget item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetItemEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Users]
+      summary: Delete budget item
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/me/checklist:
+    get:
+      tags: [Users]
+      summary: List checklist items
+      responses:
+        '200':
+          description: Checklist items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistListEnvelope'
+    post:
+      tags: [Users]
+      summary: Create checklist item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateChecklistItemRequest'
+      responses:
+        '201':
+          description: Created checklist item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistItemEnvelope'
+
+  /users/me/checklist/generate:
+    post:
+      tags: [Users]
+      summary: Generate checklist suggestions from wedding date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateChecklistRequest'
+      responses:
+        '201':
+          description: Generated checklist items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ChecklistItem'
+                      totalGenerated:
+                        type: integer
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+
+  /users/me/checklist/{id}:
+    patch:
+      tags: [Users]
+      summary: Update checklist item
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateChecklistItemRequest'
+      responses:
+        '200':
+          description: Updated checklist item
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChecklistItemEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Users]
+      summary: Delete checklist item
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/me/guests:
+    get:
+      tags: [Users]
+      summary: List guests
+      responses:
+        '200':
+          description: Guest list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestListEnvelope'
+    post:
+      tags: [Users]
+      summary: Create guest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGuestRequest'
+      responses:
+        '201':
+          description: Created guest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestEnvelope'
+
+  /users/me/guests/{id}:
+    patch:
+      tags: [Users]
+      summary: Update guest
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateGuestRequest'
+      responses:
+        '200':
+          description: Updated guest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuestEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Users]
+      summary: Delete guest
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/health:
+    get:
+      tags: [Users]
+      summary: User service health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /vendors/search:
+    get:
+      tags: [Vendors]
+      summary: Search vendors from vendor-service index
+      security: []
+      parameters:
+        - in: query
+          name: q
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: city
+          schema: { type: string }
+        - in: query
+          name: minRating
+          schema: { type: number }
+        - in: query
+          name: minPricePaise
+          schema: { type: integer }
+        - in: query
+          name: maxPricePaise
+          schema: { type: integer }
+        - in: query
+          name: plusMembersOnly
+          schema: { type: boolean }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [rating, price_asc, price_desc, bookings, relevance]
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorSearchEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /vendors/suggest:
+    get:
+      tags: [Vendors]
+      summary: Suggest vendors by prefix
+      security: []
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema: { type: string }
+        - in: query
+          name: city
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Suggested vendor snippets
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      suggestions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/VendorSuggestion'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+
+  /vendors/{slug}:
+    get:
+      tags: [Vendors]
+      summary: Get vendor by slug
+      security: []
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Vendor detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vendors:
+    post:
+      tags: [Vendors]
+      summary: Create vendor profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVendorRequest'
+      responses:
+        '201':
+          description: Created vendor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /vendors/me/profile:
+    get:
+      tags: [Vendors]
+      summary: Get my vendor profile
+      responses:
+        '200':
+          description: Vendor profile for authenticated vendor/admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Vendors]
+      summary: Update my vendor profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVendorRequest'
+      responses:
+        '200':
+          description: Updated vendor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vendors/me/packages:
+    post:
+      tags: [Vendors]
+      summary: Create or update vendor package
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertPackageRequest'
+      responses:
+        '201':
+          description: Upserted package
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorPackageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vendors/me/packages/{packageId}:
+    delete:
+      tags: [Vendors]
+      summary: Delete vendor package
+      parameters:
+        - in: path
+          name: packageId
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Package deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vendors/me/portfolio/presign:
+    post:
+      tags: [Vendors]
+      summary: Get presigned portfolio upload URL
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                contentType:
+                  type: string
+                  example: image/jpeg
+      responses:
+        '200':
+          description: Presigned upload data including vendorId
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/PresignResult'
+                      - type: object
+                        properties:
+                          vendorId:
+                            type: string
+                            format: uuid
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+
+  /vendors/me/portfolio/confirm:
+    post:
+      tags: [Vendors]
+      summary: Confirm uploaded portfolio item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmPortfolioRequest'
+      responses:
+        '201':
+          description: Portfolio item recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioItemEnvelope'
+
+  /vendors/me/availability:
+    post:
+      tags: [Vendors]
+      summary: Replace future availability blocks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AvailabilityUpdateRequest'
+      responses:
+        '200':
+          description: Availability updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+
+  /vendors/me/submit-review:
+    post:
+      tags: [Vendors]
+      summary: Submit vendor profile for admin review
+      responses:
+        '200':
+          description: Vendor status updated for review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEnvelope'
+
+  /vendors/admin/list:
+    get:
+      tags: [Vendors]
+      summary: Admin list vendors
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit100'
+        - in: query
+          name: status
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated vendor admin list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminVendorListEnvelope'
+
+  /vendors/admin/stats:
+    get:
+      tags: [Vendors]
+      summary: Vendor admin stats
+      responses:
+        '200':
+          description: Vendor moderation counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      active: { type: integer }
+                      pendingKyc: { type: integer }
+                      suspended: { type: integer }
+                      rejected: { type: integer }
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+
+  /vendors/{id}/approve:
+    patch:
+      tags: [Vendors]
+      summary: Approve vendor
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Approved vendor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEnvelope'
+
+  /vendors/{id}/reject:
+    patch:
+      tags: [Vendors]
+      summary: Reject vendor
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Rejected vendor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEnvelope'
+
+  /vendors/{id}/suspend:
+    patch:
+      tags: [Vendors]
+      summary: Suspend vendor
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                note:
+                  type: string
+      responses:
+        '200':
+          description: Suspended vendor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorEnvelope'
+
+  /vendors/internal/{id}/bank-details:
+    get:
+      tags: [Vendors]
+      summary: Get vendor bank details
+      description: Internal/admin endpoint used by other services such as payment flows.
+      security:
+        - internalApiKey: []
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Vendor bank details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      vendor:
+                        $ref: '#/components/schemas/VendorBankDetails'
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /vendors/health:
+    get:
+      tags: [Vendors]
+      summary: Vendor service health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthSimple'
+
+  /bookings:
+    post:
+      tags: [Bookings]
+      summary: Create enquiry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEnquiryRequest'
+      responses:
+        '201':
+          description: Created booking enquiry
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingEnvelope'
+    get:
+      tags: [Bookings]
+      summary: List my bookings
+      parameters:
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+      responses:
+        '200':
+          description: Booking list for customer or vendor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingListEnvelope'
+
+  /bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Get booking by id
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /bookings/{id}/quote:
+    post:
+      tags: [Bookings]
+      summary: Send quote for enquiry
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendQuoteRequest'
+      responses:
+        '200':
+          description: Updated booking with quote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingEnvelope'
+
+  /bookings/{id}/accept-quote:
+    post:
+      tags: [Bookings]
+      summary: Accept vendor quote
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Quote accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingEnvelope'
+
+  /bookings/{id}/cancel:
+    post:
+      tags: [Bookings]
+      summary: Cancel booking
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelBookingRequest'
+      responses:
+        '200':
+          description: Booking cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingEnvelope'
+
+  /bookings/internal/{id}/confirm:
+    post:
+      tags: [Bookings]
+      summary: Confirm booking after payment
+      description: Internal endpoint. Code comments note it should be protected by network policy rather than normal JWT auth.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [paymentId]
+              properties:
+                paymentId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Booking confirmed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingEnvelope'
+
+  /bookings/admin/list:
+    get:
+      tags: [Bookings]
+      summary: Admin list bookings
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit100'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+      responses:
+        '200':
+          description: Paginated bookings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminBookingListEnvelope'
+
+  /bookings/admin/stats:
+    get:
+      tags: [Bookings]
+      summary: Booking admin stats
+      responses:
+        '200':
+          description: Booking counters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      total: { type: integer }
+                      enquiry: { type: integer }
+                      confirmed: { type: integer }
+                      completed: { type: integer }
+                      cancelled: { type: integer }
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+
+  /bookings/admin/top-vendors:
+    get:
+      tags: [Bookings]
+      summary: Top vendors by confirmed/completed bookings
+      parameters:
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 20, default: 5 }
+      responses:
+        '200':
+          description: Top vendor breakdown
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      topVendors:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            vendorId: { type: string, format: uuid }
+                            bookingCount: { type: integer }
+                            revenuePaise: { type: integer }
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+
+  /bookings/admin/category-breakdown:
+    get:
+      tags: [Bookings]
+      summary: Booking breakdown by event type
+      responses:
+        '200':
+          description: Event category counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      categoryBreakdown:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            category:
+                              $ref: '#/components/schemas/EventType'
+                            count:
+                              type: integer
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+
+  /bookings/vendor/dashboard:
+    get:
+      tags: [Bookings]
+      summary: Vendor booking dashboard analytics
+      responses:
+        '200':
+          description: Vendor dashboard analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorBookingDashboardEnvelope'
+
+  /bookings/{id}/vendor-note:
+    patch:
+      tags: [Bookings]
+      summary: Save vendor note on booking
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorNoteRequest'
+      responses:
+        '200':
+          description: Updated booking note
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingEnvelope'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /bookings/{id}/complete:
+    post:
+      tags: [Bookings]
+      summary: Mark booking completed
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Completed booking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingEnvelope'
+
+  /bookings/health:
+    get:
+      tags: [Bookings]
+      summary: Booking service health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthSimple'
+
+  /payments/order:
+    post:
+      tags: [Payments]
+      summary: Create Razorpay order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderRequest'
+      responses:
+        '201':
+          description: Created payment order
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrderEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /payments/verify:
+    post:
+      tags: [Payments]
+      summary: Verify completed payment and capture funds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyPaymentRequest'
+      responses:
+        '200':
+          description: Verified payment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /payments/{id}/invoice:
+    get:
+      tags: [Payments]
+      summary: Render payment invoice HTML
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: HTML invoice
+          content:
+            text/html:
+              schema:
+                type: string
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/webhook:
+    post:
+      tags: [Payments]
+      summary: Razorpay webhook
+      description: Expects raw JSON body and `x-razorpay-signature` header.
+      security: []
+      parameters:
+        - in: header
+          name: x-razorpay-signature
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Webhook accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+        '400':
+          description: Invalid signature
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid signature
+
+  /payments/{id}/refund:
+    post:
+      tags: [Payments]
+      summary: Refund payment
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundRequest'
+      responses:
+        '200':
+          description: Refund result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundEnvelope'
+
+  /payments/escrow/{id}/release:
+    post:
+      tags: [Payments]
+      summary: Release escrow to vendor
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Escrow released
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EscrowEnvelope'
+
+  /payments/admin/list:
+    get:
+      tags: [Payments]
+      summary: Admin list payments
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit100'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/PaymentStatus'
+      responses:
+        '200':
+          description: Paginated payment list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminPaymentListEnvelope'
+
+  /payments/admin/stats:
+    get:
+      tags: [Payments]
+      summary: Admin payment stats
+      responses:
+        '200':
+          description: Revenue totals and monthly series
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatsEnvelope'
+
+  /payments/vendor/stats:
+    get:
+      tags: [Payments]
+      summary: Vendor payout stats
+      responses:
+        '200':
+          description: Vendor revenue dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorPaymentStatsEnvelope'
+
+  /payments/admin/disputes:
+    get:
+      tags: [Payments]
+      summary: List disputes
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit100'
+        - in: query
+          name: status
+          schema:
+            $ref: '#/components/schemas/DisputeStatus'
+      responses:
+        '200':
+          description: Paginated dispute list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeListEnvelope'
+    post:
+      tags: [Payments]
+      summary: Create dispute
+      description: Route currently requires authentication but not explicit admin role middleware.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDisputeRequest'
+      responses:
+        '201':
+          description: Created dispute
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeEnvelope'
+
+  /payments/admin/disputes/{id}/resolve:
+    post:
+      tags: [Payments]
+      summary: Resolve dispute
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveDisputeRequest'
+      responses:
+        '200':
+          description: Resolved dispute
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisputeEnvelope'
+
+  /payments/health:
+    get:
+      tags: [Payments]
+      summary: Payment service health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthSimple'
+
+  /execution/timeline:
+    post:
+      tags: [Execution]
+      summary: Create or get wedding timeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTimelineRequest'
+      responses:
+        '201':
+          description: Timeline created or returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineEnvelope'
+    get:
+      tags: [Execution]
+      summary: Get timeline
+      responses:
+        '200':
+          description: Wedding timeline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /execution/timeline/tasks:
+    post:
+      tags: [Execution]
+      summary: Add task to timeline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddTaskRequest'
+      responses:
+        '201':
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineTaskEnvelope'
+
+  /execution/timeline/tasks/{id}:
+    patch:
+      tags: [Execution]
+      summary: Update task
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskRequest'
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TimelineTaskEnvelope'
+    delete:
+      tags: [Execution]
+      summary: Delete task
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Task deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+
+  /execution/health:
+    get:
+      tags: [Execution]
+      summary: Execution service health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthSimple'
+
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List my in-app notifications
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: type
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          description: Paginated notifications and unread count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListEnvelope'
+
+  /notifications/{id}/read:
+    patch:
+      tags: [Notifications]
+      summary: Mark notification as read
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all in-app notifications as read
+      responses:
+        '200':
+          description: Updated count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      updatedCount:
+                        type: integer
+                  meta:
+                    $ref: '#/components/schemas/ApiMeta'
+
+  /notifications/internal/notify:
+    post:
+      tags: [Notifications]
+      summary: Queue internal notification event
+      security:
+        - internalApiKey: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InternalNotifyRequest'
+      responses:
+        '200':
+          description: Event queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: queued
+
+  /notifications/contact:
+    post:
+      tags: [Notifications]
+      summary: Submit public contact form
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+      responses:
+        '200':
+          description: Support email sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageNoMetaEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /notifications/health:
+    get:
+      tags: [Notifications]
+      summary: Notification service health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthSimple'
+
+  /reviews:
+    post:
+      tags: [Reviews]
+      summary: Create review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewRequest'
+      responses:
+        '201':
+          description: Created review
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewEnvelope'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /reviews/me:
+    get:
+      tags: [Reviews]
+      summary: List my reviews
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: Paginated my reviews
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyReviewListEnvelope'
+
+  /reviews/vendor/{vendorId}:
+    get:
+      tags: [Reviews]
+      summary: List published vendor reviews
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/VendorIdPath'
+        - $ref: '#/components/parameters/Page'
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: Paginated vendor reviews and aggregate stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorReviewListEnvelope'
+
+  /reviews/{reviewId}/reply:
+    post:
+      tags: [Reviews]
+      summary: Reply to review as vendor
+      parameters:
+        - $ref: '#/components/parameters/ReviewIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplyRequest'
+      responses:
+        '200':
+          description: Updated review with vendor reply
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewEnvelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /reviews/{reviewId}/helpful:
+    post:
+      tags: [Reviews]
+      summary: Increment helpful count
+      parameters:
+        - $ref: '#/components/parameters/ReviewIdPath'
+      responses:
+        '200':
+          description: Updated helpful count
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewEnvelope'
+
+  /reviews/admin/stats:
+    get:
+      tags: [Reviews]
+      summary: Review admin stats
+      responses:
+        '200':
+          description: Aggregate review statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      avgRating:
+                        type: number
+                        format: float
+                      totalReviews:
+                        type: integer
+
+  /search/vendors:
+    get:
+      tags: [Search]
+      summary: Search vendors from dedicated search-service
+      security: []
+      parameters:
+        - in: query
+          name: query
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: city
+          schema: { type: string }
+        - in: query
+          name: minPrice
+          schema: { type: number }
+        - in: query
+          name: maxPrice
+          schema: { type: number }
+        - in: query
+          name: minRating
+          schema: { type: number, minimum: 0, maximum: 5 }
+        - in: query
+          name: sortBy
+          schema:
+            type: string
+            enum: [rating, price_asc, price_desc, reviews]
+        - $ref: '#/components/parameters/Page'
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - in: query
+          name: featured
+          schema: { type: boolean }
+        - in: query
+          name: lat
+          schema: { type: number, minimum: -90, maximum: 90 }
+        - in: query
+          name: lng
+          schema: { type: number, minimum: -180, maximum: 180 }
+        - in: query
+          name: radius
+          schema: { type: number, exclusiveMinimum: 0 }
+        - in: query
+          name: pincode
+          schema: { type: string }
+      responses:
+        '200':
+          description: Search response with aggregations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchVendorEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /search/autocomplete:
+    get:
+      tags: [Search]
+      summary: Autocomplete vendor names
+      security: []
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema: { type: string }
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  data:
+                    type: object
+                    properties:
+                      suggestions:
+                        type: array
+                        items:
+                          type: string
+
+  /search/vendors/index:
+    post:
+      tags: [Search]
+      summary: Index vendor into Elasticsearch
+      security:
+        - internalApiKey: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchVendorDocument'
+      responses:
+        '200':
+          description: Indexed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+
+  /media/presign:
+    post:
+      tags: [Media]
+      summary: Get media upload URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaPresignRequest'
+      responses:
+        '200':
+          description: Presigned upload URL
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PresignNoMetaEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /media:
+    delete:
+      tags: [Media]
+      summary: Delete media object
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteMediaRequest'
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /chat/health:
+    get:
+      tags: [Chat]
+      summary: Chat service health
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /chat/conversations/{bookingId}/messages:
+    get:
+      tags: [Chat]
+      summary: Get conversation history by booking id
+      parameters:
+        - in: path
+          name: bookingId
+          required: true
+          schema: { type: string }
+        - $ref: '#/components/parameters/Page'
+      responses:
+        '200':
+          description: Message history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /chat/conversations:
+    post:
+      tags: [Chat]
+      summary: Create or get conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConversationRequest'
+      responses:
+        '200':
+          description: Conversation returned or created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+    get:
+      tags: [Chat]
+      summary: List conversations for current user
+      responses:
+        '200':
+          description: Conversation list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /metrics:
+    get:
+      tags: [Chat]
+      summary: Chat service Prometheus metrics
+      description: Service-level metrics endpoint implemented by chat-service at `/metrics`.
+      security: []
+      responses:
+        '200':
+          description: Prometheus metrics output
+          content:
+            text/plain:
+              schema:
+                type: string
+        '500':
+          description: Metrics collection failure
+
+  /ai/budget-planner:
+    post:
+      tags: [AI]
+      summary: Generate budget allocation
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetPlannerInput'
+      responses:
+        '200':
+          description: AI budget plan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetPlannerOutput'
+        '500':
+          description: AI provider failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FastApiError'
+
+  /ai/vendor-recommendations:
+    post:
+      tags: [AI]
+      summary: Get AI vendor recommendation criteria
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorRecommendInput'
+      responses:
+        '200':
+          description: Recommendation guidance
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationOutput'
+        '500':
+          description: AI provider failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FastApiError'
+
+  /ai/chat:
+    post:
+      tags: [AI]
+      summary: Wedding planning assistant chat
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AIChatInput'
+      responses:
+        '200':
+          description: AI assistant response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIChatOutput'
+        '500':
+          description: AI provider failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FastApiError'
+
+  /ai/health:
+    get:
+      tags: [AI]
+      summary: AI service health
+      description: Standalone ai-service implements this as `/health`; documented here with `/ai/health` for the unified gateway-facing contract.
+      security: []
+      responses:
+        '200':
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  service: { type: string, example: ai-service }
+                  ai_provider: { type: string, example: openai }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    internalApiKey:
+      type: apiKey
+      in: header
+      name: x-internal-api-key
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit100:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    IdPath:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserIdPath:
+      in: path
+      name: userId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    VendorIdPath:
+      in: path
+      name: vendorId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ReviewIdPath:
+      in: path
+      name: reviewId
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DocIdPath:
+      in: path
+      name: docId
+      required: true
+      schema:
+        type: string
+        format: uuid
+  responses:
+    BadRequest:
+      description: Validation or malformed request error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing, invalid, or expired authentication
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Authenticated but not authorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Locked:
+      description: Resource temporarily locked
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: Too many requests
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    ApiMeta:
+      type: object
+      properties:
+        requestId:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+    ErrorObject:
+      type: object
+      properties:
+        code:
+          type: string
+          nullable: true
+        message:
+          type: string
+        field:
+          type: string
+          nullable: true
+        details:
+          type: object
+          additionalProperties: true
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          $ref: '#/components/schemas/ErrorObject'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    MessageEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    MessageNoMetaEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+          nullable: true
+    HealthSimple:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+    UserRole:
+      type: string
+      enum: [customer, vendor, coordinator, admin, super_admin]
+    UserStatus:
+      type: string
+      enum: [active, suspended, deleted]
+    VendorCategory:
+      type: string
+      enum:
+        - PHOTOGRAPHER
+        - VIDEOGRAPHER
+        - CATERER
+        - DECORATOR
+        - VENUE
+        - DJ_SOUND
+        - BAND_ENTERTAINMENT
+        - BRIDAL_MAKEUP
+        - GROOM_MAKEUP
+        - MEHENDI
+        - PANDIT_PRIEST
+        - WEDDING_PLANNER
+        - INVITATIONS
+        - CHOREOGRAPHER
+        - BARTENDER
+        - LIGHTING
+        - FIREWORKS
+        - TENT_HOUSE
+        - TRANSPORTATION
+        - FLORIST
+    VendorStatus:
+      type: string
+      enum: [DRAFT, PENDING_REVIEW, ACTIVE, SUSPENDED, BLACKLISTED, REJECTED, PENDING_KYC]
+    PackageType:
+      type: string
+      enum: [BASIC, STANDARD, PREMIUM, CUSTOM]
+    BookingStatus:
+      type: string
+      enum: [ENQUIRY, QUOTE_SENT, QUOTE_ACCEPTED, ADVANCE_PENDING, ADVANCE_PAID, CONFIRMED, CHECKIN, COMPLETED, CANCELLED_BY_CUSTOMER, CANCELLED_BY_VENDOR, DISPUTED, REFUNDED]
+    EventType:
+      type: string
+      enum: [WEDDING_CEREMONY, RECEPTION, ENGAGEMENT, HALDI, MEHNDI, SANGEET, BACHELOR_PARTY, PRE_WEDDING_SHOOT, BIRTHDAY, ANNIVERSARY, CORPORATE, OTHER]
+    PaymentStatus:
+      type: string
+      enum: [CREATED, PENDING, CAPTURED, FAILED, REFUNDED, PARTIALLY_REFUNDED]
+    EscrowStatus:
+      type: string
+      enum: [HELD, RELEASED_TO_VENDOR, REFUNDED_TO_CUSTOMER, DISPUTED]
+    RefundReason:
+      type: string
+      enum: [CANCELLATION, DISPUTE_RESOLVED_CUSTOMER, OTHER]
+    DisputeStatus:
+      type: string
+      enum: [OPEN, UNDER_REVIEW, RESOLVED_CUSTOMER, RESOLVED_VENDOR, CLOSED]
+    DisputeReason:
+      type: string
+      enum: [no_show, poor_quality, late_arrival, wrong_items, overcharging, cancellation, rude_behaviour, incomplete_service]
+    KycStatus:
+      type: string
+      enum: [PENDING, UNDER_REVIEW, APPROVED, REJECTED]
+    DocumentType:
+      type: string
+      enum: [AADHAAR, PAN, PASSPORT, DRIVING_LICENSE, VOTER_ID, GSTIN, BANK_STATEMENT]
+    BudgetCategory:
+      type: string
+      enum: [VENUE, CATERING, PHOTOGRAPHY, VIDEOGRAPHY, DECORATION, MAKEUP, MUSIC, TRANSPORT, INVITATION, MEHENDI, ATTIRE, JEWELLERY, GIFTS, ACCOMMODATION, HONEYMOON, OTHER]
+    GuestSide:
+      type: string
+      enum: [BRIDE, GROOM, MUTUAL]
+    GuestGroup:
+      type: string
+      enum: [FAMILY, FRIENDS, COLLEAGUES, NEIGHBOURS, OTHERS]
+    GuestRsvpStatus:
+      type: string
+      enum: [PENDING, ACCEPTED, DECLINED, MAYBE]
+    MealPref:
+      type: string
+      enum: [VEG, NON_VEG, JAIN, VEGAN, NO_PREFERENCE]
+    NotificationChannel:
+      type: string
+      enum: [PUSH, SMS, WHATSAPP, EMAIL, IN_APP]
+    NotificationStatus:
+      type: string
+      enum: [QUEUED, SENT, DELIVERED, FAILED, SKIPPED]
+    TaskStatus:
+      type: string
+      enum: [PENDING, IN_PROGRESS, DONE, SKIPPED]
+    TaskCategory:
+      type: string
+      enum: [VENDOR_BOOKING, VENUE, CATERING, DECORATION, CEREMONY, GUEST_MANAGEMENT, PHOTOGRAPHY, ENTERTAINMENT, LOGISTICS, LEGAL, OTHER]
+    SendOtpRequest:
+      type: object
+      required: [phone]
+      properties:
+        phone:
+          type: string
+          pattern: '^\+91[6-9]\d{9}$'
+          example: +919876543210
+    VerifyOtpRequest:
+      type: object
+      required: [phone, otp]
+      properties:
+        phone:
+          type: string
+          pattern: '^\+91[6-9]\d{9}$'
+        otp:
+          type: string
+          pattern: '^\d{6}$'
+          minLength: 6
+          maxLength: 6
+        deviceId:
+          type: string
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refreshToken:
+          type: string
+        deviceId:
+          type: string
+    RegisterVendorRequest:
+      type: object
+      required: [phone, businessName, category, city]
+      properties:
+        phone:
+          type: string
+          pattern: '^\+91[6-9]\d{9}$'
+        businessName:
+          type: string
+          minLength: 2
+          maxLength: 255
+        category:
+          type: string
+          enum: [venue, catering, photography, videography, decor, makeup, mehendi, music, transport, invitation, priest, other]
+        city:
+          type: string
+          minLength: 2
+          maxLength: 100
+    AuthUserSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        phone: { type: string }
+        role:
+          $ref: '#/components/schemas/UserRole'
+        phoneVerified: { type: boolean }
+    AuthUser:
+      allOf:
+        - $ref: '#/components/schemas/AuthUserSummary'
+        - type: object
+          properties:
+            email:
+              type: string
+              format: email
+              nullable: true
+            status:
+              $ref: '#/components/schemas/UserStatus'
+            emailVerified:
+              type: boolean
+            createdAt:
+              type: string
+              format: date-time
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName: { type: string, maxLength: 100 }
+        lastName: { type: string, maxLength: 100 }
+        email: { type: string, format: email }
+        dateOfBirth: { type: string, format: date-time }
+        city: { type: string, maxLength: 100 }
+        state: { type: string, maxLength: 100 }
+        pincode:
+          type: string
+          pattern: '^\d{6}$'
+        partnerName: { type: string, maxLength: 100 }
+        weddingDate: { type: string, format: date-time }
+        estimatedBudgetPaise: { type: integer, minimum: 1 }
+        guestCount: { type: integer, minimum: 1, maximum: 100000 }
+        venueCity: { type: string, maxLength: 100 }
+        businessName: { type: string, maxLength: 200 }
+        businessCity: { type: string, maxLength: 100 }
+    UpdateNotifPrefsRequest:
+      type: object
+      properties:
+        whatsappNotif: { type: boolean }
+        emailNotif: { type: boolean }
+        pushNotif: { type: boolean }
+        smsNotif: { type: boolean }
+    RegisterPushTokenRequest:
+      type: object
+      required: [token, platform]
+      properties:
+        token:
+          type: string
+          minLength: 10
+        platform:
+          type: string
+          enum: [ios, android, web]
+        deviceId:
+          type: string
+          maxLength: 200
+    UploadKycRequest:
+      type: object
+      required: [docType, contentType]
+      properties:
+        docType:
+          $ref: '#/components/schemas/DocumentType'
+        contentType:
+          type: string
+          pattern: '^image\/(jpeg|png|webp)|application\/pdf$'
+    UserProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        firstName: { type: string, nullable: true }
+        lastName: { type: string, nullable: true }
+        avatar: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        dateOfBirth: { type: string, format: date-time, nullable: true }
+        city: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        pincode: { type: string, nullable: true }
+        partnerName: { type: string, nullable: true }
+        weddingDate: { type: string, format: date-time, nullable: true }
+        estimatedBudgetPaise: { type: integer, nullable: true }
+        guestCount: { type: integer, nullable: true }
+        venueCity: { type: string, nullable: true }
+        businessName: { type: string, nullable: true }
+        businessCity: { type: string, nullable: true }
+        whatsappNotif: { type: boolean }
+        emailNotif: { type: boolean }
+        pushNotif: { type: boolean }
+        smsNotif: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    UserProfileEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            profile:
+              $ref: '#/components/schemas/UserProfile'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    PresignResult:
+      type: object
+      properties:
+        uploadUrl: { type: string }
+        key: { type: string }
+        s3Key: { type: string, nullable: true }
+        publicUrl: { type: string }
+        expiresIn: { type: integer, example: 300 }
+        mock: { type: boolean, nullable: true }
+    PresignEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/PresignResult'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    PresignNoMetaEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/PresignResult'
+    KycReviewRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [APPROVED, REJECTED]
+        note:
+          type: string
+    KycDocument:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        profileId: { type: string, format: uuid }
+        docType:
+          $ref: '#/components/schemas/DocumentType'
+        s3Key: { type: string }
+        status:
+          $ref: '#/components/schemas/KycStatus'
+        reviewNote: { type: string, nullable: true }
+        reviewedAt: { type: string, format: date-time, nullable: true }
+        reviewedBy: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BudgetItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        category:
+          $ref: '#/components/schemas/BudgetCategory'
+        label: { type: string }
+        estimatedPaise: { type: integer }
+        actualPaise: { type: integer, nullable: true }
+        vendorName: { type: string, nullable: true }
+        bookingId: { type: string, nullable: true }
+        isPaid: { type: boolean }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateBudgetItemRequest:
+      type: object
+      required: [category, label, estimatedPaise]
+      properties:
+        category:
+          $ref: '#/components/schemas/BudgetCategory'
+        label: { type: string, minLength: 1, maxLength: 200 }
+        estimatedPaise: { type: integer, minimum: 0 }
+        actualPaise: { type: integer, minimum: 0 }
+        vendorName: { type: string, maxLength: 200 }
+        bookingId: { type: string }
+        isPaid: { type: boolean }
+        notes: { type: string, maxLength: 500 }
+    UpdateBudgetItemRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateBudgetItemRequest'
+    BudgetItemEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            item:
+              $ref: '#/components/schemas/BudgetItem'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    BudgetListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/BudgetItem'
+            summary:
+              type: object
+              properties:
+                totalEstimated: { type: integer }
+                totalActual: { type: integer }
+                totalPaid: { type: integer }
+                itemCount: { type: integer }
+            byCategory:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  estimated: { type: integer }
+                  actual: { type: integer }
+                  count: { type: integer }
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    ChecklistItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        title: { type: string }
+        detail: { type: string, nullable: true }
+        category: { type: string }
+        isDone: { type: boolean }
+        daysBeforeEvent: { type: integer, nullable: true }
+        dueDate: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateChecklistItemRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 300 }
+        detail: { type: string, maxLength: 500 }
+        category: { type: string, maxLength: 50 }
+        daysBeforeEvent: { type: integer, minimum: 0 }
+        isDone: { type: boolean }
+    UpdateChecklistItemRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateChecklistItemRequest'
+    GenerateChecklistRequest:
+      type: object
+      required: [weddingDate]
+      properties:
+        weddingDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+    ChecklistItemEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            item:
+              $ref: '#/components/schemas/ChecklistItem'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    ChecklistListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ChecklistItem'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    Guest:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        name: { type: string }
+        phone: { type: string, nullable: true }
+        email: { type: string, format: email, nullable: true }
+        side:
+          $ref: '#/components/schemas/GuestSide'
+        group:
+          $ref: '#/components/schemas/GuestGroup'
+        rsvpStatus:
+          $ref: '#/components/schemas/GuestRsvpStatus'
+        mealPreference:
+          $ref: '#/components/schemas/MealPref'
+        plusOnes: { type: integer }
+        tableNumber: { type: string, nullable: true }
+        roomAllocation: { type: string, nullable: true }
+        inviteSentAt: { type: string, format: date-time, nullable: true }
+        rsvpRespondedAt: { type: string, format: date-time, nullable: true }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateGuestRequest:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        phone: { type: string, maxLength: 20 }
+        email: { type: string, format: email }
+        side:
+          $ref: '#/components/schemas/GuestSide'
+        group:
+          $ref: '#/components/schemas/GuestGroup'
+        rsvpStatus:
+          $ref: '#/components/schemas/GuestRsvpStatus'
+        mealPreference:
+          $ref: '#/components/schemas/MealPref'
+        plusOnes: { type: integer, minimum: 0, maximum: 20 }
+        tableNumber: { type: string, maxLength: 50 }
+        roomAllocation: { type: string, maxLength: 100 }
+        notes: { type: string, maxLength: 1000 }
+    UpdateGuestRequest:
+      allOf:
+        - $ref: '#/components/schemas/CreateGuestRequest'
+    GuestEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            guest:
+              $ref: '#/components/schemas/Guest'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    GuestListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            guests:
+              type: array
+              items:
+                $ref: '#/components/schemas/Guest'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    CreateVendorRequest:
+      type: object
+      required: [businessName, category, city, state, pincode]
+      properties:
+        businessName: { type: string, minLength: 2, maxLength: 200 }
+        category: { type: string }
+        city: { type: string, maxLength: 100 }
+        state: { type: string, maxLength: 100 }
+        pincode:
+          type: string
+          pattern: '^\d{6}$'
+    UpdateVendorRequest:
+      type: object
+      properties:
+        businessName: { type: string, maxLength: 200 }
+        tagline: { type: string, maxLength: 300 }
+        description: { type: string, maxLength: 5000 }
+        city: { type: string, maxLength: 100 }
+        state: { type: string, maxLength: 100 }
+        pincode:
+          type: string
+          pattern: '^\d{6}$'
+        serviceCities:
+          type: array
+          items: { type: string }
+        yearsExperience: { type: integer, minimum: 0, maximum: 100 }
+        teamSize: { type: integer, minimum: 1, maximum: 10000 }
+        whatsappNumber: { type: string }
+        websiteUrl: { type: string, format: uri }
+        instagramUrl: { type: string, format: uri }
+        gstNumber: { type: string }
+        panNumber: { type: string }
+        bankAccountNo: { type: string }
+        bankIfsc: { type: string }
+        bankAccountName: { type: string }
+    VendorPackage:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        vendorId: { type: string, format: uuid }
+        packageType:
+          $ref: '#/components/schemas/PackageType'
+        name: { type: string }
+        description: { type: string, nullable: true }
+        priceFromPaise: { type: integer }
+        priceUpToPaise: { type: integer, nullable: true }
+        isCustomQuote: { type: boolean }
+        inclusions:
+          type: array
+          items: { type: string }
+        exclusions:
+          type: array
+          items: { type: string }
+        deliverables:
+          type: array
+          items: { type: string }
+        isActive: { type: boolean }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    UpsertPackageRequest:
+      type: object
+      required: [name, packageType, priceFromPaise]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 2, maxLength: 200 }
+        packageType:
+          $ref: '#/components/schemas/PackageType'
+        priceFromPaise: { type: integer, minimum: 0 }
+        priceUpToPaise: { type: integer }
+        isCustomQuote: { type: boolean }
+        description: { type: string, maxLength: 2000 }
+        inclusions:
+          type: array
+          items: { type: string }
+        exclusions:
+          type: array
+          items: { type: string }
+        deliverables:
+          type: array
+          items: { type: string }
+    PortfolioItem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        vendorId: { type: string, format: uuid }
+        s3Key: { type: string }
+        publicUrl: { type: string }
+        thumbUrl: { type: string, nullable: true }
+        caption: { type: string, nullable: true }
+        mediaType: { type: string }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+    AvailabilityBlock:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        vendorId: { type: string, format: uuid }
+        blockedDate: { type: string, format: date-time }
+        reason: { type: string, nullable: true }
+    Vendor:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        businessName: { type: string }
+        slug: { type: string }
+        category:
+          $ref: '#/components/schemas/VendorCategory'
+        subCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorCategory'
+        status:
+          $ref: '#/components/schemas/VendorStatus'
+        city: { type: string }
+        state: { type: string }
+        pincode: { type: string }
+        serviceCities:
+          type: array
+          items: { type: string }
+        tagline: { type: string, nullable: true }
+        description: { type: string, nullable: true }
+        yearsExperience: { type: integer, nullable: true }
+        teamSize: { type: integer, nullable: true }
+        coverPhoto: { type: string, nullable: true }
+        logoUrl: { type: string, nullable: true }
+        whatsappNumber: { type: string, nullable: true }
+        websiteUrl: { type: string, nullable: true }
+        instagramUrl: { type: string, nullable: true }
+        gstNumber: { type: string, nullable: true }
+        panNumber: { type: string, nullable: true }
+        bankAccountNo: { type: string, nullable: true }
+        bankIfsc: { type: string, nullable: true }
+        bankAccountName: { type: string, nullable: true }
+        avgRating: { type: number, format: float }
+        reviewCount: { type: integer }
+        bookingCount: { type: integer }
+        responseRatePercent: { type: integer }
+        avgResponseHours: { type: number, format: float }
+        plusMember: { type: boolean }
+        isFeatured: { type: boolean }
+        adminNote: { type: string, nullable: true }
+        packages:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorPackage'
+        portfolio:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortfolioItem'
+        availability:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailabilityBlock'
+        tags:
+          type: array
+          items:
+            type: object
+            properties:
+              tag: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    VendorEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            vendor:
+              $ref: '#/components/schemas/Vendor'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    VendorPackageEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            package:
+              $ref: '#/components/schemas/VendorPackage'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    PortfolioItemEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            item:
+              $ref: '#/components/schemas/PortfolioItem'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    VendorSuggestion:
+      type: object
+      properties:
+        id: { type: string }
+        businessName: { type: string }
+        slug: { type: string }
+        category: { type: string }
+        city: { type: string }
+        avgRating: { type: number, nullable: true }
+        coverPhoto: { type: string, nullable: true }
+    VendorSearchResult:
+      type: object
+      properties:
+        vendors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vendor'
+        total: { type: integer }
+        page: { type: integer }
+        limit: { type: integer }
+        totalPages: { type: integer }
+    VendorSearchEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          $ref: '#/components/schemas/VendorSearchResult'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    ConfirmPortfolioRequest:
+      type: object
+      required: [s3Key, publicUrl]
+      properties:
+        s3Key: { type: string }
+        publicUrl: { type: string }
+        caption: { type: string }
+        mediaType: { type: string }
+    AvailabilityUpdateRequest:
+      type: object
+      properties:
+        blockedDates:
+          type: array
+          items:
+            type: object
+            required: [date]
+            properties:
+              date:
+                type: string
+                pattern: '^\d{4}-\d{2}-\d{2}$'
+              reason:
+                type: string
+    VendorBankDetails:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bankAccountNo: { type: string, nullable: true }
+        bankIfsc: { type: string, nullable: true }
+        bankAccountName: { type: string, nullable: true }
+    AdminVendorListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            vendors:
+              type: array
+              items:
+                $ref: '#/components/schemas/Vendor'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/ApiMeta'
+            - type: object
+              properties:
+                total: { type: integer }
+                page: { type: integer }
+                limit: { type: integer }
+                pages: { type: integer }
+    CreateEnquiryRequest:
+      type: object
+      required: [vendorId, eventDate, eventType, eventCity]
+      properties:
+        vendorId: { type: string, format: uuid }
+        packageId: { type: string, format: uuid }
+        eventDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        eventType:
+          type: string
+        eventCity: { type: string, maxLength: 100 }
+        requirements: { type: string, maxLength: 2000 }
+        guestCount: { type: integer, minimum: 1, maximum: 100000 }
+        specialNotes: { type: string, maxLength: 500 }
+    Booking:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bookingNumber: { type: string, nullable: true }
+        customerId: { type: string, format: uuid }
+        vendorId: { type: string, format: uuid }
+        packageId: { type: string, format: uuid, nullable: true }
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        eventDate: { type: string, format: date-time }
+        eventType:
+          $ref: '#/components/schemas/EventType'
+        eventCity: { type: string }
+        requirements: { type: string, nullable: true }
+        guestCount: { type: integer, nullable: true }
+        specialNotes: { type: string, nullable: true }
+        quotedAmountPaise: { type: integer, nullable: true }
+        finalAmountPaise: { type: integer, nullable: true }
+        vendorQuoteNote: { type: string, nullable: true }
+        paymentId: { type: string, format: uuid, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    BookingEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            booking:
+              $ref: '#/components/schemas/Booking'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    BookingListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            bookings:
+              type: array
+              items:
+                $ref: '#/components/schemas/Booking'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    SendQuoteRequest:
+      type: object
+      required: [quotedAmountPaise]
+      properties:
+        quotedAmountPaise: { type: integer, minimum: 10000 }
+        note: { type: string, maxLength: 1000 }
+    CancelBookingRequest:
+      type: object
+      properties:
+        reason: { type: string, maxLength: 500 }
+    VendorNoteRequest:
+      type: object
+      required: [note]
+      properties:
+        note: { type: string, maxLength: 1000 }
+    AdminBookingListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            bookings:
+              type: array
+              items:
+                $ref: '#/components/schemas/Booking'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/ApiMeta'
+            - type: object
+              properties:
+                total: { type: integer }
+                page: { type: integer }
+                limit: { type: integer }
+                pages: { type: integer }
+    VendorBookingDashboardEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            stats:
+              type: object
+              properties:
+                totalEnquiries: { type: integer }
+                quotedCount: { type: integer }
+                confirmedCount: { type: integer }
+                completedCount: { type: integer }
+                cancelledCount: { type: integer }
+                activeCount: { type: integer }
+                conversionRate: { type: number }
+                avgBookingValuePaise: { type: integer }
+            recentActivity:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  bookingNumber: { type: string }
+                  status: { $ref: '#/components/schemas/BookingStatus' }
+                  eventDate: { type: string, format: date-time }
+                  eventType: { $ref: '#/components/schemas/EventType' }
+                  amountPaise: { type: integer }
+                  updatedAt: { type: string, format: date-time }
+            monthly:
+              type: array
+              items:
+                type: object
+                properties:
+                  month: { type: string }
+                  revenuePaise: { type: integer }
+                  bookingCount: { type: integer }
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    CreateOrderRequest:
+      type: object
+      required: [bookingId, amountPaise, vendorId, eventDate]
+      properties:
+        bookingId: { type: string, format: uuid }
+        amountPaise: { type: integer, minimum: 10000 }
+        vendorId: { type: string, format: uuid }
+        eventDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+    VerifyPaymentRequest:
+      type: object
+      required: [razorpayOrderId, razorpayPaymentId, razorpaySignature, bookingId, eventDate]
+      properties:
+        razorpayOrderId: { type: string }
+        razorpayPaymentId: { type: string }
+        razorpaySignature: { type: string }
+        bookingId: { type: string, format: uuid }
+        eventDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+    PaymentOrder:
+      type: object
+      properties:
+        id: { type: string }
+        amount: { type: integer }
+        currency: { type: string }
+        receipt: { type: string, nullable: true }
+        status: { type: string, nullable: true }
+        notes:
+          type: object
+          additionalProperties: true
+          nullable: true
+    Payment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid }
+        customerId: { type: string, format: uuid }
+        vendorId: { type: string, format: uuid }
+        amountPaise: { type: integer }
+        currency: { type: string }
+        description: { type: string, nullable: true }
+        razorpayOrderId: { type: string }
+        razorpayPaymentId: { type: string, nullable: true }
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    EscrowHold:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        paymentId: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid, nullable: true }
+        vendorId: { type: string, format: uuid }
+        status:
+          $ref: '#/components/schemas/EscrowStatus'
+        grossAmountPaise: { type: integer }
+        platformFeePaise: { type: integer }
+        gstOnFeePaise: { type: integer }
+        vendorPayoutPaise: { type: integer }
+        createdAt: { type: string, format: date-time }
+        releasedAt: { type: string, format: date-time, nullable: true }
+    RefundRequest:
+      type: object
+      properties:
+        reason:
+          $ref: '#/components/schemas/RefundReason'
+        note:
+          type: string
+    PaymentOrderEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            order:
+              $ref: '#/components/schemas/PaymentOrder'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    PaymentEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            payment:
+              $ref: '#/components/schemas/Payment'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    EscrowEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            escrow:
+              $ref: '#/components/schemas/EscrowHold'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    RefundEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          additionalProperties: true
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    AdminPaymentListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            payments:
+              type: array
+              items:
+                $ref: '#/components/schemas/Payment'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/ApiMeta'
+            - type: object
+              properties:
+                total: { type: integer }
+                page: { type: integer }
+                limit: { type: integer }
+                pages: { type: integer }
+    PaymentStatsEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            revenueTotal: { type: integer }
+            revenueThisMonth: { type: integer }
+            monthly:
+              type: array
+              items:
+                type: object
+                properties:
+                  month: { type: string }
+                  revenue: { type: integer }
+                  bookings: { type: integer }
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    VendorPaymentStatsEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          additionalProperties: true
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    Dispute:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        paymentId: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid, nullable: true }
+        reason:
+          $ref: '#/components/schemas/DisputeReason'
+        status:
+          $ref: '#/components/schemas/DisputeStatus'
+        description: { type: string, nullable: true }
+        resolutionNote: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CreateDisputeRequest:
+      type: object
+      required: [paymentId, reason]
+      properties:
+        paymentId: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid }
+        reason:
+          $ref: '#/components/schemas/DisputeReason'
+        description:
+          type: string
+    ResolveDisputeRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [RESOLVED_CUSTOMER, RESOLVED_VENDOR, CLOSED]
+        note:
+          type: string
+    DisputeEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          oneOf:
+            - type: object
+              properties:
+                dispute:
+                  $ref: '#/components/schemas/Dispute'
+            - $ref: '#/components/schemas/Dispute'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    DisputeListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            disputes:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dispute'
+        meta:
+          allOf:
+            - $ref: '#/components/schemas/ApiMeta'
+            - type: object
+              properties:
+                total: { type: integer }
+                page: { type: integer }
+                limit: { type: integer }
+                pages: { type: integer }
+    CreateTimelineRequest:
+      type: object
+      required: [weddingDate]
+      properties:
+        weddingDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+    WeddingTimeline:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        customerId: { type: string, format: uuid }
+        weddingDate: { type: string, format: date-time }
+        title: { type: string }
+        tasks:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimelineTask'
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TimelineTask:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        timelineId: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: string, nullable: true }
+        category:
+          $ref: '#/components/schemas/TaskCategory'
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        dueDate: { type: string, format: date-time, nullable: true }
+        dueDaysBeforeWedding: { type: integer, nullable: true }
+        linkedBookingId: { type: string, format: uuid, nullable: true }
+        assignedVendorId: { type: string, format: uuid, nullable: true }
+        completedAt: { type: string, format: date-time, nullable: true }
+        sortOrder: { type: integer }
+        isSystemGenerated: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    AddTaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string, minLength: 2, maxLength: 300 }
+        category: { type: string }
+        description: { type: string, maxLength: 2000 }
+        dueDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        linkedBookingId: { type: string, format: uuid }
+        assignedVendorId: { type: string, format: uuid }
+    UpdateTaskRequest:
+      type: object
+      properties:
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        title: { type: string, maxLength: 300 }
+        dueDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        description: { type: string, maxLength: 2000 }
+    TimelineEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            timeline:
+              $ref: '#/components/schemas/WeddingTimeline'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    TimelineTaskEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            task:
+              $ref: '#/components/schemas/TimelineTask'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    Notification:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        channel:
+          $ref: '#/components/schemas/NotificationChannel'
+        event: { type: string }
+        title: { type: string, nullable: true }
+        body: { type: string }
+        data:
+          type: object
+          additionalProperties: true
+        status:
+          $ref: '#/components/schemas/NotificationStatus'
+        providerRef: { type: string, nullable: true }
+        errorMsg: { type: string, nullable: true }
+        sentAt: { type: string, format: date-time, nullable: true }
+        readAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+    NotificationListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            notifications:
+              type: array
+              items:
+                $ref: '#/components/schemas/Notification'
+            total: { type: integer }
+            page: { type: integer }
+            limit: { type: integer }
+            unreadCount: { type: integer }
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    NotificationEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            notification:
+              $ref: '#/components/schemas/Notification'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    InternalNotifyRequest:
+      type: object
+      required: [event, payload]
+      properties:
+        event: { type: string }
+        payload:
+          type: object
+          additionalProperties: true
+    ContactRequest:
+      type: object
+      required: [name, email, message]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 200 }
+        email: { type: string, format: email }
+        phone: { type: string, maxLength: 20 }
+        subject:
+          type: string
+          enum: [general, vendor, payment, technical, other]
+          default: general
+        message: { type: string, minLength: 10, maxLength: 5000 }
+    CreateReviewRequest:
+      type: object
+      required: [bookingId, vendorId, rating, body]
+      properties:
+        bookingId: { type: string, format: uuid }
+        vendorId: { type: string, format: uuid }
+        rating: { type: number, minimum: 1, maximum: 5 }
+        body: { type: string, minLength: 10, maxLength: 2000 }
+        title: { type: string, maxLength: 200 }
+        qualityRating: { type: number, minimum: 1, maximum: 5 }
+        valueRating: { type: number, minimum: 1, maximum: 5 }
+        professionalismRating: { type: number, minimum: 1, maximum: 5 }
+        punctualityRating: { type: number, minimum: 1, maximum: 5 }
+    ReplyRequest:
+      type: object
+      required: [reply]
+      properties:
+        reply: { type: string, minLength: 1, maxLength: 1000 }
+    Review:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        bookingId: { type: string, format: uuid }
+        customerId: { type: string, format: uuid, nullable: true }
+        vendorId: { type: string, format: uuid }
+        rating: { type: integer }
+        title: { type: string, nullable: true }
+        body: { type: string }
+        qualityRating: { type: integer, nullable: true }
+        valueRating: { type: integer, nullable: true }
+        professionalismRating: { type: integer, nullable: true }
+        punctualityRating: { type: integer, nullable: true }
+        photos:
+          type: array
+          items: { type: string }
+        isPublished: { type: boolean }
+        adminNote: { type: string, nullable: true }
+        vendorReply: { type: string, nullable: true }
+        vendorRepliedAt: { type: string, format: date-time, nullable: true }
+        helpfulCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ReviewEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            review:
+              $ref: '#/components/schemas/Review'
+        meta:
+          $ref: '#/components/schemas/ApiMeta'
+    VendorReviewStats:
+      type: object
+      properties:
+        _avg:
+          type: object
+          properties:
+            rating: { type: number, nullable: true }
+            qualityRating: { type: number, nullable: true }
+            valueRating: { type: number, nullable: true }
+            professionalismRating: { type: number, nullable: true }
+            punctualityRating: { type: number, nullable: true }
+        _count:
+          type: object
+          properties:
+            id: { type: integer }
+    VendorReviewListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            reviews:
+              type: array
+              items:
+                $ref: '#/components/schemas/Review'
+            total: { type: integer }
+            page: { type: integer }
+            limit: { type: integer }
+            totalPages: { type: integer }
+            stats:
+              $ref: '#/components/schemas/VendorReviewStats'
+    MyReviewListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            reviews:
+              type: array
+              items:
+                $ref: '#/components/schemas/Review'
+            total: { type: integer }
+            page: { type: integer }
+            limit: { type: integer }
+            totalPages: { type: integer }
+    SearchVendorDocument:
+      type: object
+      description: Vendor document payload passed to search-service for indexing.
+      additionalProperties: true
+      properties:
+        id: { type: string }
+        businessName: { type: string }
+        slug: { type: string }
+        category: { type: string }
+        city: { type: string }
+        state: { type: string }
+        status: { type: string }
+        avgRating: { type: number }
+        reviewCount: { type: integer }
+        bookingCount: { type: integer }
+        plusMember: { type: boolean }
+        isFeatured: { type: boolean }
+        tags:
+          type: array
+          items: { type: string }
+        priceFromPaise: { type: integer }
+    SearchVendorHit:
+      type: object
+      properties:
+        id: { type: string }
+        businessName: { type: string }
+        slug: { type: string }
+        category: { type: string }
+        city: { type: string }
+        state: { type: string, nullable: true }
+        priceFromPaise: { type: integer, nullable: true }
+        avgRating: { type: number, nullable: true }
+        reviewCount: { type: integer, nullable: true }
+        plusMember: { type: boolean, nullable: true }
+        isFeatured: { type: boolean, nullable: true }
+        coverPhoto: { type: string, nullable: true }
+    SearchAggregations:
+      type: object
+      additionalProperties: true
+      properties:
+        categories:
+          type: array
+          items: { type: object, additionalProperties: true }
+        cities:
+          type: array
+          items: { type: object, additionalProperties: true }
+        priceStats:
+          type: object
+          additionalProperties: true
+    SearchVendorEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            vendors:
+              type: array
+              items:
+                $ref: '#/components/schemas/SearchVendorHit'
+            total: { type: integer }
+            page: { type: integer }
+            limit: { type: integer }
+            totalPages: { type: integer }
+            aggregations:
+              $ref: '#/components/schemas/SearchAggregations'
+    MediaPresignRequest:
+      type: object
+      required: [mediaType, mimeType, fileName]
+      properties:
+        mediaType:
+          type: string
+          enum: [avatar, portfolio, kyc, review, vendor_cover, chat]
+        mimeType:
+          type: string
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 255
+    DeleteMediaRequest:
+      type: object
+      required: [key]
+      properties:
+        key: { type: string, minLength: 1 }
+    Conversation:
+      type: object
+      properties:
+        _id: { type: string }
+        bookingId: { type: string }
+        customerId: { type: string }
+        vendorId: { type: string }
+        lastMessage: { type: string, nullable: true }
+        lastMessageAt: { type: string, format: date-time, nullable: true }
+        unreadCustomerCount: { type: integer, nullable: true }
+        unreadVendorCount: { type: integer, nullable: true }
+        isActive: { type: boolean, nullable: true }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    ChatMessage:
+      type: object
+      properties:
+        _id: { type: string }
+        conversationId: { type: string }
+        senderId: { type: string }
+        senderRole: { type: string }
+        content: { type: string }
+        contentType: { type: string, nullable: true }
+        mediaUrl: { type: string, nullable: true }
+        readBy:
+          type: array
+          items: { type: string }
+        isDeleted: { type: boolean }
+        createdAt: { type: string, format: date-time, nullable: true }
+        updatedAt: { type: string, format: date-time, nullable: true }
+    CreateConversationRequest:
+      type: object
+      required: [bookingId, customerId, vendorId]
+      properties:
+        bookingId: { type: string }
+        customerId: { type: string }
+        vendorId: { type: string }
+    ConversationEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            conversation:
+              $ref: '#/components/schemas/Conversation'
+    ConversationListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            conversations:
+              type: array
+              items:
+                $ref: '#/components/schemas/Conversation'
+    MessageListEnvelope:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        data:
+          type: object
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: '#/components/schemas/ChatMessage'
+            page: { type: integer }
+            hasMore: { type: boolean }
+    BudgetPlannerInput:
+      type: object
+      required: [total_budget_paise, guest_count, venue_city]
+      properties:
+        total_budget_paise:
+          type: integer
+          minimum: 1
+          description: Total budget in paise.
+        guest_count:
+          type: integer
+          minimum: 1
+        venue_city:
+          type: string
+        wedding_type:
+          type: string
+          default: traditional
+        preferences:
+          type: array
+          items: { type: string }
+    BudgetCategoryAllocation:
+      type: object
+      properties:
+        category: { type: string }
+        percentage: { type: number, format: float }
+        estimated_paise: { type: integer }
+        description: { type: string }
+        priority: { type: string }
+    BudgetPlannerOutput:
+      type: object
+      properties:
+        total_budget_paise: { type: integer }
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetCategoryAllocation'
+        tips:
+          type: array
+          items: { type: string }
+        warnings:
+          type: array
+          items: { type: string }
+    VendorRecommendInput:
+      type: object
+      required: [category, city, budget_paise, event_date]
+      properties:
+        category: { type: string }
+        city: { type: string }
+        budget_paise: { type: integer }
+        event_date: { type: string }
+        style_preferences:
+          type: array
+          items: { type: string }
+        guest_count: { type: integer, nullable: true }
+    RecommendationOutput:
+      type: object
+      properties:
+        recommendations:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        reasoning:
+          type: string
+    AIChatMessage:
+      type: object
+      properties:
+        role: { type: string, enum: [user, assistant] }
+        content: { type: string }
+      required: [role, content]
+    AIChatInput:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/AIChatMessage'
+        context:
+          type: object
+          additionalProperties: true
+    AIChatOutput:
+      type: object
+      properties:
+        message: { type: string }
+        suggestions:
+          type: array
+          items: { type: string }
+    FastApiError:
+      type: object
+      properties:
+        detail:
+          type: string

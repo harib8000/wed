@@ -8,6 +8,20 @@ import { mediaRouter } from './routes/media.routes';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
+import * as Sentry from '@sentry/node';
+import { register, collectDefaultMetrics } from 'prom-client';
+
+collectDefaultMetrics();
+
+
+if (config.sentryDsn) {
+  Sentry.init({
+    dsn: config.sentryDsn,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
+  });
+}
+
 
 async function bootstrap() {
   const app = express();
@@ -17,6 +31,15 @@ async function bootstrap() {
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false }));
   app.use(express.json({ limit: '1mb' }));
   app.use(pinoHttp({ logger }));
+
+  app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(String(err));
+  }
+});
 
   app.get('/media/health', (_, res) => res.json({ status: 'ok', service: 'media-service', timestamp: new Date().toISOString() }));
   app.use('/media', mediaRouter);

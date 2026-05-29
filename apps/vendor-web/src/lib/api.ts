@@ -1,12 +1,13 @@
 /**
  * Vendor Portal API Client — Axios instance with JWT auth.
- * Hits the API gateway and surfaces typed helpers for vendor operations.
+ * Hits the API gateway and refreshes vendor JWTs on 401.
  */
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 import Cookies from 'js-cookie';
 import { useAuthStore } from '../store/authStore';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
+const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+const BASE_URL = env?.VITE_API_URL ?? 'http://localhost:8000/api/v1';
 
 export const vendorApi: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -22,15 +23,67 @@ vendorApi.interceptors.request.use((cfg) => {
   return cfg;
 });
 
-// ── Response: handle 401 → logout ─────────────────────────────────────────────
+// ── Response: handle 401 with token refresh ───────────────────────────────────
+let isRefreshing = false;
+let failedQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach(({ resolve, reject }) => {
+    if (token) resolve(token);
+    else reject(error);
+  });
+  failedQueue = [];
+};
+
+const clearAuthAndRedirect = () => {
+  useAuthStore.getState().logout();
+  window.location.href = '/login';
+};
+
 vendorApi.interceptors.response.use(
   (res) => res,
-  (err: AxiosError) => {
-    if (err.response?.status === 401) {
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+  async (err: AxiosError) => {
+    const originalRequest = err.config;
+    if (!originalRequest || err.response?.status !== 401) {
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
+
+    if (originalRequest.url?.includes('/auth/refresh')) {
+      clearAuthAndRedirect();
+      return Promise.reject(err);
+    }
+
+    if (isRefreshing) {
+      return new Promise<string>((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then((token) => {
+        originalRequest.headers.Authorization = 'Bearer ' + token;
+        return vendorApi(originalRequest);
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const { data } = await axios.post(`${BASE_URL}/auth/refresh`, {}, { withCredentials: true });
+      const newToken = data?.data?.accessToken;
+
+      if (newToken) {
+        Cookies.set('access_token', newToken, { expires: 1 / 96, sameSite: 'lax' });
+        localStorage.setItem('access_token', newToken);
+        originalRequest.headers.Authorization = 'Bearer ' + newToken;
+        processQueue(null, newToken);
+        return vendorApi(originalRequest);
+      }
+
+      throw new Error('No access token in refresh response');
+    } catch (refreshErr) {
+      processQueue(refreshErr, null);
+      clearAuthAndRedirect();
+      return Promise.reject(refreshErr);
+    } finally {
+      isRefreshing = false;
+    }
   },
 );
 
@@ -109,18 +162,20 @@ export interface MonthlyData {
   bookings: number;
 }
 
+export type DashboardRange = '7d' | '30d' | '90d';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // API METHODS
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Dashboard stats for the logged-in vendor */
 export const statsApi = {
-  getDashboard: () =>
-    vendorApi.get<{ success: boolean; data: VendorStats }>('/vendors/me/stats')
+  getDashboard: (range: DashboardRange = '30d') =>
+    vendorApi.get<{ success: boolean; data: VendorStats }>('/vendors/me/stats', { params: { range } })
       .then((r) => r.data.data),
 
-  getMonthlyRevenue: () =>
-    vendorApi.get<{ success: boolean; data: MonthlyData[] }>('/vendors/me/revenue/monthly')
+  getMonthlyRevenue: (range: DashboardRange = '30d') =>
+    vendorApi.get<{ success: boolean; data: MonthlyData[] }>('/vendors/me/revenue/monthly', { params: { range } })
       .then((r) => r.data.data),
 };
 
@@ -164,6 +219,14 @@ export const bookingApi = {
 
   reject: (bookingId: string, reason?: string) =>
     vendorApi.post(`/bookings/${bookingId}/cancel`, { reason }).then((r) => r.data),
+
+  saveNote: (bookingId: string, note: string) =>
+    vendorApi.patch(`/bookings/${bookingId}/vendor-note`, { note }).then((r) => r.data),
+
+  getDashboard: () =>
+    vendorApi.get<{ success: boolean; data: { stats: Record<string, number>; recentActivity: unknown[]; monthly: unknown[] } }>(
+      '/bookings/vendor/dashboard',
+    ).then((r) => r.data.data),
 };
 
 /** Analytics */
@@ -208,6 +271,7 @@ export const reviewsApi = {
 /** Payouts & earnings for the logged-in vendor */
 export interface PayoutRecord {
   id: string;
+  paymentId?: string;
   date: string;
   bookingNumber: string;
   customer: string;
@@ -247,4 +311,17 @@ export const calendarApi = {
 
   updateBlockedDates: (blockedDates: string[]) =>
     vendorApi.put('/vendors/me/availability', { blockedDates }).then((r) => r.data),
+};
+
+/** Notification preferences */
+export interface NotifPrefs {
+  emailNotif?: boolean;
+  smsNotif?: boolean;
+  pushNotif?: boolean;
+  whatsappNotif?: boolean;
+}
+
+export const settingsApi = {
+  updateNotifications: (prefs: NotifPrefs) =>
+    vendorApi.put('/users/me/notifications', prefs).then((r) => r.data),
 };

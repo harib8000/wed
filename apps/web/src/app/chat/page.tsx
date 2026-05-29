@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
@@ -13,6 +14,7 @@ import {
   Image as ImageIcon,
   Menu,
   X,
+  Search,
 } from 'lucide-react';
 import { Navbar } from '@/components/layout/Navbar';
 import { useAuthStore } from '@/store/authStore';
@@ -20,17 +22,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
+import { chatApi, ChatConversation, ChatMessage } from '@/lib/api';
 
 interface Message {
   id: string;
-  senderId: 'user' | 'vendor';
+  senderId: string;
+  senderRole: string;
   text: string;
   sentAt: string;
   status: 'sending' | 'sent' | 'read';
+  contentType: 'text' | 'image' | 'file';
 }
 
 interface Vendor {
@@ -42,15 +43,21 @@ interface Vendor {
 }
 
 interface Conversation {
+  id: string;
+  bookingId: string;
   vendorId: string;
+  vendorName: string;
   lastMessage: string;
   lastMessageAt: string;
   unread: number;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Mock data                                                          */
-/* ------------------------------------------------------------------ */
+const QUICK_ENQUIRY_TEMPLATES = [
+  "I'm interested in your services for my wedding",
+  'Can you share pricing for [date]?',
+  'Are you available on [date]?',
+  'Can I schedule a visit?',
+] as const;
 
 const VENDORS: Record<string, Vendor> = {
   v1: { id: 'v1', name: 'Royal Grand Palace', avatar: 'RG', category: 'Venue', online: true },
@@ -63,10 +70,10 @@ const VENDORS: Record<string, Vendor> = {
 };
 
 const CONVERSATIONS: Conversation[] = [
-  { vendorId: 'v1', lastMessage: 'March is mostly available. Share the exact date?', lastMessageAt: new Date(Date.now() - 600_000).toISOString(), unread: 1 },
-  { vendorId: 'v2', lastMessage: 'I\'ll send the pre-wedding shoot package details.', lastMessageAt: new Date(Date.now() - 3_600_000).toISOString(), unread: 0 },
-  { vendorId: 'v3', lastMessage: 'Menu tasting is scheduled for Saturday!', lastMessageAt: new Date(Date.now() - 86_400_000).toISOString(), unread: 3 },
-  { vendorId: 'v4', lastMessage: 'Floral arch options are attached.', lastMessageAt: new Date(Date.now() - 172_800_000).toISOString(), unread: 0 },
+  { id: 'c1', bookingId: 'booking-v1', vendorId: 'v1', vendorName: 'Royal Grand Palace', lastMessage: 'March is mostly available. Share the exact date?', lastMessageAt: new Date(Date.now() - 600_000).toISOString(), unread: 1 },
+  { id: 'c2', bookingId: 'booking-v2', vendorId: 'v2', vendorName: 'Srikanth Photography', lastMessage: 'I\'ll send the pre-wedding shoot package details.', lastMessageAt: new Date(Date.now() - 3_600_000).toISOString(), unread: 0 },
+  { id: 'c3', bookingId: 'booking-v3', vendorId: 'v3', vendorName: 'Flavours Catering', lastMessage: 'Menu tasting is scheduled for Saturday!', lastMessageAt: new Date(Date.now() - 86_400_000).toISOString(), unread: 3 },
+  { id: 'c4', bookingId: 'booking-v4', vendorId: 'v4', vendorName: 'Blooms & Petals Décor', lastMessage: 'Floral arch options are attached.', lastMessageAt: new Date(Date.now() - 172_800_000).toISOString(), unread: 0 },
 ];
 
 function buildDemoMessages(vendorId: string): Message[] {
@@ -74,20 +81,24 @@ function buildDemoMessages(vendorId: string): Message[] {
   const name = vendor?.name ?? 'Vendor';
   const now = Date.now();
   const yesterday = now - 86_400_000;
-
-  return [
-    { id: '1', senderId: 'vendor', text: `Hi! This is ${name}. Thank you for your interest. How can I help you with your wedding plans?`, sentAt: new Date(yesterday - 7_200_000).toISOString(), status: 'read' },
-    { id: '2', senderId: 'user', text: 'Hi! We\'re planning our wedding in March 2025. Could you share availability and pricing?', sentAt: new Date(yesterday - 6_000_000).toISOString(), status: 'read' },
-    { id: '3', senderId: 'vendor', text: 'Of course! March is a wonderful month. We have a few dates open. Could you share the exact date and approximate guest count?', sentAt: new Date(yesterday - 5_400_000).toISOString(), status: 'read' },
-    { id: '4', senderId: 'user', text: 'We\'re looking at March 15th, around 350 guests.', sentAt: new Date(now - 3_600_000).toISOString(), status: 'read' },
-    { id: '5', senderId: 'vendor', text: 'Great news — March 15th is available! I\'ll put together a custom quote for 350 guests and send it over shortly. 🎉', sentAt: new Date(now - 2_400_000).toISOString(), status: 'read' },
-    { id: '6', senderId: 'user', text: 'That sounds perfect, thank you!', sentAt: new Date(now - 1_800_000).toISOString(), status: 'read' },
+  const messages: Message[] = [
+    { id: '1', senderId: vendorId, senderRole: 'vendor', text: `Hi! This is ${name}. Thank you for your interest. How can I help you with your wedding plans?`, sentAt: new Date(yesterday - 7_200_000).toISOString(), status: 'read', contentType: 'text' },
+    { id: '2', senderId: 'user', senderRole: 'customer', text: 'Hi! We\'re planning our wedding in March 2025. Could you share availability and pricing?', sentAt: new Date(yesterday - 6_000_000).toISOString(), status: 'read', contentType: 'text' },
+    { id: '3', senderId: vendorId, senderRole: 'vendor', text: 'Of course! March is a wonderful month. We have a few dates open. Could you share the exact date and approximate guest count?', sentAt: new Date(yesterday - 5_400_000).toISOString(), status: 'read', contentType: 'text' },
+    { id: '4', senderId: 'user', senderRole: 'customer', text: 'We\'re looking at March 15th, around 350 guests.', sentAt: new Date(now - 3_600_000).toISOString(), status: 'read', contentType: 'text' },
+    { id: '5', senderId: vendorId, senderRole: 'vendor', text: 'Great news — March 15th is available! I\'ll put together a custom quote for 350 guests and send it over shortly. 🎉', sentAt: new Date(now - 2_400_000).toISOString(), status: 'read', contentType: 'text' },
   ];
-}
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
+  if (vendorId === 'v4') {
+    messages.push(
+      { id: '6', senderId: vendorId, senderRole: 'vendor', text: 'https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=900&q=80', sentAt: new Date(now - 2_100_000).toISOString(), status: 'read', contentType: 'image' },
+      { id: '7', senderId: vendorId, senderRole: 'vendor', text: 'Décor moodboard.pdf', sentAt: new Date(now - 2_000_000).toISOString(), status: 'read', contentType: 'file' },
+    );
+  }
+
+  messages.push({ id: '8', senderId: 'user', senderRole: 'customer', text: 'That sounds perfect, thank you!', sentAt: new Date(now - 1_800_000).toISOString(), status: 'read', contentType: 'text' });
+  return messages;
+}
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
@@ -108,9 +119,70 @@ function getDateKey(iso: string) {
   return new Date(iso).toDateString();
 }
 
-/* ------------------------------------------------------------------ */
-/*  Sub-components                                                     */
-/* ------------------------------------------------------------------ */
+function getAvatar(name: string) {
+  return name
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function detectContentType(content: string): Message['contentType'] {
+  const lower = content.toLowerCase();
+  if (/^https?:\/\/.+\.(png|jpg|jpeg|gif|webp|svg)(\?.*)?$/.test(lower)) return 'image';
+  if (lower.endsWith('.pdf') || lower.endsWith('.doc') || lower.endsWith('.docx') || lower.includes('attachment')) return 'file';
+  return 'text';
+}
+
+function buildVendor(conversation: Conversation | null, isOnline: boolean) {
+  if (!conversation) return null;
+  const existing = VENDORS[conversation.vendorId];
+  return existing
+    ? { ...existing, online: isOnline || existing.online }
+    : {
+        id: conversation.vendorId,
+        name: conversation.vendorName,
+        avatar: getAvatar(conversation.vendorName),
+        category: 'Vendor',
+        online: isOnline,
+      };
+}
+
+function normalizeConversation(raw: ChatConversation | Record<string, unknown>, isVendorUser: boolean): Conversation {
+  const record = raw as Record<string, unknown>;
+  const vendorId = String(record.vendorId ?? '');
+  const vendorName = String(record.vendorName ?? VENDORS[vendorId]?.name ?? 'Vendor');
+  const unread = isVendorUser
+    ? Number(record.vendorUnread ?? record.unreadCount ?? 0)
+    : Number(record.customerUnread ?? record.unreadCount ?? 0);
+
+  return {
+    id: String(record.id ?? record._id ?? record.bookingId ?? vendorId),
+    bookingId: String(record.bookingId ?? record.id ?? `booking-${vendorId}`),
+    vendorId,
+    vendorName,
+    lastMessage: String(record.lastMessage ?? 'Start the conversation'),
+    lastMessageAt: String(record.lastMessageAt ?? record.updatedAt ?? new Date().toISOString()),
+    unread,
+  };
+}
+
+function normalizeMessage(raw: ChatMessage | Record<string, unknown>, currentUserId?: string | null): Message {
+  const record = raw as Record<string, unknown>;
+  const senderId = String(record.senderId ?? '');
+  const content = String(record.content ?? '');
+  const senderRole = String(record.senderRole ?? (senderId === currentUserId ? 'customer' : 'vendor'));
+  return {
+    id: String(record.id ?? record._id ?? `${senderId}-${record.createdAt ?? Date.now()}`),
+    senderId,
+    senderRole,
+    text: content,
+    sentAt: String(record.createdAt ?? new Date().toISOString()),
+    status: senderId === currentUserId ? 'sent' : 'read',
+    contentType: record.contentType === 'image' ? 'image' : (record.contentType === 'document' || record.contentType === 'file' ? 'file' : detectContentType(content)),
+  };
+}
 
 function TypingIndicator() {
   return (
@@ -147,12 +219,40 @@ function DateSeparator({ label }: { label: string }) {
     </div>
   );
 }
-
-function ComingSoonBadge() {
+function MessageBubble({ msg, isUser }: { msg: Message; isUser: boolean }) {
   return (
-    <span className="absolute -top-1 -right-1 bg-amber-400 text-[8px] font-bold text-amber-900 px-1 rounded-full leading-tight select-none">
-      SOON
-    </span>
+    <div
+      className={clsx(
+        'max-w-[75%] px-3.5 py-2 rounded-2xl text-sm shadow-sm',
+        isUser ? 'bg-brand-600 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md',
+      )}
+    >
+      {msg.contentType === 'image' ? (
+        <div className="space-y-2">
+          <img src={msg.text} alt="Shared attachment" className="rounded-xl max-h-64 w-full object-cover" />
+          <p className={clsx('text-xs', isUser ? 'text-white/80' : 'text-gray-500')}>Image attachment</p>
+        </div>
+      ) : msg.contentType === 'file' ? (
+        <a
+          href={msg.text.startsWith('http') ? msg.text : '#'}
+          target="_blank"
+          rel="noreferrer"
+          className={clsx('flex items-center gap-3 rounded-xl px-3 py-2', isUser ? 'bg-white/10' : 'bg-gray-50')}
+        >
+          <Paperclip className="w-4 h-4" />
+          <div className="min-w-0">
+            <p className="truncate font-medium">{msg.text}</p>
+            <p className={clsx('text-xs', isUser ? 'text-white/70' : 'text-gray-500')}>Attachment</p>
+          </div>
+        </a>
+      ) : (
+        <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+      )}
+      <div className={clsx('flex items-center justify-end gap-1 mt-1', isUser ? 'text-white/60' : 'text-gray-400')}>
+        <span className="text-[10px] leading-none">{formatTime(msg.sentAt)}</span>
+        {isUser && <ReadReceipt status={msg.status} light />}
+      </div>
+    </div>
   );
 }
 
@@ -160,12 +260,14 @@ function ConversationItem({
   conversation,
   active,
   onClick,
+  isOnline,
 }: {
   conversation: Conversation;
   active: boolean;
   onClick: () => void;
+  isOnline: boolean;
 }) {
-  const vendor = VENDORS[conversation.vendorId];
+  const vendor = buildVendor(conversation, isOnline);
   if (!vendor) return null;
 
   return (
@@ -180,7 +282,7 @@ function ConversationItem({
         <div className="w-11 h-11 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-xs">
           {vendor.avatar}
         </div>
-        {vendor.online && (
+        {isOnline && (
           <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-white rounded-full" />
         )}
       </div>
@@ -202,80 +304,207 @@ function ConversationItem({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Main component                                                     */
-/* ------------------------------------------------------------------ */
-
 function ChatPageInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const { user, isLoading: authLoading } = useAuthStore();
 
   const vendorId = searchParams.get('vendorId');
-  const vendor = vendorId ? VENDORS[vendorId] ?? null : null;
-
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(true);
-  const [conversations, setConversations] = useState(CONVERSATIONS);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [conversations, setConversations] = useState<Conversation[]>(CONVERSATIONS);
+  const [messageSearch, setMessageSearch] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load messages when vendor changes
-  useEffect(() => {
-    if (vendorId) {
-      setMessages(buildDemoMessages(vendorId));
-    } else {
-      setMessages([]);
-    }
-  }, [vendorId]);
-
-  // Auth guard
   useEffect(() => {
     if (!authLoading && !user) router.push('/login');
   }, [user, authLoading, router]);
 
-  // Scroll to bottom
+  const conversationsQuery = useQuery({
+    queryKey: ['chat-conversations', user?.id, user?.role],
+    enabled: !!user,
+    queryFn: async () => {
+      try {
+        const res = await chatApi.listConversations();
+        const raw = res.data?.data?.conversations ?? res.data?.data ?? res.data;
+        const items = Array.isArray(raw)
+          ? raw.map((item) => normalizeConversation(item as ChatConversation, user?.role === 'vendor'))
+          : [];
+        return { items, isMock: false };
+      } catch {
+        return { items: CONVERSATIONS, isMock: true };
+      }
+    },
+    retry: 0,
+    staleTime: 30_000,
+  });
+
+  useEffect(() => {
+    if (conversationsQuery.data) {
+      // Only use mock CONVERSATIONS as fallback when the API itself failed (isMock: true).
+      // When the API succeeds but returns an empty list, show the empty state.
+      setConversations(conversationsQuery.data.isMock ? CONVERSATIONS : conversationsQuery.data.items);
+    }
+  }, [conversationsQuery.data]);
+
+  const activeConversation = useMemo(() => {
+    if (!vendorId) return null;
+    const existing = conversations.find((conversation) => conversation.vendorId === vendorId);
+    if (existing) return existing;
+    // Build a placeholder conversation from the VENDORS map (used only for known demo vendors).
+    const knownVendor = VENDORS[vendorId];
+    if (!knownVendor) return null;
+    return {
+      id: `demo-${vendorId}`,
+      bookingId: `demo-${vendorId}`,
+      vendorId,
+      vendorName: knownVendor.name,
+      lastMessage: 'Start the conversation',
+      lastMessageAt: new Date().toISOString(),
+      unread: 0,
+    };
+  }, [conversations, vendorId]);
+
+  const vendor = useMemo(() => buildVendor(activeConversation, socketConnected), [activeConversation, socketConnected]);
+
+  const messagesQuery = useQuery({
+    queryKey: ['chat-messages', activeConversation?.bookingId],
+    enabled: !!activeConversation,
+    queryFn: async () => {
+      if (!activeConversation) return { items: [] as Message[], isMock: true };
+      if (activeConversation.bookingId.startsWith('demo-')) {
+        return { items: buildDemoMessages(activeConversation.vendorId), isMock: true };
+      }
+      try {
+        const res = await chatApi.getMessages(activeConversation.bookingId);
+        const raw = res.data?.data?.messages ?? res.data?.data ?? res.data;
+        const items = Array.isArray(raw)
+          ? raw.map((item) => normalizeMessage(item as ChatMessage, user?.id))
+          : [];
+        return { items: items.length > 0 ? items : buildDemoMessages(activeConversation.vendorId), isMock: items.length === 0 };
+      } catch {
+        return { items: buildDemoMessages(activeConversation.vendorId), isMock: true };
+      }
+    },
+    retry: 0,
+    staleTime: 15_000,
+  });
+
+  useEffect(() => {
+    if (messagesQuery.data?.items) {
+      setMessages(messagesQuery.data.items);
+    } else if (!activeConversation) {
+      setMessages([]);
+    }
+  }, [messagesQuery.data, activeConversation]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
-  // Socket.IO connection attempt
   useEffect(() => {
+    if (!user) return;
+    const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+    if (!token) return;
+
     const socket = io(process.env.NEXT_PUBLIC_CHAT_URL || 'http://localhost:4010', {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       timeout: 5000,
       autoConnect: true,
-      auth: {
-        token: typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null,
-      },
+      auth: { token },
     });
 
     socket.on('connect', () => {
-      setIsDemoMode(false);
+      setSocketConnected(true);
       socketRef.current = socket;
-      toast.success('Connected to chat service', { duration: 2000 });
+      toast.success('Connected to chat service', { duration: 1500 });
+    });
+
+    socket.on('disconnect', () => {
+      setSocketConnected(false);
     });
 
     socket.on('connect_error', () => {
-      setIsDemoMode(true);
+      setSocketConnected(false);
       socket.disconnect();
     });
 
-    socket.on('message:receive', (msg: Message) => {
-      setMessages((prev) => [...prev, msg]);
+    socket.on('message:new', (incoming: ChatMessage) => {
+      const normalized = normalizeMessage(incoming, user.id);
+      if (normalized.senderId !== user.id && incoming.conversationId === activeConversation?.bookingId) {
+        setIsTyping(false);
+      }
+
+      setMessages((prev) => {
+        const pendingIndex = prev.findIndex((message) => message.status === 'sending' && message.senderId === user.id && message.text === normalized.text);
+        if (pendingIndex >= 0) {
+          const updated = [...prev];
+          updated[pendingIndex] = { ...normalized, status: 'sent' };
+          return updated;
+        }
+        if (prev.some((message) => message.id === normalized.id)) return prev;
+        return [...prev, normalized];
+      });
+
+      setConversations((prev) =>
+        prev.map((conversation) =>
+          conversation.bookingId === incoming.conversationId
+            ? {
+                ...conversation,
+                lastMessage: normalized.contentType === 'image' ? '📷 Image' : normalized.contentType === 'file' ? '📎 Attachment' : normalized.text,
+                lastMessageAt: normalized.sentAt,
+                unread: conversation.vendorId === vendorId || normalized.senderId === user.id ? 0 : conversation.unread + 1,
+              }
+            : conversation,
+        ),
+      );
+
+      void queryClient.invalidateQueries({ queryKey: ['chat-conversations'] });
     });
+
+    socket.on('typing:start', () => setIsTyping(true));
+    socket.on('typing:stop', () => setIsTyping(false));
 
     return () => {
       socket.disconnect();
       socketRef.current = null;
+      setSocketConnected(false);
     };
-  }, []);
+  }, [queryClient, user]);
 
-  // Group messages by date
+  useEffect(() => {
+    if (!socketConnected || !activeConversation || activeConversation.bookingId.startsWith('demo-')) return;
+    socketRef.current?.emit('join:conversation', activeConversation.bookingId);
+  }, [activeConversation, socketConnected]);
+
+  useEffect(() => {
+    if (!socketConnected || !activeConversation || activeConversation.bookingId.startsWith('demo-')) return;
+    if (!newMessage.trim()) {
+      socketRef.current?.emit('typing:stop', activeConversation.bookingId);
+      return;
+    }
+
+    socketRef.current?.emit('typing:start', activeConversation.bookingId);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      socketRef.current?.emit('typing:stop', activeConversation.bookingId);
+    }, 1200);
+
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, [activeConversation, newMessage, socketConnected]);
+
   const groupedMessages = useMemo(() => {
     const groups: { date: string; label: string; messages: Message[] }[] = [];
     let currentKey = '';
@@ -291,32 +520,62 @@ function ChatPageInner() {
     return groups;
   }, [messages]);
 
+  const isDemoMode = conversationsQuery.data?.isMock || messagesQuery.data?.isMock || !socketConnected;
+  const isActiveVendorOnline = Boolean(socketConnected || vendor?.online);
+
+  const updateConversationPreview = useCallback((conversationId: string, preview: string, sentAt: string) => {
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation.bookingId === conversationId
+          ? { ...conversation, lastMessage: preview, lastMessageAt: sentAt, unread: 0 }
+          : conversation,
+      ),
+    );
+  }, []);
+
   const handleSend = useCallback(async () => {
     const text = newMessage.trim();
-    if (!text) return;
+    if (!text || !activeConversation || !user) return;
 
+    const contentType = detectContentType(text);
     const userMsg: Message = {
-      id: `u-${Date.now()}`,
-      senderId: 'user',
+      id: `temp-${Date.now()}`,
+      senderId: user.id,
+      senderRole: user.role,
       text,
       sentAt: new Date().toISOString(),
       status: 'sending',
+      contentType,
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setNewMessage('');
     inputRef.current?.focus();
-
-    // Simulate send → delivered
-    await new Promise((r) => setTimeout(r, 400));
-    setMessages((prev) =>
-      prev.map((m) => (m.id === userMsg.id ? { ...m, status: 'sent' } : m)),
+    updateConversationPreview(
+      activeConversation.bookingId,
+      contentType === 'image' ? '📷 Image' : contentType === 'file' ? '📎 Attachment' : text,
+      userMsg.sentAt,
     );
 
-    // Simulate vendor typing + auto-reply
+    if (socketConnected && !activeConversation.bookingId.startsWith('demo-')) {
+      socketRef.current?.emit('message:send', {
+        bookingId: activeConversation.bookingId,
+        content: text,
+        contentType: contentType === 'file' ? 'document' : contentType,
+      });
+
+      setTimeout(() => {
+        setMessages((prev) => prev.map((message) => (message.id === userMsg.id ? { ...message, status: 'sent' } : message)));
+      }, 400);
+      return;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    setMessages((prev) => prev.map((message) => (message.id === userMsg.id ? { ...message, status: 'sent' } : message)));
+
     setIsTyping(true);
     const delay = 1200 + Math.random() * 1000;
-    await new Promise((r) => setTimeout(r, delay));
+    await new Promise((resolve) => setTimeout(resolve, delay));
     setIsTyping(false);
 
     const replies = [
@@ -328,43 +587,69 @@ function ChatPageInner() {
     ];
 
     const vendorReply: Message = {
-      id: `v-${Date.now()}`,
-      senderId: 'vendor',
+      id: `demo-${Date.now()}`,
+      senderId: activeConversation.vendorId,
+      senderRole: 'vendor',
       text: replies[Math.floor(Math.random() * replies.length)],
       sentAt: new Date().toISOString(),
       status: 'read',
+      contentType: 'text',
     };
 
     setMessages((prev) => [
-      ...prev.map((m) => (m.id === userMsg.id ? { ...m, status: 'read' as const } : m)),
+      ...prev.map((message) => (message.id === userMsg.id ? { ...message, status: 'read' as const } : message)),
       vendorReply,
     ]);
+    updateConversationPreview(activeConversation.bookingId, vendorReply.text, vendorReply.sentAt);
+  }, [activeConversation, newMessage, socketConnected, updateConversationPreview, user]);
 
-    // Update conversation list
-    if (vendorId) {
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.vendorId === vendorId
-            ? { ...c, lastMessage: vendorReply.text, lastMessageAt: vendorReply.sentAt }
-            : c
-        )
-      );
+  const handleFileAttach = useCallback((file: File, type: 'image' | 'file') => {
+    if (!activeConversation || !user) return;
+
+    const maxSize = type === 'image' ? 10 * 1024 * 1024 : 25 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error(`File too large. Max ${type === 'image' ? '10MB' : '25MB'}.`);
+      return;
     }
-  }, [newMessage, vendorId]);
 
-  const selectConversation = useCallback(
-    (vid: string) => {
-      router.push(`/chat?vendorId=${vid}`);
-      setSidebarOpen(false);
-      // Clear unread count for selected conversation
-      setConversations((prev) =>
-        prev.map((c) => (c.vendorId === vid ? { ...c, unread: 0 } : c))
-      );
-    },
-    [router],
-  );
+    const previewUrl = type === 'image' ? URL.createObjectURL(file) : file.name;
+    const userMsg: Message = {
+      id: `temp-${Date.now()}`,
+      senderId: user.id,
+      senderRole: user.role,
+      text: previewUrl,
+      sentAt: new Date().toISOString(),
+      status: 'sending',
+      contentType: type,
+    };
 
-  /* ---------- Loading ---------- */
+    setMessages((prev) => [...prev, userMsg]);
+    updateConversationPreview(
+      activeConversation.bookingId,
+      type === 'image' ? '📷 Image' : `📎 ${file.name}`,
+      userMsg.sentAt,
+    );
+
+    if (socketConnected && !activeConversation.bookingId.startsWith('demo-')) {
+      socketRef.current?.emit('message:send', {
+        bookingId: activeConversation.bookingId,
+        content: previewUrl,
+        contentType: type === 'file' ? 'document' : 'image',
+      });
+    }
+
+    setTimeout(() => {
+      setMessages((prev) => prev.map((m) => (m.id === userMsg.id ? { ...m, status: 'sent' } : m)));
+      toast.success(`${type === 'image' ? 'Image' : 'File'} sent!`);
+    }, 600);
+  }, [activeConversation, socketConnected, updateConversationPreview, user]);
+
+  const selectConversation = useCallback((vid: string) => {
+    router.push(`/chat?vendorId=${vid}`);
+    setSidebarOpen(false);
+    setConversations((prev) => prev.map((conversation) => (conversation.vendorId === vid ? { ...conversation, unread: 0 } : conversation)));
+  }, [router]);
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -373,30 +658,31 @@ function ChatPageInner() {
     );
   }
 
-  /* ---------- Render ---------- */
   return (
     <>
       <Navbar />
       <main className="h-[calc(100dvh-64px)] bg-gray-100 flex overflow-hidden">
-        {/* -------- Sidebar (desktop: always, mobile: overlay) -------- */}
-        {/* Desktop sidebar */}
         <aside className="hidden md:flex flex-col w-80 bg-white border-r border-gray-200 flex-shrink-0">
-          <div className="px-4 py-4 border-b border-gray-100">
-            <h2 className="text-lg font-bold text-gray-900">Messages</h2>
+          <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">Messages</h2>
+              <p className="text-xs text-gray-400">{conversations.length} conversation{conversations.length === 1 ? '' : 's'}</p>
+            </div>
+            {isDemoMode && <span className="text-[10px] font-medium text-amber-700 bg-amber-100 px-2 py-1 rounded-full">Demo mode</span>}
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-            {conversations.map((c) => (
+            {conversations.map((conversation) => (
               <ConversationItem
-                key={c.vendorId}
-                conversation={c}
-                active={vendorId === c.vendorId}
-                onClick={() => selectConversation(c.vendorId)}
+                key={conversation.id}
+                conversation={conversation}
+                active={vendorId === conversation.vendorId}
+                onClick={() => selectConversation(conversation.vendorId)}
+                isOnline={conversation.vendorId === vendorId ? isActiveVendorOnline : Boolean(VENDORS[conversation.vendorId]?.online)}
               />
             ))}
           </div>
         </aside>
 
-        {/* Mobile sidebar overlay */}
         <AnimatePresence>
           {sidebarOpen && (
             <>
@@ -415,7 +701,10 @@ function ChatPageInner() {
                 className="fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-white z-50 flex flex-col md:hidden shadow-xl"
               >
                 <div className="px-4 py-4 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-gray-900">Messages</h2>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-900">Messages</h2>
+                    <p className="text-xs text-gray-400">{conversations.length} conversation{conversations.length === 1 ? '' : 's'}</p>
+                  </div>
                   <button
                     onClick={() => setSidebarOpen(false)}
                     className="p-1 rounded-lg hover:bg-gray-100"
@@ -425,12 +714,13 @@ function ChatPageInner() {
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
-                  {conversations.map((c) => (
+                  {conversations.map((conversation) => (
                     <ConversationItem
-                      key={c.vendorId}
-                      conversation={c}
-                      active={vendorId === c.vendorId}
-                      onClick={() => selectConversation(c.vendorId)}
+                      key={conversation.id}
+                      conversation={conversation}
+                      active={vendorId === conversation.vendorId}
+                      onClick={() => selectConversation(conversation.vendorId)}
+                      isOnline={conversation.vendorId === vendorId ? isActiveVendorOnline : Boolean(VENDORS[conversation.vendorId]?.online)}
                     />
                   ))}
                 </div>
@@ -439,10 +729,8 @@ function ChatPageInner() {
           )}
         </AnimatePresence>
 
-        {/* -------- Chat area -------- */}
         <section className="flex-1 flex flex-col min-w-0 bg-white">
           {!vendor ? (
-            /* ---- Empty state ---- */
             <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
               <div className="w-20 h-20 rounded-full bg-brand-50 flex items-center justify-center mb-4">
                 <MessageSquare className="w-10 h-10 text-brand-300" />
@@ -460,7 +748,6 @@ function ChatPageInner() {
             </div>
           ) : (
             <>
-              {/* ---- Chat header ---- */}
               <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3">
                 <button
                   onClick={() => setSidebarOpen(true)}
@@ -481,9 +768,7 @@ function ChatPageInner() {
                   <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm select-none">
                     {vendor.avatar}
                   </div>
-                  {vendor.online && (
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full" />
-                  )}
+                  <span className={clsx('absolute bottom-0 right-0 w-2.5 h-2.5 border-2 border-white rounded-full', isActiveVendorOnline ? 'bg-green-500' : 'bg-gray-300')} />
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -491,79 +776,86 @@ function ChatPageInner() {
                   <p className="text-[11px] text-gray-400">
                     {isTyping ? (
                       <span className="text-green-500 font-medium">typing…</span>
-                    ) : vendor.online ? (
-                      <span className="text-green-500">Online</span>
+                    ) : isActiveVendorOnline ? (
+                      <span className="text-green-500">Online now</span>
                     ) : (
-                      'Last seen recently'
+                      'Offline'
                     )}
                   </p>
                 </div>
 
                 <div className="flex items-center gap-1">
-                  <div className="relative">
-                    <button
-                      className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-400 cursor-default"
-                      aria-label="Voice call — coming soon"
-                    >
-                      <Phone className="w-4 h-4" />
-                    </button>
-                    <ComingSoonBadge />
-                  </div>
-                  <div className="relative">
-                    <button
-                      className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-400 cursor-default"
-                      aria-label="Video call — coming soon"
-                    >
-                      <Video className="w-4 h-4" />
-                    </button>
-                    <ComingSoonBadge />
-                  </div>
+                  <button
+                    onClick={() => { setShowSearch(!showSearch); setMessageSearch(''); }}
+                    className={clsx('p-2 rounded-lg hover:bg-gray-100 transition cursor-pointer', showSearch ? 'text-brand-600 bg-brand-50' : 'text-gray-500 hover:text-brand-600')}
+                    aria-label="Search messages"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => toast('Voice calls coming soon! Use chat for now.', { icon: '📞' })}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-500 hover:text-brand-600 cursor-pointer"
+                    aria-label="Voice call — coming soon"
+                  >
+                    <Phone className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => toast('Video calls coming soon! Use chat for now.', { icon: '📹' })}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-500 hover:text-brand-600 cursor-pointer"
+                    aria-label="Video call — coming soon"
+                  >
+                    <Video className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
-              {/* ---- Demo mode banner ---- */}
-              {isDemoMode && (
-                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-center gap-2 text-xs text-amber-700">
-                  <span className="inline-block w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-                  Demo mode — real-time chat coming soon
+              {showSearch && (
+                <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2">
+                  <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    value={messageSearch}
+                    onChange={(e) => setMessageSearch(e.target.value)}
+                    placeholder="Search in conversation…"
+                    className="flex-1 text-sm bg-transparent focus:outline-none"
+                    autoFocus
+                  />
+                  {messageSearch && (
+                    <span className="text-xs text-gray-400">
+                      {messages.filter((m) => m.contentType === 'text' && m.text.toLowerCase().includes(messageSearch.toLowerCase())).length} found
+                    </span>
+                  )}
+                  <button onClick={() => { setShowSearch(false); setMessageSearch(''); }} className="p-1 rounded hover:bg-gray-100">
+                    <X className="w-3.5 h-3.5 text-gray-400" />
+                  </button>
                 </div>
               )}
 
-              {/* ---- Messages ---- */}
+              {isDemoMode && (
+                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center justify-center gap-2 text-xs text-amber-700">
+                  <span className="inline-block w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                  Demo mode — using fallback chat data while the live backend is unavailable
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto px-4 py-4 bg-[#f0f2f5]">
                 <AnimatePresence initial={false}>
                   {groupedMessages.map((group) => (
                     <div key={group.date}>
                       <DateSeparator label={group.label} />
                       {group.messages.map((msg) => {
-                        const isUser = msg.senderId === 'user';
+                        const isUser = msg.senderId === user?.id;
+                        const searchMatch = messageSearch && msg.contentType === 'text' && msg.text.toLowerCase().includes(messageSearch.toLowerCase());
+                        const dimmed = messageSearch && !searchMatch;
                         return (
                           <motion.div
                             key={msg.id}
                             initial={{ opacity: 0, y: 12, scale: 0.95 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            animate={{ opacity: dimmed ? 0.3 : 1, y: 0, scale: 1 }}
                             transition={{ duration: 0.25 }}
-                            className={clsx('flex mb-2', isUser ? 'justify-end' : 'justify-start')}
+                            className={clsx('flex mb-2', isUser ? 'justify-end' : 'justify-start', searchMatch && 'ring-2 ring-yellow-400 rounded-2xl')}
                           >
-                            <div
-                              className={clsx(
-                                'max-w-[75%] px-3.5 py-2 rounded-2xl text-sm shadow-sm',
-                                isUser
-                                  ? 'bg-brand-600 text-white rounded-br-md'
-                                  : 'bg-white text-gray-800 rounded-bl-md',
-                              )}
-                            >
-                              <p className="whitespace-pre-wrap break-words">{msg.text}</p>
-                              <div
-                                className={clsx(
-                                  'flex items-center justify-end gap-1 mt-1',
-                                  isUser ? 'text-white/60' : 'text-gray-400',
-                                )}
-                              >
-                                <span className="text-[10px] leading-none">{formatTime(msg.sentAt)}</span>
-                                {isUser && <ReadReceipt status={msg.status} light />}
-                              </div>
-                            </div>
+                            <MessageBubble msg={msg} isUser={Boolean(isUser)} />
                           </motion.div>
                         );
                       })}
@@ -575,41 +867,69 @@ function ChatPageInner() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* ---- Compose bar ---- */}
-              <div className="bg-white border-t border-gray-200 px-3 py-2.5">
+              <div className="bg-white border-t border-gray-200 px-3 py-2.5 space-y-3">
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_ENQUIRY_TEMPLATES.map((template) => (
+                    <button
+                      key={template}
+                      onClick={() => {
+                        setNewMessage(template);
+                        inputRef.current?.focus();
+                      }}
+                      className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-xs font-medium hover:bg-gray-200 transition"
+                    >
+                      {template}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="flex items-center gap-2">
-                  <div className="relative group">
-                    <button
-                      className="p-2 text-gray-400 hover:text-gray-500 transition cursor-default"
-                      aria-label="Attach image — coming soon"
-                    >
-                      <ImageIcon className="w-5 h-5" />
-                    </button>
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      Coming soon
-                    </span>
-                  </div>
-                  <div className="relative group">
-                    <button
-                      className="p-2 text-gray-400 hover:text-gray-500 transition cursor-default"
-                      aria-label="Attach file — coming soon"
-                    >
-                      <Paperclip className="w-5 h-5" />
-                    </button>
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-gray-800 text-white text-[10px] rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                      Coming soon
-                    </span>
-                  </div>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileAttach(file, 'image');
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    onClick={() => imageInputRef.current?.click()}
+                    className="p-2 text-gray-500 hover:text-brand-600 transition cursor-pointer"
+                    aria-label="Attach image"
+                  >
+                    <ImageIcon className="w-5 h-5" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileAttach(file, 'file');
+                      e.target.value = '';
+                    }}
+                  />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 text-gray-500 hover:text-brand-600 transition cursor-pointer"
+                    aria-label="Attach file"
+                  >
+                    <Paperclip className="w-5 h-5" />
+                  </button>
 
                   <input
                     ref={inputRef}
                     type="text"
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSend();
+                    onChange={(event) => setNewMessage(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && !event.shiftKey) {
+                        event.preventDefault();
+                        void handleSend();
                       }
                     }}
                     placeholder="Type a message…"
@@ -618,7 +938,7 @@ function ChatPageInner() {
                   />
 
                   <button
-                    onClick={handleSend}
+                    onClick={() => void handleSend()}
                     disabled={!newMessage.trim()}
                     className="p-2.5 bg-brand-600 text-white rounded-full hover:bg-brand-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
                     aria-label="Send message"

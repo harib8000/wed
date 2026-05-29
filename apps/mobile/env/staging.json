@@ -1,0 +1,4 @@
+{
+  "API_BASE_URL": "https://staging-api.weddingos.in/api/v1",
+  "ENV": "staging"
+}

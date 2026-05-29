@@ -317,11 +317,16 @@ print(json.dumps(td))
           echo "Tag: ${{ github.ref_name }}"
           echo "SHA: ${{ github.sha }}"
 
-      - name: Notify team — production deployment started
+      - name: Notify Slack on deployment
         if: always()
-        run: |
-          echo "Production deployment of ${{ github.ref_name }} initiated by ${{ github.actor }}"
-          # Slack / PagerDuty webhook call goes here:
-          # curl -X POST "${{ secrets.SLACK_WEBHOOK_URL }}" \
-          #   -H 'Content-type: application/json' \
-          #   --data '{"text":"🚀 WeddingOS ${{ github.ref_name }} deploying to production"}'
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "${{ job.status == 'success' && '✅' || '❌' }} WeddingOS deployed to production — <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View run>",
+              "username": "WeddingOS CD",
+              "icon_emoji": ":wedding:"
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

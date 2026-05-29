@@ -22,12 +22,14 @@ const VENDOR_LINKS = [
 ];
 
 const COMPANY_LINKS = [
-  { label: 'About Us', href: '/' },
+  { label: 'About Us', href: '/about' },
   { label: 'Careers', href: '/' },
   { label: 'Press', href: '/' },
+  { label: 'Help Center', href: '/help' },
   { label: 'Privacy Policy', href: '/privacy' },
   { label: 'Terms of Service', href: '/terms' },
-  { label: 'Contact Us', href: '/' },
+  { label: 'Refund Policy', href: '/refund' },
+  { label: 'Contact Us', href: '/contact' },
 ];
 
 export function Footer() {

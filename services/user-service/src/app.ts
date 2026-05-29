@@ -4,12 +4,17 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
 import { userRouter } from './routes/user.routes';
+import { adminRouter } from './routes/admin.routes';
 import { requestId } from './middleware/requestId';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { register, collectDefaultMetrics } from 'prom-client';
 
-export function createApp() {
+collectDefaultMetrics();
+
+
+export function createApp(): express.Express {
   const app = express();
   app.set('trust proxy', 1);
   app.use(helmet({ contentSecurityPolicy: false }));
@@ -20,7 +25,17 @@ export function createApp() {
   app.use(requestId);
   app.use(pinoHttp({ logger, customLogLevel: (_req, res, err) => err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info' }));
 
+  app.use('/users/admin', adminRouter);
   app.use('/users', userRouter);
+  app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(String(err));
+  }
+});
+
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'user-service', ts: new Date() }));
 
   app.use((_req, res) => res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Not found' } }));

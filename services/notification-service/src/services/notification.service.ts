@@ -2,8 +2,10 @@ import { prisma } from '../config/database';
 import { notificationQueue, startNotificationWorker } from '../config/queue';
 import { sendPushNotification } from '../utils/fcm';
 import { sendSms, sendWhatsApp } from '../utils/sms';
+import { sendEmail } from '../channels/email.channel';
 import { logger } from '../utils/logger';
 import { NotFoundError } from '@wedding-os/shared-errors';
+import type { NotificationItem } from '@wedding-os/shared-types';
 
 export interface NotifyPayload {
   userId: string;
@@ -41,6 +43,14 @@ export const notificationService = {
           providerRef = await sendSms(phone, body);
         } else if (channel === 'WHATSAPP' && phone) {
           providerRef = await sendWhatsApp(phone, event.replace(/\./g, '_'), [title, body]);
+        } else if (channel === 'EMAIL' && payload.email) {
+          providerRef = await sendEmail({
+            to: payload.email,
+            subject: title,
+            templateName: event.replace(/\./g, '_'),
+            templateVars: { title, body, ...(data ?? {}) },
+            text: body,
+          });
         } else if (channel === 'IN_APP') {
           // In-app is stored in DB as NotificationLog and fetched by frontend via polling or WS
           providerRef = log.id;
@@ -122,6 +132,10 @@ export const notificationService = {
         { userId: s(p.customerId), channels: ['PUSH', 'SMS', 'IN_APP'], event, title: 'Booking Confirmed! 🎉', body: `Your wedding booking is confirmed. Check your timeline.`, data: { bookingId: s(p.bookingId) } },
         { userId: s(p.vendorId), channels: ['PUSH', 'IN_APP'], event, title: 'Booking Confirmed', body: `A booking has been confirmed. Advance payment received.`, data: { bookingId: s(p.bookingId) } },
       ],
+      'booking.completed': (p) => [
+        { userId: s(p.customerId), channels: ['PUSH', 'IN_APP', 'SMS'] as const, event, title: 'Wedding Complete! 🎊', body: 'Your wedding event is complete. Please review your vendors!', data: { bookingId: s(p.bookingId) } },
+        { userId: s(p.vendorId), channels: ['PUSH', 'IN_APP'] as const, event, title: 'Event Completed 🎊', body: 'The wedding event is marked complete. Escrow will be released shortly.', data: { bookingId: s(p.bookingId) } },
+      ],
       'booking.cancelled': (p) => [{
         userId: s(p.actorRole) === 'customer' ? s(p.vendorId) : s(p.customerId),
         channels: ['PUSH', 'IN_APP'],
@@ -156,6 +170,14 @@ export const notificationService = {
         { userId: s(p.vendorId), channels: ['PUSH', 'IN_APP', 'SMS'] as const, event, title: 'Payment Released! 🎉', body: `₹${(n(p.vendorPayout) / 100).toLocaleString('en-IN')} has been transferred to your account.`, data: { bookingId: s(p.bookingId) } },
         { userId: s(p.customerId), channels: ['PUSH', 'IN_APP'] as const, event, title: 'Escrow Released', body: 'Payment has been released to your vendor. Thank you!', data: { bookingId: s(p.bookingId) } },
       ],
+      'payout.processed': (p) => [{
+        userId: s(p.vendorId),
+        channels: ['PUSH', 'IN_APP', 'SMS'] as const,
+        event,
+        title: 'Payout Processed 💰',
+        body: `₹${(n(p.vendorPayoutPaise) / 100).toLocaleString('en-IN')} has been transferred to your bank account.`,
+        data: {},
+      }],
 
       // ── Review events ─────────────────────────────────────────────────────
       'review.created': (p) => [{

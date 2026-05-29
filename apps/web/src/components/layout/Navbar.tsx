@@ -5,11 +5,12 @@ import { Menu, X, Search, Bell } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/lib/api';
 import { clsx } from 'clsx';
+import { LocationSelector } from '@/components/location/LocationSelector';
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { user, isAuthenticated, logout, setUser, setLoading } = useAuthStore();
+  const { user, isAuthenticated, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -18,7 +19,6 @@ export function Navbar() {
   }, []);
 
   useEffect(() => {
-    // Hydrate user from token on mount
     const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
     if (token) {
       authApi.me().then((res) => {
@@ -39,7 +39,6 @@ export function Navbar() {
       </a>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center">
               <span className="text-white font-bold text-sm">W</span>
@@ -49,7 +48,6 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-6">
             {(isAuthenticated && user ? [
               { label: 'All Services', href: '/vendors' },
@@ -74,15 +72,16 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* Actions */}
           <div className="hidden md:flex items-center gap-3">
+            <LocationSelector scrolled={scrolled} />
             {isAuthenticated && user ? (
               <>
                 <Link href="/vendors" aria-label="Search vendors" className={clsx('p-2 rounded-lg transition-colors focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Search size={20} />
                 </Link>
-                <Link href="/bookings" aria-label="My bookings" className={clsx('p-2 rounded-lg transition-colors relative focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
+                <Link href="/notifications" aria-label="Notifications" className={clsx('p-2 rounded-lg transition-colors relative focus-ring', scrolled ? 'text-gray-600 hover:bg-gray-100' : 'text-white hover:bg-white/20')}>
                   <Bell size={20} />
+                  <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full border-2 border-white" />
                 </Link>
                 <div className="flex items-center gap-2">
                   <Link href="/profile" aria-label="Your profile" className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors focus-ring">
@@ -107,7 +106,6 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Mobile menu button */}
           <button
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             className={clsx('md:hidden p-2 rounded-lg focus-ring', scrolled ? 'text-gray-700' : 'text-white')}
@@ -118,9 +116,11 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {mobileOpen && (
         <div className="md:hidden bg-white border-b border-gray-200 px-4 py-4 space-y-3">
+          <div className="pb-1">
+            <LocationSelector scrolled />
+          </div>
           <Link href="/vendors" className="block py-2 text-gray-700 font-medium">Find Vendors</Link>
           {isAuthenticated ? (
             <>

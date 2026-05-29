@@ -12,10 +12,17 @@ const SearchQuerySchema = z.object({
   minPrice: z.coerce.number().optional(),
   maxPrice: z.coerce.number().optional(),
   minRating: z.coerce.number().min(0).max(5).optional(),
-  sortBy: z.string().optional(),
+  sortBy: z.enum(['rating', 'price_asc', 'price_desc', 'reviews']).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   featured: z.enum(['true', 'false']).optional().transform(v => v === 'true' ? true : v === 'false' ? false : undefined),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  radius: z.coerce.number().positive().optional(),
+  pincode: z.string().optional(),
+}).refine((data) => (data.lat === undefined) === (data.lng === undefined), {
+  message: 'lat and lng must be provided together',
+  path: ['lat'],
 });
 
 // GET /search/vendors?query=&category=&city=&minPrice=&maxPrice=&minRating=&sortBy=&page=&limit=

@@ -1,0 +1,70 @@
+{
+  "@@locale": "hi",
+  "appName": "WeddingOS",
+
+  "home": "होम",
+  "explore": "खोजें",
+  "bookings": "बुकिंग",
+  "profile": "प्रोफ़ाइल",
+  "notifications": "सूचनाएं",
+  "wishlist": "विशलिस्ट",
+  "checklist": "चेकलिस्ट",
+  "chat": "चैट",
+  "reviews": "समीक्षाएं",
+
+  "login": "साइन इन",
+  "logout": "लॉगआउट",
+  "sendOtp": "OTP भेजें",
+  "verifyOtp": "OTP सत्यापित करें",
+  "enterPhone": "अपना मोबाइल नंबर दर्ज करें",
+  "enterOtp": "6-अंकीय OTP दर्ज करें",
+
+  "vendors": "वेंडर",
+  "searchVendors": "वेन्यू, फ़ोटोग्राफ़र खोजें...",
+  "allCategories": "सभी",
+  "noVendorsFound": "कोई वेंडर नहीं मिला",
+  "noVendorsFoundMsg": "अपने फ़िल्टर या खोज शब्द बदलकर देखें।",
+  "viewAll": "सब देखें",
+  "seeAll": "सब देखें",
+  "bookNow": "अभी बुक करें",
+  "enquire": "पूछताछ भेजें",
+  "addToWishlist": "विशलिस्ट में जोड़ें",
+  "removeFromWishlist": "विशलिस्ट से हटाएं",
+
+  "bookingDetail": "बुकिंग विवरण",
+  "confirmBooking": "बुकिंग की पुष्टि करें",
+  "cancelBooking": "बुकिंग रद्द करें",
+  "noBookings": "अभी तक कोई बुकिंग नहीं",
+  "noBookingsMsg": "वेंडरों को खोजना शुरू करें और अपनी स्वप्न शादी बुक करें।",
+
+  "paymentSuccessful": "भुगतान सफल!",
+  "paymentFailed": "भुगतान विफल",
+  "paymentPending": "भुगतान लंबित",
+  "tryAgain": "पुनः प्रयास करें",
+  "goHome": "होम पर जाएं",
+  "viewBooking": "बुकिंग देखें",
+
+  "kycVerification": "KYC सत्यापन",
+  "chooseDocument": "दस्तावेज़ चुनें",
+  "submitDocument": "जमा करें",
+  "retake": "दोबारा लें",
+  "uploadPhoto": "फ़ोटो कैप्चर करें या चुनें",
+
+  "weddingChecklist": "शादी चेकलिस्ट",
+  "tasksCompleted": "{total} में से {done} कार्य पूर्ण",
+  "@tasksCompleted": {
+    "placeholders": {
+      "done": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
+
+  "offlineBanner": "कोई इंटरनेट कनेक्शन नहीं",
+  "errorDefault": "कुछ गलत हो गया। कृपया पुनः प्रयास करें।",
+  "retry": "पुनः प्रयास करें",
+  "emptyStateDefault": "अभी यहाँ कुछ नहीं है",
+
+  "darkMode": "डार्क मोड",
+  "lightMode": "लाइट मोड",
+  "systemTheme": "सिस्टम डिफ़ॉल्ट"
+}

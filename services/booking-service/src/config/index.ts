@@ -12,4 +12,7 @@ const envSchema = z.object({
 });
 const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) { console.error(parsed.error.flatten()); process.exit(1); }
-export const config = parsed.data;
+export const config = {
+  ...parsed.data,
+  sentryDsn: process.env.SENTRY_DSN || '',
+};

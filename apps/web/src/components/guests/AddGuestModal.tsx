@@ -2,17 +2,18 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, UserPlus, Phone, Mail, Users, UtensilsCrossed, StickyNote } from 'lucide-react';
+import { X, UserPlus, Phone, Mail, Users, UtensilsCrossed, StickyNote, Tag } from 'lucide-react';
 
-// Local type definitions (matches @wedding-os/shared-types)
 type GuestSide = 'bride' | 'groom' | 'mutual';
 type MealPreference = 'veg' | 'non_veg' | 'jain' | 'vegan' | 'no_preference';
+type GuestGroup = 'family' | 'friends' | 'colleagues' | 'neighbours' | 'others';
 
 interface GuestFormData {
   name: string;
   phone: string;
   email: string;
   side: GuestSide;
+  group: GuestGroup;
   mealPreference: MealPreference;
   plusOnes: number;
   notes: string;
@@ -30,6 +31,14 @@ const SIDES: { value: GuestSide; label: string }[] = [
   { value: 'mutual', label: 'Mutual' },
 ];
 
+const GROUP_OPTIONS: { value: GuestGroup; label: string }[] = [
+  { value: 'family', label: 'Family' },
+  { value: 'friends', label: 'Friends' },
+  { value: 'colleagues', label: 'Colleagues' },
+  { value: 'neighbours', label: 'Neighbours' },
+  { value: 'others', label: 'Others' },
+];
+
 const MEAL_OPTIONS: { value: MealPreference; label: string }[] = [
   { value: 'no_preference', label: 'No Preference' },
   { value: 'veg', label: 'Vegetarian' },
@@ -43,6 +52,7 @@ const initialFormData: GuestFormData = {
   phone: '',
   email: '',
   side: 'mutual',
+  group: 'friends',
   mealPreference: 'no_preference',
   plusOnes: 0,
   notes: '',
@@ -55,17 +65,19 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
   function validate(): boolean {
     const next: Partial<Record<keyof GuestFormData, string>> = {};
     if (!form.name.trim()) next.name = 'Name is required';
-    if (form.phone && !/^[6-9]\d{9}$/.test(form.phone))
+    if (form.phone && !/^[6-9]\d{9}$/.test(form.phone)) {
       next.phone = 'Enter a valid 10-digit Indian mobile number (starts with 6-9)';
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email))
+    }
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       next.email = 'Enter a valid email address';
+    }
     if (form.plusOnes < 0 || form.plusOnes > 10) next.plusOnes = 'Plus-ones must be 0–10';
     setErrors(next);
     return Object.keys(next).length === 0;
   }
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     if (!validate()) return;
     onAdd(form);
     setForm(initialFormData);
@@ -88,10 +100,8 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
-          {/* Backdrop */}
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
 
-          {/* Modal */}
           <motion.div
             className="relative w-full sm:max-w-lg bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[90vh] overflow-y-auto"
             initial={{ y: 100, opacity: 0 }}
@@ -99,7 +109,6 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
             exit={{ y: 100, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
           >
-            {/* Header */}
             <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center">
@@ -107,17 +116,12 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                 </div>
                 <h2 className="text-lg font-semibold text-gray-900">Add Guest</h2>
               </div>
-              <button
-                onClick={onClose}
-                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-              >
+              <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition-colors">
                 <X className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
-            {/* Form */}
             <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Full Name <span className="text-rose-500">*</span>
@@ -127,7 +131,7 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                   <input
                     type="text"
                     value={form.name}
-                    onChange={(e) => update('name', e.target.value)}
+                    onChange={(event) => update('name', event.target.value)}
                     placeholder="Guest name"
                     className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-colors ${errors.name ? 'border-red-400' : 'border-gray-200'}`}
                   />
@@ -135,7 +139,6 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                 {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
               </div>
 
-              {/* Phone */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
                 <div className="relative">
@@ -143,7 +146,7 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                   <input
                     type="tel"
                     value={form.phone}
-                    onChange={(e) => update('phone', e.target.value)}
+                    onChange={(event) => update('phone', event.target.value)}
                     placeholder="10-digit mobile number"
                     className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-colors ${errors.phone ? 'border-red-400' : 'border-gray-200'}`}
                   />
@@ -151,7 +154,6 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                 {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
               </div>
 
-              {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Email <span className="text-gray-400 text-xs">(optional)</span>
@@ -161,7 +163,7 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                   <input
                     type="email"
                     value={form.email}
-                    onChange={(e) => update('email', e.target.value)}
+                    onChange={(event) => update('email', event.target.value)}
                     placeholder="guest@email.com"
                     className={`w-full pl-10 pr-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-colors ${errors.email ? 'border-red-400' : 'border-gray-200'}`}
                   />
@@ -169,18 +171,17 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                 {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
               </div>
 
-              {/* Side + Meal — two columns */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Side</label>
                   <select
                     value={form.side}
-                    onChange={(e) => update('side', e.target.value as GuestSide)}
+                    onChange={(event) => update('side', event.target.value as GuestSide)}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 bg-white"
                   >
-                    {SIDES.map((s) => (
-                      <option key={s.value} value={s.value}>
-                        {s.label}
+                    {SIDES.map((side) => (
+                      <option key={side.value} value={side.value}>
+                        {side.label}
                       </option>
                     ))}
                   </select>
@@ -188,23 +189,38 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Meal Preference
+                    <Tag className="inline w-4 h-4 mr-1 text-gray-400" />
+                    Group
                   </label>
                   <select
-                    value={form.mealPreference}
-                    onChange={(e) => update('mealPreference', e.target.value as MealPreference)}
+                    value={form.group}
+                    onChange={(event) => update('group', event.target.value as GuestGroup)}
                     className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 bg-white"
                   >
-                    {MEAL_OPTIONS.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
+                    {GROUP_OPTIONS.map((group) => (
+                      <option key={group.value} value={group.value}>
+                        {group.label}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Plus-ones */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Meal Preference</label>
+                <select
+                  value={form.mealPreference}
+                  onChange={(event) => update('mealPreference', event.target.value as MealPreference)}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 bg-white"
+                >
+                  {MEAL_OPTIONS.map((meal) => (
+                    <option key={meal.value} value={meal.value}>
+                      {meal.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   <UtensilsCrossed className="inline w-4 h-4 mr-1 text-gray-400" />
@@ -215,13 +231,12 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                   min={0}
                   max={10}
                   value={form.plusOnes}
-                  onChange={(e) => update('plusOnes', parseInt(e.target.value) || 0)}
+                  onChange={(event) => update('plusOnes', parseInt(event.target.value) || 0)}
                   className={`w-full px-4 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-colors ${errors.plusOnes ? 'border-red-400' : 'border-gray-200'}`}
                 />
                 {errors.plusOnes && <p className="mt-1 text-xs text-red-500">{errors.plusOnes}</p>}
               </div>
 
-              {/* Notes */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   <StickyNote className="inline w-4 h-4 mr-1 text-gray-400" />
@@ -229,14 +244,13 @@ export function AddGuestModal({ isOpen, onClose, onAdd }: AddGuestModalProps) {
                 </label>
                 <textarea
                   value={form.notes}
-                  onChange={(e) => update('notes', e.target.value)}
+                  onChange={(event) => update('notes', event.target.value)}
                   rows={2}
                   placeholder="Dietary restrictions, accessibility needs, etc."
                   className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 resize-none"
                 />
               </div>
 
-              {/* Submit */}
               <button
                 type="submit"
                 className="w-full py-3 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-medium rounded-xl hover:from-rose-600 hover:to-pink-600 transition-all shadow-lg shadow-rose-500/25 active:scale-[0.98]"

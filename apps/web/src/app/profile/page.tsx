@@ -19,6 +19,9 @@ interface UserProfile {
   city?: string;
   budget?: number;
   profilePhoto?: string;
+  eventType?: string;
+  themePreference?: string;
+  estimatedGuests?: number;
 }
 
 const MENU_ITEMS = [
@@ -221,6 +224,66 @@ export default function ProfilePage() {
                 />
               </div>
 
+              {/* Wedding Details Section */}
+              <div className="border-t border-gray-100 pt-4 mt-4">
+                <h3 className="font-medium text-gray-800 text-sm mb-3">🎊 Wedding Details</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <Heart className="w-3.5 h-3.5 inline mr-1.5 text-brand-400" />Event Type
+                    </label>
+                    <select
+                      value={draft.eventType ?? ''}
+                      onChange={(e) => setDraft({ ...draft, eventType: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    >
+                      <option value="">Select event type</option>
+                      <option value="hindu">Hindu Wedding</option>
+                      <option value="muslim">Muslim Wedding (Nikah)</option>
+                      <option value="christian">Christian Wedding</option>
+                      <option value="sikh">Sikh Wedding (Anand Karaj)</option>
+                      <option value="jain">Jain Wedding</option>
+                      <option value="buddhist">Buddhist Wedding</option>
+                      <option value="interfaith">Inter-faith Wedding</option>
+                      <option value="court">Court Marriage</option>
+                      <option value="destination">Destination Wedding</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <Star className="w-3.5 h-3.5 inline mr-1.5 text-brand-400" />Theme Preference
+                    </label>
+                    <select
+                      value={draft.themePreference ?? ''}
+                      onChange={(e) => setDraft({ ...draft, themePreference: e.target.value })}
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    >
+                      <option value="">Select theme</option>
+                      <option value="traditional">Traditional / Classic</option>
+                      <option value="modern">Modern / Contemporary</option>
+                      <option value="royal">Royal / Grand</option>
+                      <option value="rustic">Rustic / Vintage</option>
+                      <option value="minimalist">Minimalist / Elegant</option>
+                      <option value="bohemian">Bohemian / Free-spirited</option>
+                      <option value="beach">Beach / Tropical</option>
+                      <option value="garden">Garden / Floral</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                      <User className="w-3.5 h-3.5 inline mr-1.5 text-brand-400" />Estimated Guest Count
+                    </label>
+                    <input
+                      type="number"
+                      value={draft.estimatedGuests ?? ''}
+                      onChange={(e) => setDraft({ ...draft, estimatedGuests: Number(e.target.value) })}
+                      placeholder="e.g. 300"
+                      className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button onClick={() => { setEditMode(false); setDraft(profile); }} className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-50 transition">
                   Cancel
@@ -248,6 +311,9 @@ export default function ProfilePage() {
                   { icon: Calendar, label: 'Wedding', value: profile.weddingDate ? new Date(profile.weddingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }) : '—' },
                   { icon: MapPin, label: 'City', value: profile.city || '—' },
                   { icon: CreditCard, label: 'Budget', value: profile.budget ? `₹${(profile.budget / 100).toLocaleString('en-IN')}` : '—' },
+                  { icon: Heart, label: 'Event', value: profile.eventType ? profile.eventType.charAt(0).toUpperCase() + profile.eventType.slice(1) + ' Wedding' : '—' },
+                  { icon: Star, label: 'Theme', value: profile.themePreference ? profile.themePreference.charAt(0).toUpperCase() + profile.themePreference.slice(1) : '—' },
+                  { icon: User, label: 'Guests', value: profile.estimatedGuests ? `~${profile.estimatedGuests} guests` : '—' },
                 ].map(({ icon: Icon, label, value }) => (
                   <div key={label} className="flex items-center gap-3 text-sm">
                     <Icon className="w-4 h-4 text-brand-400 flex-shrink-0" />

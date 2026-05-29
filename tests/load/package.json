@@ -1,0 +1,13 @@
+{
+  "name": "@wedding-os/load-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "auth": "k6 run auth.test.js",
+    "vendor-search": "k6 run vendor-search.test.js",
+    "booking-flow": "k6 run booking-flow.test.js",
+    "payment": "k6 run payment.test.js",
+    "smoke": "k6 run smoke.js",
+    "soak": "k6 run soak.js"
+  }
+}

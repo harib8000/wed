@@ -1,19 +1,80 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import { z } from 'zod';
 import { profileService } from '../services/profile.service';
 import { authenticate, requireRole } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { getPresignedUploadUrl } from '../utils/s3';
+import { NotFoundError, ValidationError } from '@wedding-os/shared-errors';
+import { formatDate as sharedFormatDate, daysBetween } from '@wedding-os/shared-utils';
 import {
   UpdateProfileSchema,
   UpdateNotifPrefsSchema,
   RegisterPushTokenSchema,
   UploadKycSchema,
+  CreateChecklistItemSchema,
+  UpdateChecklistItemSchema,
+  GenerateChecklistSchema,
+  CreateBudgetItemSchema,
+  UpdateBudgetItemSchema,
 } from '../types/user.types';
+import { prisma } from '../config/database';
 
-export const userRouter = Router();
+export const userRouter: Router = Router();
 
 function meta(req: Request) {
   return { requestId: req.headers['x-request-id'], timestamp: new Date().toISOString() };
+}
+
+type ChecklistTemplate = {
+  title: string;
+  category: string;
+  monthsBefore?: number;
+  weeksBefore?: number;
+};
+
+const defaultChecklistTemplates: ChecklistTemplate[] = [
+  { title: 'Book wedding venue', category: 'venue', monthsBefore: 6 },
+  { title: 'Finalize catering', category: 'catering', monthsBefore: 4 },
+  { title: 'Book photographer', category: 'photography', monthsBefore: 5 },
+  { title: 'Book decorator', category: 'decor', monthsBefore: 3 },
+  { title: 'Book makeup artist', category: 'makeup', monthsBefore: 2 },
+  { title: 'Book DJ/Music', category: 'music', monthsBefore: 2 },
+  { title: 'Send invitations', category: 'invitations', monthsBefore: 2 },
+  { title: 'Finalize mehendi artist', category: 'mehendi', monthsBefore: 1 },
+  { title: 'Confirm all vendor bookings', category: 'general', weeksBefore: 2 },
+  { title: 'Final menu tasting', category: 'catering', monthsBefore: 1 },
+  { title: 'Wedding dress fitting', category: 'attire', monthsBefore: 1 },
+  { title: 'Arrange transportation', category: 'transport', monthsBefore: 1 },
+  { title: 'Plan honeymoon', category: 'travel', monthsBefore: 3 },
+  { title: 'Rehearsal dinner', category: 'general', weeksBefore: 1 },
+  { title: 'Day-of emergency kit', category: 'general', weeksBefore: 1 },
+] as const;
+
+function parseWeddingDate(value: string) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  if (Number.isNaN(date.getTime()) || sharedFormatDate(date) !== value) {
+    throw new ValidationError('Invalid weddingDate', 'weddingDate');
+  }
+  return date;
+}
+
+function shiftDate(baseDate: Date, monthsBefore?: number, weeksBefore?: number) {
+  const date = new Date(baseDate);
+
+  if (monthsBefore) {
+    const originalDay = date.getUTCDate();
+    date.setUTCDate(1);
+    date.setUTCMonth(date.getUTCMonth() - monthsBefore);
+    const lastDayOfTargetMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+    date.setUTCDate(Math.min(originalDay, lastDayOfTargetMonth));
+  }
+
+  if (weeksBefore) date.setUTCDate(date.getUTCDate() - (weeksBefore * 7));
+  return date;
+}
+
+function getDaysBeforeEvent(eventDate: Date, dueDate: Date) {
+  return Math.max(0, daysBetween(dueDate, eventDate));
 }
 
 // ── GET /users/me ─────────────────────────────────────────────────────────────
@@ -155,4 +216,278 @@ userRouter.patch(
   }
 );
 
+// ── GET /users/me/budget ──────────────────────────────────────────────────────
+
+userRouter.get('/me/budget', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const items = await prisma.budgetItem.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const totalEstimated = items.reduce((sum, item) => sum + item.estimatedPaise, 0);
+    const totalActual = items.reduce((sum, item) => sum + (item.actualPaise ?? 0), 0);
+    const totalPaid = items.filter((item) => item.isPaid).reduce((sum, item) => sum + (item.actualPaise ?? item.estimatedPaise), 0);
+
+    const byCategory = items.reduce<Record<string, { estimated: number; actual: number; count: number }>>((acc, item) => {
+      if (!acc[item.category]) acc[item.category] = { estimated: 0, actual: 0, count: 0 };
+      acc[item.category].estimated += item.estimatedPaise;
+      acc[item.category].actual += item.actualPaise ?? 0;
+      acc[item.category].count += 1;
+      return acc;
+    }, {});
+
+    res.json({
+      success: true,
+      data: {
+        items,
+        summary: { totalEstimated, totalActual, totalPaid, itemCount: items.length },
+        byCategory,
+      },
+      meta: meta(req),
+    });
+  } catch (err) { next(err); }
+});
+
+// ── POST /users/me/budget ─────────────────────────────────────────────────────
+
+userRouter.post(
+  '/me/budget',
+  authenticate,
+  validate(CreateBudgetItemSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const item = await prisma.budgetItem.create({
+        data: { userId: req.user!.id, ...req.body },
+      });
+      res.status(201).json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── PATCH /users/me/budget/:id ────────────────────────────────────────────────
+
+userRouter.patch(
+  '/me/budget/:id',
+  authenticate,
+  validate(UpdateBudgetItemSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.budgetItem.findFirst({
+        where: { id: req.params.id, userId: req.user!.id },
+      });
+      if (!existing) throw new NotFoundError('BudgetItem', req.params.id);
+      const item = await prisma.budgetItem.update({
+        where: { id: req.params.id },
+        data: req.body,
+      });
+      res.json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── DELETE /users/me/budget/:id ───────────────────────────────────────────────
+
+userRouter.delete(
+  '/me/budget/:id',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.budgetItem.findFirst({
+        where: { id: req.params.id, userId: req.user!.id },
+      });
+      if (!existing) throw new NotFoundError('BudgetItem', req.params.id);
+      await prisma.budgetItem.delete({ where: { id: req.params.id } });
+      res.json({ success: true, data: { message: 'Deleted' }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
 userRouter.get('/health', (_req, res) => res.json({ status: 'ok', service: 'user-service' }));
+
+// ── GET /users/me/checklist ────────────────────────────────────────────────────
+
+userRouter.get('/me/checklist', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const items = await prisma.checklistItem.findMany({
+      where: { userId: req.user!.id },
+      orderBy: [{ daysBeforeEvent: 'desc' }, { createdAt: 'asc' }],
+    });
+    res.json({ success: true, data: { items }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── POST /users/me/checklist ───────────────────────────────────────────────────
+
+userRouter.post(
+  '/me/checklist',
+  authenticate,
+  validate(CreateChecklistItemSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { title, detail, category, daysBeforeEvent, isDone } = req.body;
+      const item = await prisma.checklistItem.create({
+        data: {
+          userId: req.user!.id,
+          title,
+          detail,
+          category: category ?? 'other',
+          daysBeforeEvent,
+          isDone: isDone ?? false,
+        },
+      });
+      res.status(201).json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── POST /users/me/checklist/generate ──────────────────────────────────────────
+
+userRouter.post(
+  '/me/checklist/generate',
+  authenticate,
+  validate(GenerateChecklistSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { weddingDate } = req.body as { weddingDate: string };
+      const eventDate = parseWeddingDate(weddingDate);
+      const existingItems = await prisma.checklistItem.findMany({
+        where: { userId: req.user!.id },
+        select: { title: true },
+      });
+      const existingTitles = new Set(existingItems.map((item: { title: string }) => item.title));
+
+      const tasksToCreate = defaultChecklistTemplates
+        .filter((template) => !existingTitles.has(template.title))
+        .map((template) => {
+          const dueDate = shiftDate(eventDate, template.monthsBefore, template.weeksBefore);
+          return {
+            title: template.title,
+            category: template.category,
+            dueDate: sharedFormatDate(dueDate),
+            daysBeforeEvent: getDaysBeforeEvent(eventDate, dueDate),
+          };
+        });
+
+      const items = tasksToCreate.length === 0
+        ? []
+        : await prisma.$transaction(
+          tasksToCreate.map((task) => prisma.checklistItem.create({
+            data: {
+              userId: req.user!.id,
+              title: task.title,
+              category: task.category,
+              detail: `Suggested due date: ${task.dueDate}`,
+              daysBeforeEvent: task.daysBeforeEvent,
+              isDone: false,
+            },
+          }))
+        );
+
+      res.status(201).json({
+        success: true,
+        data: {
+          items: items.map((item: Record<string, unknown>, index: number) => ({ ...item, dueDate: tasksToCreate[index].dueDate })),
+          totalGenerated: items.length,
+        },
+        meta: meta(req),
+      });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── PATCH /users/me/checklist/:id ─────────────────────────────────────────────
+
+userRouter.patch(
+  '/me/checklist/:id',
+  authenticate,
+  validate(UpdateChecklistItemSchema),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Ensure the item belongs to the authenticated user
+      const existing = await prisma.checklistItem.findFirst({
+        where: { id: req.params.id, userId: req.user!.id },
+      });
+      if (!existing) throw new NotFoundError('ChecklistItem', req.params.id);
+      const item = await prisma.checklistItem.update({
+        where: { id: req.params.id },
+        data: req.body,
+      });
+      res.json({ success: true, data: { item }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── DELETE /users/me/checklist/:id ────────────────────────────────────────────
+
+userRouter.delete(
+  '/me/checklist/:id',
+  authenticate,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const existing = await prisma.checklistItem.findFirst({
+        where: { id: req.params.id, userId: req.user!.id },
+      });
+      if (!existing) throw new NotFoundError('ChecklistItem', req.params.id);
+      await prisma.checklistItem.delete({ where: { id: req.params.id } });
+      res.json({ success: true, data: { message: 'Deleted' }, meta: meta(req) });
+    } catch (err) { next(err); }
+  }
+);
+
+// ── Guests ──────────────────────────────────────────────────────
+const GuestCreateSchema = z.object({
+  name: z.string().min(1).max(200),
+  phone: z.string().max(20).optional(),
+  email: z.string().email().optional(),
+  side: z.enum(['BRIDE', 'GROOM', 'MUTUAL']).default('MUTUAL'),
+  group: z.enum(['FAMILY', 'FRIENDS', 'COLLEAGUES', 'NEIGHBOURS', 'OTHERS']).default('OTHERS'),
+  rsvpStatus: z.enum(['PENDING', 'ACCEPTED', 'DECLINED', 'MAYBE']).default('PENDING'),
+  mealPreference: z.enum(['VEG', 'NON_VEG', 'JAIN', 'VEGAN', 'NO_PREFERENCE']).default('NO_PREFERENCE'),
+  plusOnes: z.number().int().min(0).max(20).default(0),
+  tableNumber: z.string().max(50).optional(),
+  roomAllocation: z.string().max(100).optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+const GuestUpdateSchema = GuestCreateSchema.partial();
+
+userRouter.get('/me/guests', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const guests = await prisma.guest.findMany({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ success: true, data: { guests }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+userRouter.post('/me/guests', authenticate, validate(GuestCreateSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const guest = await prisma.guest.create({ data: { ...req.body, userId: req.user!.id } });
+    res.status(201).json({ success: true, data: { guest }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+userRouter.patch('/me/guests/:id', authenticate, validate(GuestUpdateSchema), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.guest.findFirst({ where: { id: req.params.id, userId: req.user!.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Guest not found' }, meta: meta(req) });
+    }
+    const guest = await prisma.guest.update({ where: { id: req.params.id }, data: req.body });
+    res.json({ success: true, data: { guest }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+userRouter.delete('/me/guests/:id', authenticate, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const existing = await prisma.guest.findFirst({ where: { id: req.params.id, userId: req.user!.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Guest not found' }, meta: meta(req) });
+    }
+    await prisma.guest.delete({ where: { id: req.params.id } });
+    res.json({ success: true, data: { message: 'Guest removed' }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+

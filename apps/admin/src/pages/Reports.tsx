@@ -1,9 +1,14 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Card, Row, Col, Statistic, Table, Tag, Select, Space, Spin, Alert } from 'antd';
-import { DollarOutlined, ShopOutlined, TeamOutlined, RiseOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Col, DatePicker, message, Row, Space, Spin, Statistic, Table, Tag } from 'antd';
+import { DollarOutlined, DownloadOutlined, FilePdfOutlined, RiseOutlined, ShopOutlined, TeamOutlined } from '@ant-design/icons';
 import { reportsApi, type ReportSummary } from '../lib/api';
-import { format, subMonths, subDays, subYears } from 'date-fns';
+import { format } from 'date-fns';
+import dayjs, { type Dayjs } from 'dayjs';
+
+const { RangePicker } = DatePicker;
+
+type DateRangeValue = [Dayjs, Dayjs] | null;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MOCK FALLBACK DATA
@@ -50,6 +55,8 @@ const MOCK_SUMMARY: ReportSummary = {
   ],
 };
 
+const DEFAULT_RANGE: [Dayjs, Dayjs] = [dayjs().subtract(6, 'month'), dayjs()];
+
 interface ActivityItem {
   id: string;
   type: string;
@@ -81,16 +88,166 @@ const ACTIVITY_TAG_COLOR: Record<string, string> = {
 // HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-function getDateRange(range: string): { from?: string; to?: string } {
-  const now = new Date();
-  const to = format(now, 'yyyy-MM-dd');
-  switch (range) {
-    case 'last_30_days': return { from: format(subDays(now, 30), 'yyyy-MM-dd'), to };
-    case 'last_3_months': return { from: format(subMonths(now, 3), 'yyyy-MM-dd'), to };
-    case 'last_6_months': return { from: format(subMonths(now, 6), 'yyyy-MM-dd'), to };
-    case 'last_year': return { from: format(subYears(now, 1), 'yyyy-MM-dd'), to };
-    default: return {};
+function getDateRange(range: DateRangeValue): { from?: string; to?: string } {
+  if (!range) return {};
+  return {
+    from: range[0].format('YYYY-MM-DD'),
+    to: range[1].format('YYYY-MM-DD'),
+  };
+}
+
+function getRangeLabel(range: DateRangeValue): string {
+  if (!range) return 'All Time';
+  return `${range[0].format('DD MMM YYYY')} - ${range[1].format('DD MMM YYYY')}`;
+}
+
+function exportCSV(data: ReportSummary) {
+  const rows = [
+    ['Metric', 'Value'],
+    ['Total Revenue', `₹${(data.totalRevenue / 100).toLocaleString('en-IN')}`],
+    ['Platform Fees', `₹${(data.platformFees / 100).toLocaleString('en-IN')}`],
+    ['Active Vendors', String(data.activeVendors)],
+    ['Active Customers', String(data.activeCustomers)],
+    [''],
+    ['Month', 'Revenue', 'Bookings'],
+    ...data.monthlyRevenue.map((m) => [m.month, `₹${(m.revenue / 100).toLocaleString('en-IN')}`, String(m.bookings)]),
+    [''],
+    ['Top Vendors'],
+    ['Name', 'Category', 'Bookings', 'Revenue', 'Rating'],
+    ...data.topVendors.map((v) => [v.name, v.category, String(v.bookings), `₹${(v.revenue / 100).toLocaleString('en-IN')}`, String(v.rating)]),
+  ];
+  const csv = rows.map((r) => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `weddingos-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  message.success('Report exported as CSV');
+}
+
+function exportPrintableReport(data: ReportSummary, range: DateRangeValue) {
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1100,height=800');
+
+  if (!printWindow) {
+    message.error('Please allow pop-ups to export the report as PDF');
+    return;
   }
+
+  const summaryCards = [
+    { label: 'Total Revenue', value: `₹${(data.totalRevenue / 100).toLocaleString('en-IN')}` },
+    { label: 'Platform Fees', value: `₹${(data.platformFees / 100).toLocaleString('en-IN')}` },
+    { label: 'Active Vendors', value: data.activeVendors.toLocaleString('en-IN') },
+    { label: 'Active Customers', value: data.activeCustomers.toLocaleString('en-IN') },
+  ];
+
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <title>WeddingOS Report</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 32px; color: #111827; }
+          h1, h2 { margin: 0; }
+          p { margin: 6px 0 0; color: #6b7280; }
+          .meta { margin-top: 8px; font-size: 13px; color: #6b7280; }
+          .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 24px 0; }
+          .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; }
+          .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
+          .value { font-size: 24px; font-weight: 700; margin-top: 8px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+          th, td { border: 1px solid #e5e7eb; padding: 10px 12px; font-size: 13px; text-align: left; }
+          th { background: #f9fafb; }
+          .section { margin-top: 28px; }
+          .category-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f3f4f6; font-size: 13px; }
+          @media print {
+            body { padding: 20px; }
+            .summary { grid-template-columns: repeat(2, 1fr); }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>WeddingOS Reports & Analytics</h1>
+        <p>Platform performance overview</p>
+        <div class="meta">Range: ${getRangeLabel(range)} • Generated: ${new Date().toLocaleString('en-IN')}</div>
+
+        <div class="summary">
+          ${summaryCards.map((item) => `
+            <div class="card">
+              <div class="label">${item.label}</div>
+              <div class="value">${item.value}</div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="section">
+          <h2>Monthly Revenue</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Revenue</th>
+                <th>Bookings</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.monthlyRevenue.map((item) => `
+                <tr>
+                  <td>${item.month}</td>
+                  <td>₹${(item.revenue / 100).toLocaleString('en-IN')}</td>
+                  <td>${item.bookings.toLocaleString('en-IN')}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Top Vendors</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Bookings</th>
+                <th>Revenue</th>
+                <th>Rating</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.topVendors.map((vendor) => `
+                <tr>
+                  <td>${vendor.name}</td>
+                  <td>${vendor.category}</td>
+                  <td>${vendor.bookings.toLocaleString('en-IN')}</td>
+                  <td>₹${(vendor.revenue / 100).toLocaleString('en-IN')}</td>
+                  <td>${vendor.rating}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="section">
+          <h2>Category Breakdown</h2>
+          ${data.categoryBreakdown.map((item) => `
+            <div class="category-row">
+              <span>${item.category}</span>
+              <span>${item.bookings.toLocaleString('en-IN')} bookings • ₹${(item.revenue / 100).toLocaleString('en-IN')}</span>
+            </div>
+          `).join('')}
+        </div>
+      </body>
+    </html>
+  `;
+
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  printWindow.onload = () => printWindow.print();
+  message.success('Printable report opened');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,12 +255,12 @@ function getDateRange(range: string): { from?: string; to?: string } {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function Reports() {
-  const [dateRange, setDateRange] = useState<string>('last_6_months');
+  const [dateRange, setDateRange] = useState<DateRangeValue>(DEFAULT_RANGE);
 
-  const params = getDateRange(dateRange);
+  const params = useMemo(() => getDateRange(dateRange), [dateRange]);
 
   const { data: summary, isLoading, isError } = useQuery({
-    queryKey: ['admin-reports', dateRange],
+    queryKey: ['admin-reports', params.from ?? 'all', params.to ?? 'all'],
     queryFn: () => reportsApi.getSummary(params.from ? params : undefined),
     retry: 1,
     staleTime: 60_000,
@@ -120,23 +277,31 @@ export function Reports() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, gap: 16, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Reports & Analytics</h1>
           <p style={{ color: '#6b7280', marginTop: 4, marginBottom: 0 }}>Platform performance overview</p>
         </div>
-        <Select
-          value={dateRange}
-          onChange={setDateRange}
-          style={{ width: 180 }}
-          options={[
-            { value: 'last_30_days', label: 'Last 30 Days' },
-            { value: 'last_3_months', label: 'Last 3 Months' },
-            { value: 'last_6_months', label: 'Last 6 Months' },
-            { value: 'last_year', label: 'Last Year' },
-            { value: 'all_time', label: 'All Time' },
-          ]}
-        />
+        <Space wrap>
+          <RangePicker
+            allowClear
+            value={dateRange}
+            format="DD MMM YYYY"
+            onChange={(value) => setDateRange(value && value[0] && value[1] ? [value[0], value[1]] : null)}
+            presets={[
+              { label: 'Last 30 Days', value: [dayjs().subtract(30, 'day'), dayjs()] },
+              { label: 'Last 3 Months', value: [dayjs().subtract(3, 'month'), dayjs()] },
+              { label: 'Last 6 Months', value: [dayjs().subtract(6, 'month'), dayjs()] },
+              { label: 'Last Year', value: [dayjs().subtract(1, 'year'), dayjs()] },
+            ]}
+          />
+          <Button icon={<DownloadOutlined />} onClick={() => exportCSV(s)}>
+            Export CSV
+          </Button>
+          <Button type="primary" icon={<FilePdfOutlined />} onClick={() => exportPrintableReport(s, dateRange)}>
+            Export PDF
+          </Button>
+        </Space>
       </div>
 
       {isMock && (

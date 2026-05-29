@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import '../../providers/vendor_analytics_provider.dart';
+import '../../shared/widgets/error_state_widget.dart';
+import '../../shared/widgets/shimmer_state_widget.dart';
 
 class VendorEarningsScreen extends ConsumerWidget {
   const VendorEarningsScreen({super.key});
@@ -36,8 +38,11 @@ class VendorEarningsScreen extends ConsumerWidget {
         ],
       ),
       body: analyticsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const ShimmerStateWidget(itemCount: 4, itemHeight: 150),
+        error: (e, _) => ErrorStateWidget(
+          message: 'Earnings summary is unavailable right now.',
+          onRetry: () => ref.refresh(vendorAnalyticsProvider.future),
+        ),
         data: (a) => _EarningsBody(revenue: a.revenue, monthlyData: a.monthlyRevenue),
       ),
     );

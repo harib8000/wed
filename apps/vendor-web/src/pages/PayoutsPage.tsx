@@ -11,14 +11,14 @@ const MOCK_EARNINGS: EarningsSummary = {
 };
 
 const MOCK_PAYOUTS: PayoutRecord[] = [
-  { id: 'PO-001', date: '10 Jan 2027', bookingNumber: 'WB-045', customer: 'Kavitha & Sanjay', amount: 900000, platformFee: 45000, netPayout: 855000, status: 'released' },
-  { id: 'PO-002', date: '5 Jan 2027', bookingNumber: 'WB-044', customer: 'Ritu & Abhishek', amount: 500000, platformFee: 25000, netPayout: 475000, status: 'released' },
-  { id: 'PO-003', date: '28 Dec 2026', bookingNumber: 'WB-043', customer: 'Priya & Rahul', amount: 150000, platformFee: 7500, netPayout: 142500, status: 'pending' },
-  { id: 'PO-004', date: '22 Dec 2026', bookingNumber: 'WB-042', customer: 'Ananya & Vikram', amount: 90000, platformFee: 4500, netPayout: 85500, status: 'processing' },
-  { id: 'PO-005', date: '15 Dec 2026', bookingNumber: 'WB-041', customer: 'Meera & Arun', amount: 1500000, platformFee: 75000, netPayout: 1425000, status: 'released' },
-  { id: 'PO-006', date: '8 Dec 2026', bookingNumber: 'WB-040', customer: 'Divya & Ravi', amount: 550000, platformFee: 27500, netPayout: 522500, status: 'on_hold' },
-  { id: 'PO-007', date: '1 Dec 2026', bookingNumber: 'WB-039', customer: 'Swetha & Karthik', amount: 950000, platformFee: 47500, netPayout: 902500, status: 'released' },
-  { id: 'PO-008', date: '25 Nov 2026', bookingNumber: 'WB-038', customer: 'Pooja & Amit', amount: 200000, platformFee: 10000, netPayout: 190000, status: 'released' },
+  { id: 'PO-001', paymentId: 'PO-001', date: '10 Jan 2027', bookingNumber: 'WB-045', customer: 'Kavitha & Sanjay', amount: 900000, platformFee: 45000, netPayout: 855000, status: 'released' },
+  { id: 'PO-002', paymentId: 'PO-002', date: '5 Jan 2027', bookingNumber: 'WB-044', customer: 'Ritu & Abhishek', amount: 500000, platformFee: 25000, netPayout: 475000, status: 'released' },
+  { id: 'PO-003', paymentId: 'PO-003', date: '28 Dec 2026', bookingNumber: 'WB-043', customer: 'Priya & Rahul', amount: 150000, platformFee: 7500, netPayout: 142500, status: 'pending' },
+  { id: 'PO-004', paymentId: 'PO-004', date: '22 Dec 2026', bookingNumber: 'WB-042', customer: 'Ananya & Vikram', amount: 90000, platformFee: 4500, netPayout: 85500, status: 'processing' },
+  { id: 'PO-005', paymentId: 'PO-005', date: '15 Dec 2026', bookingNumber: 'WB-041', customer: 'Meera & Arun', amount: 1500000, platformFee: 75000, netPayout: 1425000, status: 'released' },
+  { id: 'PO-006', paymentId: 'PO-006', date: '8 Dec 2026', bookingNumber: 'WB-040', customer: 'Divya & Ravi', amount: 550000, platformFee: 27500, netPayout: 522500, status: 'on_hold' },
+  { id: 'PO-007', paymentId: 'PO-007', date: '1 Dec 2026', bookingNumber: 'WB-039', customer: 'Swetha & Karthik', amount: 950000, platformFee: 47500, netPayout: 902500, status: 'released' },
+  { id: 'PO-008', paymentId: 'PO-008', date: '25 Nov 2026', bookingNumber: 'WB-038', customer: 'Pooja & Amit', amount: 200000, platformFee: 10000, netPayout: 190000, status: 'released' },
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
@@ -27,6 +27,9 @@ const STATUS_CONFIG: Record<string, { label: string; class: string }> = {
   processing: { label: 'Processing', class: 'bg-blue-100 text-blue-700' },
   on_hold: { label: 'On Hold', class: 'bg-red-100 text-red-700' },
 };
+
+const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+const PAYMENT_INVOICE_URL = env?.VITE_API_URL ?? 'http://localhost:4005';
 
 function formatINR(paise: number): string {
   const rupees = paise / 100;
@@ -113,7 +116,7 @@ export function PayoutsPage() {
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Date', 'Booking', 'Customer', 'Amount', 'Platform Fee', 'Net Payout', 'Status'].map((h) => (
+              {['Date', 'Booking', 'Customer', 'Amount', 'Platform Fee', 'Net Payout', 'Status', 'Receipt'].map((h) => (
                 <th key={h} className="text-left text-xs font-semibold text-gray-500 uppercase tracking-wide px-5 py-3">{h}</th>
               ))}
             </tr>
@@ -131,6 +134,16 @@ export function PayoutsPage() {
                   <td className="px-5 py-4 text-sm font-semibold text-gray-900">{formatINRFull(p.netPayout)}</td>
                   <td className="px-5 py-4">
                     <span className={`badge ${sc.class} text-xs`}>{sc.label}</span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <a
+                      href={`${PAYMENT_INVOICE_URL}/payments/${p.paymentId ?? p.id}/invoice`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-100"
+                    >
+                      📄 Receipt
+                    </a>
                   </td>
                 </tr>
               );

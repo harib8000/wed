@@ -1,10 +1,12 @@
 import { esClient } from '../config/elasticsearch';
 import { ValidationError } from '@wedding-os/shared-errors';
+import type { VendorProfile } from '@wedding-os/shared-types';
 import { logger } from '../utils/logger';
 
 interface EsTotal { value: number; relation: string; }
 interface EsAggBucket { key: string; doc_count: number; }
 interface EsAggResult { buckets: EsAggBucket[]; }
+interface SearchHitSource extends Record<string, unknown> {}
 
 export const searchService = {
   async searchVendors(params: {
@@ -18,11 +20,33 @@ export const searchService = {
     page?: number;
     limit?: number;
     featured?: boolean;
+    lat?: number;
+    lng?: number;
+    radius?: number;
+    pincode?: string;
   }) {
-    const { query, category, city, minPrice, maxPrice, minRating, sortBy = 'rating', page = 1, limit = 20, featured } = params;
+    const {
+      query,
+      category,
+      city,
+      minPrice,
+      maxPrice,
+      minRating,
+      sortBy = 'rating',
+      page = 1,
+      limit = 20,
+      featured,
+      lat,
+      lng,
+      radius,
+      pincode,
+    } = params;
 
     if (limit < 1 || limit > 100) throw new ValidationError('Limit must be between 1 and 100', 'limit');
     if (page < 1) throw new ValidationError('Page must be at least 1', 'page');
+    if ((lat !== undefined && lng === undefined) || (lat === undefined && lng !== undefined)) {
+      throw new ValidationError('lat and lng must be provided together', lat === undefined ? 'lat' : 'lng');
+    }
 
     const must: Record<string, unknown>[] = [{ term: { verificationStatus: 'verified' } }];
     const filter: Record<string, unknown>[] = [];
@@ -45,8 +69,22 @@ export const searchService = {
     if (minPrice !== undefined || maxPrice !== undefined) {
       filter.push({ range: { basePrice: { ...(minPrice !== undefined && { gte: minPrice }), ...(maxPrice !== undefined && { lte: maxPrice }) } } });
     }
+    if (lat !== undefined && lng !== undefined) {
+      filter.push({ geo_distance: { distance: radius ? `${radius}km` : '25km', location: { lat, lon: lng } } });
+    } else if (pincode) {
+      must.push({ match: { pincode } });
+    }
 
     const sort: Record<string, unknown>[] = [];
+    if (lat !== undefined && lng !== undefined) {
+      sort.push({
+        _geo_distance: {
+          location: { lat, lon: lng },
+          order: 'asc',
+          unit: 'km',
+        },
+      });
+    }
     if (sortBy === 'rating') sort.push({ rating: 'desc' }, { totalReviews: 'desc' });
     else if (sortBy === 'price_asc') sort.push({ basePrice: 'asc' });
     else if (sortBy === 'price_desc') sort.push({ basePrice: 'desc' });
@@ -60,7 +98,7 @@ export const searchService = {
         from: (page - 1) * limit,
         size: limit,
         query: { bool: { must, filter } },
-        sort,
+        sort: sort as never,
         aggs: {
           categories: { terms: { field: 'category', size: 20 } },
           cities: { terms: { field: 'citiesServed', size: 20 } },
@@ -68,7 +106,7 @@ export const searchService = {
         },
       });
 
-      const hits = result.hits.hits.map((h) => ({ ...h._source, _score: h._score }));
+      const hits = result.hits.hits.map((h) => ({ ...((h._source as SearchHitSource | undefined) ?? {}), _score: h._score }));
       const total = typeof result.hits.total === 'number' ? result.hits.total : (result.hits.total as EsTotal)?.value || 0;
 
       return {
@@ -92,7 +130,7 @@ export const searchService = {
 
   async indexVendor(vendor: Record<string, unknown>): Promise<void> {
     try {
-      await esClient.index({ index: 'vendors', id: vendor.id, document: { ...vendor, updatedAt: new Date().toISOString() } });
+      await esClient.index({ index: 'vendors', id: String(vendor.id), document: { ...vendor, updatedAt: new Date().toISOString() } });
     } catch (err) { logger.warn({ err, vendorId: vendor.id }, 'Failed to index vendor (non-fatal)'); }
   },
 

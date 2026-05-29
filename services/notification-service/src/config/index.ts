@@ -14,8 +14,12 @@ const e = z.object({
   // SendGrid
   SENDGRID_API_KEY: z.string().optional(),
   SENDGRID_FROM_EMAIL: z.string().default('noreply@weddingosx.com'),
+  SUPPORT_EMAIL: z.string().email().default('support@weddingos.in'),
   ALLOWED_ORIGINS: z.string().default('http://localhost:3000').transform((s) => s.split(',').map((o) => o.trim())),
 });
 const p = e.safeParse(process.env);
 if (!p.success) { console.error(p.error.flatten()); process.exit(1); }
-export const config = p.data;
+export const config = {
+  ...p.data,
+  sentryDsn: process.env.SENTRY_DSN || '',
+};

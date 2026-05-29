@@ -13,6 +13,20 @@ import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
 import { createEventBus } from '@wedding-os/shared-events';
+import * as Sentry from '@sentry/node';
+import { register, collectDefaultMetrics } from 'prom-client';
+
+collectDefaultMetrics();
+
+
+if (config.sentryDsn) {
+  Sentry.init({
+    dsn: config.sentryDsn,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
+  });
+}
+
 
 // ── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -47,6 +61,15 @@ async function bootstrap() {
   app.use(pinoHttp({ logger }));
 
   // Health check
+  app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(String(err));
+  }
+});
+
   app.get('/chat/health', (_, res) => res.json({ status: 'ok', service: 'chat-service', timestamp: new Date().toISOString() }));
 
   // REST: Get conversation history

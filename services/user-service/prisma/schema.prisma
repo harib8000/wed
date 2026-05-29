@@ -96,3 +96,107 @@ model KycDocument {
   @@index([status])
   @@map("kyc_documents")
 }
+
+model ChecklistItem {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  title       String   @db.VarChar(300)
+  detail      String?  @db.VarChar(500)
+  category    String   @default("other") @db.VarChar(50)
+  isDone      Boolean  @default(false) @map("is_done")
+  daysBeforeEvent Int? @map("days_before_event")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("checklist_items")
+}
+
+enum BudgetCategory {
+  VENUE
+  CATERING
+  PHOTOGRAPHY
+  VIDEOGRAPHY
+  DECORATION
+  MAKEUP
+  MUSIC
+  TRANSPORT
+  INVITATION
+  MEHENDI
+  ATTIRE
+  JEWELLERY
+  GIFTS
+  ACCOMMODATION
+  HONEYMOON
+  OTHER
+}
+
+model BudgetItem {
+  id             String         @id @default(uuid())
+  userId         String         @map("user_id")
+  category       BudgetCategory
+  label          String         @db.VarChar(200)
+  estimatedPaise Int            @map("estimated_paise")
+  actualPaise    Int?           @map("actual_paise")
+  vendorName     String?        @map("vendor_name") @db.VarChar(200)
+  bookingId      String?        @map("booking_id")
+  isPaid         Boolean        @default(false) @map("is_paid")
+  notes          String?        @db.VarChar(500)
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("budget_items")
+}
+
+enum GuestSide {
+  BRIDE
+  GROOM
+  MUTUAL
+}
+
+enum GuestGroup {
+  FAMILY
+  FRIENDS
+  COLLEAGUES
+  NEIGHBOURS
+  OTHERS
+}
+
+enum GuestRsvpStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  MAYBE
+}
+
+enum MealPref {
+  VEG
+  NON_VEG
+  JAIN
+  VEGAN
+  NO_PREFERENCE
+}
+
+model Guest {
+  id              String          @id @default(uuid())
+  userId          String          @map("user_id")
+  name            String          @db.VarChar(200)
+  phone           String?         @db.VarChar(20)
+  email           String?         @db.VarChar(200)
+  side            GuestSide       @default(MUTUAL)
+  group           GuestGroup      @default(OTHERS)
+  rsvpStatus      GuestRsvpStatus @default(PENDING) @map("rsvp_status")
+  mealPreference  MealPref        @default(NO_PREFERENCE) @map("meal_preference")
+  plusOnes        Int             @default(0) @map("plus_ones")
+  tableNumber     String?         @map("table_number") @db.VarChar(50)
+  roomAllocation  String?         @map("room_allocation") @db.VarChar(100)
+  inviteSentAt    DateTime?       @map("invite_sent_at")
+  rsvpRespondedAt DateTime?       @map("rsvp_responded_at")
+  notes           String?         @db.VarChar(1000)
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("guests")
+}

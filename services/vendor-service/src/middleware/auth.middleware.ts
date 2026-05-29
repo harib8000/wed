@@ -70,3 +70,34 @@ export const requireRole = (...roles: string[]) =>
       return next(new AuthError(403, 'AUTH_1008', `Requires role: ${roles.join(' or ')}`));
     next();
   };
+
+/**
+ * Allows requests authenticated either with an internal API key header
+ * (x-internal-api-key) or with an admin JWT.  Used for service-to-service calls.
+ */
+export const requireInternalOrAdmin = (req: Request, _res: Response, next: NextFunction) => {
+  const internalKey = req.headers['x-internal-api-key'] as string | undefined;
+  const expectedKey = process.env.INTERNAL_API_KEY;
+  if (expectedKey && internalKey === expectedKey) return next();
+
+  // Fall back to JWT admin check
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return next(new AuthError(401, 'AUTH_1007', 'Authentication required'));
+  }
+  const token = authHeader.slice(7);
+  try {
+    const publicKey = getPublicKey();
+    const algorithms = config.JWT_PUBLIC_KEY || config.JWT_PUBLIC_KEY_PATH
+      ? (['RS256'] as jwt.Algorithm[])
+      : (['HS256'] as jwt.Algorithm[]);
+    const payload = jwt.verify(token, publicKey, { algorithms }) as JwtPayload;
+    if (payload.role !== 'admin') {
+      return next(new AuthError(403, 'AUTH_1008', 'Admin access required'));
+    }
+    req.user = { id: payload.sub ?? payload.userId, role: payload.role, phone: payload.phone };
+    next();
+  } catch {
+    next(new AuthError(401, 'AUTH_1006', 'Invalid token'));
+  }
+};

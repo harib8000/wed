@@ -69,7 +69,7 @@ class ApiClient {
   static Future<Response> getMe() => dio.get('/auth/me');
 
   static Future<void> registerFcmToken(String token) =>
-      dio.post('/users/me/device-token', data: {
+      dio.post('/users/me/push-token', data: {
         'token': token,
         'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
       });
@@ -95,6 +95,29 @@ class ApiClient {
   static Future<Response> submitReview(Map<String, dynamic> data) =>
       dio.post('/reviews', data: data);
 
+  // ─── Vendor Profile ──────────────────────────────────────────────────────────
+
+  static Future<Response> getVendorProfile() => dio.get('/vendors/me');
+
+  static Future<Response> updateVendorProfile(Map<String, dynamic> data) =>
+      dio.put('/vendors/me', data: data);
+
+  static Future<Response> getVendorStats() =>
+      dio.get('/vendors/me/stats');
+
+  // ─── AI Recommendations ──────────────────────────────────────────────────────
+
+  static Future<Response> getAiRecommendations({
+    String? city,
+    int? budgetPaise,
+    String? weddingDate,
+  }) =>
+      dio.get('/ai/recommendations', queryParameters: {
+        if (city != null) 'city': city,
+        if (budgetPaise != null) 'budget': budgetPaise,
+        if (weddingDate != null) 'weddingDate': weddingDate,
+      });
+
   // ─── Notifications ─────────────────────────────────────────────────────────
   static Future<Response> getNotifications() => dio.get('/notifications');
 
@@ -119,4 +142,152 @@ class ApiClient {
 
   static Future<Response> sendChatMessage(String vendorId, String text) =>
       dio.post('/chat/$vendorId/messages', data: {'text': text});
+
+  // ─── Media ──────────────────────────────────────────────────────────────────
+
+  /// Step 1: Get a presigned S3 upload URL.
+  /// [context] is a hint like 'profile', 'portfolio', 'review', 'kyc'.
+  static Future<Response> getPresignedUploadUrl({
+    String contentType = 'image/jpeg',
+    String context = 'profile',
+  }) =>
+      dio.post('/media/presign', data: {'contentType': contentType, 'context': context});
+
+  /// Step 2: Upload a file directly to S3 using the presigned URL.
+  /// Returns the raw Dio response from the S3 PUT request.
+  static Future<Response> uploadToS3(String presignedUrl, List<int> fileBytes, String contentType) {
+    final s3Dio = Dio();
+    return s3Dio.put(
+      presignedUrl,
+      data: Stream.fromIterable(fileBytes.map((b) => [b])),
+      options: Options(
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': fileBytes.length,
+        },
+        sendTimeout: const Duration(seconds: 120),
+        receiveTimeout: const Duration(seconds: 30),
+      ),
+    );
+  }
+
+  // ─── Checklist ──────────────────────────────────────────────────────────────
+
+  static Future<Response> getChecklist() => dio.get('/users/me/checklist');
+
+  static Future<Response> createChecklistItem(Map<String, dynamic> data) =>
+      dio.post('/users/me/checklist', data: data);
+
+  static Future<Response> updateChecklistItem(String id, Map<String, dynamic> data) =>
+      dio.patch('/users/me/checklist/$id', data: data);
+
+  // ─── Vendor Dashboard ───────────────────────────────────────────────────────
+
+  static Future<Response> getVendorDashboard() =>
+      dio.get('/bookings/vendor/dashboard');
+
+  static Future<Response> getVendorPaymentStats() =>
+      dio.get('/payments/vendor/stats');
+
+  static Future<Response> getVendorBookings({String? status}) =>
+      dio.get('/bookings', queryParameters: status != null ? {'status': status} : null);
+
+  // ─── Coordinator ─────────────────────────────────────────────────────────────
+
+  static Future<Response> getCoordinatorEvents() =>
+      dio.get('/bookings/coordinator/events');
+
+  static Future<Response> getEventTimeline(String eventId) =>
+      dio.get('/timelines/$eventId');
+
+  static Future<Response> createTimelineItem(String eventId, Map<String, dynamic> data) =>
+      dio.post('/timelines/$eventId', data: data);
+
+  static Future<Response> updateTimelineItem(
+          String eventId, String itemId, Map<String, dynamic> data) =>
+      dio.patch('/timelines/$eventId/items/$itemId', data: data);
+
+  static Future<Response> deleteTimelineItem(String eventId, String itemId) =>
+      dio.delete('/timelines/$eventId/items/$itemId');
+
+  static Future<Response> getEventTasks(String eventId) =>
+      dio.get('/timelines/$eventId/tasks');
+
+  static Future<Response> createTask(String eventId, Map<String, dynamic> data) =>
+      dio.post('/timelines/$eventId/tasks', data: data);
+
+  static Future<Response> updateTask(
+          String eventId, String taskId, Map<String, dynamic> data) =>
+      dio.patch('/timelines/$eventId/tasks/$taskId', data: data);
+
+  static Future<Response> getCoordinatorVendors() =>
+      dio.get('/vendors/coordinator/linked');
+
+  // ─── Admin ────────────────────────────────────────────────────────────────────
+
+  static Future<Response> getAdminStats() => dio.get('/admin/stats');
+
+  static Future<Response> getAdminActivityFeed() => dio.get('/admin/activity');
+
+  static Future<Response> getAllUsers(Map<String, dynamic> params) =>
+      dio.get('/admin/users', queryParameters: params);
+
+  static Future<Response> updateUserStatus(String userId, String status) =>
+      dio.patch('/admin/users/$userId/status', data: {'status': status});
+
+  static Future<Response> getAllVendorsAdmin(Map<String, dynamic> params) =>
+      dio.get('/admin/vendors', queryParameters: params);
+
+  static Future<Response> approveKyc(String vendorId) =>
+      dio.post('/vendors/$vendorId/kyc/approve');
+
+  static Future<Response> rejectKyc(String vendorId, String reason) =>
+      dio.post('/vendors/$vendorId/kyc/reject', data: {'reason': reason});
+
+  static Future<Response> updateVendorFeatured(String vendorId, {required bool featured}) =>
+      dio.patch('/admin/vendors/$vendorId/featured', data: {'isFeatured': featured});
+
+  static Future<Response> getAllBookingsAdmin(Map<String, dynamic> params) =>
+      dio.get('/admin/bookings', queryParameters: params);
+
+  static Future<Response> overrideBookingStatus(String bookingId, String status) =>
+      dio.patch('/admin/bookings/$bookingId/status', data: {'status': status});
+
+  static Future<Response> getDisputes(Map<String, dynamic> params) =>
+      dio.get('/admin/disputes', queryParameters: params);
+
+  static Future<Response> resolveDispute(String disputeId, String action) =>
+      dio.post('/admin/disputes/$disputeId/resolve', data: {'action': action});
+
+  static Future<Response> getPlatformReports(Map<String, dynamic> params) =>
+      dio.get('/admin/reports', queryParameters: params);
+
+  static Future<Response> broadcastNotification({
+    required String title,
+    required String body,
+    String? targetRole,
+  }) =>
+      dio.post('/admin/notifications/broadcast', data: {
+        'title': title,
+        'body': body,
+        if (targetRole != null) 'targetRole': targetRole,
+      });
+
+  // ─── Budget & Guests ─────────────────────────────────────────────────────────
+
+  static Future<Response> getBudget() => dio.get('/users/me/budget');
+
+  static Future<Response> updateBudget(Map<String, dynamic> data) =>
+      dio.put('/users/me/budget', data: data);
+
+  static Future<Response> getGuests() => dio.get('/users/me/guests');
+
+  static Future<Response> addGuest(Map<String, dynamic> data) =>
+      dio.post('/users/me/guests', data: data);
+
+  static Future<Response> removeGuest(String guestId) =>
+      dio.delete('/users/me/guests/$guestId');
+
+  static Future<Response> updateGuest(String guestId, Map<String, dynamic> data) =>
+      dio.patch('/users/me/guests/$guestId', data: data);
 }

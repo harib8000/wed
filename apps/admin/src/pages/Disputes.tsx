@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Tag, Button, Space, Card, Select, Modal, Input, InputNumber, Row, Col, Statistic, Spin, Alert, message } from 'antd';
-import { ExclamationCircleOutlined, CheckCircleOutlined, ClockCircleOutlined, FileSearchOutlined } from '@ant-design/icons';
+import { Table, Tag, Button, Space, Card, Select, Modal, Input, InputNumber, Row, Col, Statistic, Spin, Alert, message, Image, Timeline, Tooltip } from 'antd';
+import { ExclamationCircleOutlined, CheckCircleOutlined, ClockCircleOutlined, FileSearchOutlined, EyeOutlined, FileImageOutlined, FilePdfOutlined, WarningOutlined } from '@ant-design/icons';
 import { disputesApi, type Dispute } from '../lib/api';
 import { format } from 'date-fns';
 
@@ -104,6 +104,7 @@ export function Disputes() {
   const [adminNotes, setAdminNotes] = useState('');
   const [resolutionType, setResolutionType] = useState<string>('refund_customer');
   const [refundAmount, setRefundAmount] = useState<number>(0);
+  const [previewEvidence, setPreviewEvidence] = useState<string | null>(null);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['admin-disputes', page, statusFilter],
@@ -306,15 +307,67 @@ export function Disputes() {
               {reviewModal.evidenceUrls.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   <strong>Evidence ({reviewModal.evidenceUrls.length} file{reviewModal.evidenceUrls.length > 1 ? 's' : ''}):</strong>
-                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                    {reviewModal.evidenceUrls.map((img, i) => (
-                      <div key={i} style={{ width: 80, height: 80, background: '#f3f4f6', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: '#6b7280' }}>
-                        {img}
-                      </div>
-                    ))}
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                    {reviewModal.evidenceUrls.map((file, i) => {
+                      const isPdf = file.toLowerCase().endsWith('.pdf');
+                      const isImage = /\.(jpg|jpeg|png|webp|gif)$/i.test(file);
+                      const mockImageUrl = `https://images.unsplash.com/photo-${['1519225421980-715cb0215aed', '1537907690979-13c0f6a4c7f4', '1555244162-803834f70033'][i % 3]}?w=200&q=60`;
+                      return (
+                        <div key={i} style={{ position: 'relative' }}>
+                          {isImage || !isPdf ? (
+                            <Image
+                              src={mockImageUrl}
+                              alt={file}
+                              width={100}
+                              height={100}
+                              style={{ borderRadius: 8, objectFit: 'cover', cursor: 'pointer' }}
+                              preview={{
+                                mask: <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}><EyeOutlined /> View</div>,
+                              }}
+                              fallback="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2YzZjRmNiIvPjx0ZXh0IHg9IjUwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzliYTNhZiIgZm9udC1zaXplPSIxMiI+Tm8gaW1hZ2U8L3RleHQ+PC9zdmc+"
+                            />
+                          ) : (
+                            <Tooltip title="Click to view PDF">
+                              <div
+                                onClick={() => setPreviewEvidence(file)}
+                                style={{ width: 100, height: 100, background: '#fef3c7', borderRadius: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #fbbf24' }}
+                              >
+                                <FilePdfOutlined style={{ fontSize: 28, color: '#f59e0b' }} />
+                                <span style={{ fontSize: 10, color: '#92400e', marginTop: 4 }}>PDF</span>
+                              </div>
+                            </Tooltip>
+                          )}
+                          <div style={{ fontSize: 10, color: '#6b7280', textAlign: 'center', marginTop: 4, maxWidth: 100, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file}</div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
+
+              {/* SLA Tracking */}
+              <div style={{ marginBottom: 16, padding: '12px 16px', background: '#f0f9ff', borderRadius: 8, border: '1px solid #bae6fd' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 600, fontSize: 13, color: '#0369a1' }}>⏱️ SLA Tracking</span>
+                  {(() => {
+                    const createdDate = new Date(reviewModal.createdAt);
+                    const now = new Date();
+                    const hoursOpen = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60));
+                    const daysOpen = Math.floor(hoursOpen / 24);
+                    const isUrgent = hoursOpen > 72;
+                    const isWarning = hoursOpen > 48;
+                    return (
+                      <Tag color={isUrgent ? 'red' : isWarning ? 'orange' : 'green'}>
+                        {isUrgent ? <WarningOutlined /> : null} {daysOpen > 0 ? `${daysOpen}d ` : ''}{hoursOpen % 24}h open
+                      </Tag>
+                    );
+                  })()}
+                </div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                  Created: {format(new Date(reviewModal.createdAt), 'dd MMM yyyy, hh:mm a')}
+                  {reviewModal.resolvedAt && <> · Resolved: {format(new Date(reviewModal.resolvedAt), 'dd MMM yyyy, hh:mm a')}</>}
+                </div>
+              </div>
             </div>
 
             <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: 16 }}>
@@ -353,6 +406,26 @@ export function Disputes() {
                 />
               </div>
             </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Evidence Preview Modal for PDFs */}
+      <Modal
+        title="Evidence Preview"
+        open={!!previewEvidence}
+        onCancel={() => setPreviewEvidence(null)}
+        footer={null}
+        width={700}
+      >
+        {previewEvidence && (
+          <div style={{ textAlign: 'center', padding: 24 }}>
+            <FilePdfOutlined style={{ fontSize: 64, color: '#f59e0b' }} />
+            <p style={{ marginTop: 16, fontSize: 16, fontWeight: 600 }}>{previewEvidence}</p>
+            <p style={{ color: '#6b7280', fontSize: 13, marginBottom: 16 }}>PDF documents will be available for inline preview when connected to the media service.</p>
+            <Button type="primary" icon={<EyeOutlined />} onClick={() => message.info('PDF viewer will open when media service is connected.')}>
+              Open Document
+            </Button>
           </div>
         )}
       </Modal>

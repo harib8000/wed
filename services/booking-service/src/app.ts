@@ -8,6 +8,10 @@ import { requestId } from './middleware/requestId';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { register, collectDefaultMetrics } from 'prom-client';
+
+collectDefaultMetrics();
+
 
 export function createApp() {
   const app = express();
@@ -19,6 +23,15 @@ export function createApp() {
   app.use(requestId);
   app.use(pinoHttp({ logger }));
   app.use('/bookings', bookingRouter);
+  app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(String(err));
+  }
+});
+
   app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'booking-service' }));
   app.use((_req, res) => res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Not found' } }));
   app.use(errorHandler);

@@ -27,7 +27,10 @@
     "cors": "^2.8.5",
     "@wedding-os/shared-events": "workspace:*",
     "@wedding-os/shared-errors": "workspace:*",
-    "axios": "^1.6.0"
+    "@wedding-os/shared-types": "workspace:*",
+    "axios": "^1.6.0",
+    "@sentry/node": "^8.0.0",
+    "prom-client": "^15.0.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

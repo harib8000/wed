@@ -1,11 +1,15 @@
 /**
- * Admin API Client — Axios instance that hits the API gateway.
- * Reads the admin JWT from a cookie, refreshes on 401.
+ * Admin API Client — Axios instance that proxies via Vite dev server in development,
+ * or uses VITE_API_URL in production.
+ * Reads the admin JWT from a cookie and refreshes on 401.
  */
 import axios, { type AxiosInstance, type AxiosError } from 'axios';
 import Cookies from 'js-cookie';
 
-const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1';
+const env = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+// In dev: empty baseURL so Vite proxy handles /api/* → individual services.
+// In prod: set VITE_API_URL to the gateway base (e.g. https://api.weddingos.in/api/v1).
+const BASE_URL = env?.VITE_API_URL ?? '/api';
 
 export const adminApi: AxiosInstance = axios.create({
   baseURL: BASE_URL,
@@ -142,10 +146,11 @@ export interface Payment {
 
 export interface AdminUser {
   id: string;
-  phone: string;
+  phone?: string;
   email: string | null;
   name: string | null;
-  role: string;
+  role?: string;
+  city?: string | null;
   createdAt: string;
 }
 
@@ -154,6 +159,7 @@ export interface AdminUser {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const dashboardApi = {
+  // Routes through Vite proxy: /api/admin/* → user-service /users/admin/*
   getStats: () =>
     adminApi.get<{ success: boolean; data: DashboardStats }>('/admin/stats').then((r) => r.data.data),
 
@@ -166,19 +172,20 @@ export const dashboardApi = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const vendorsApi = {
+  // Routes through Vite proxy: /api/vendors/* → vendor-service /vendors/*
   list: (params: { page?: number; limit?: number; status?: string; category?: string; q?: string }) =>
     adminApi
-      .get<PaginatedResponse<{ vendors: Vendor[] }>>('/admin/vendors', { params })
+      .get<PaginatedResponse<{ vendors: Vendor[] }>>('/vendors/admin/list', { params })
       .then((r) => r.data),
 
   approve: (vendorId: string) =>
-    adminApi.post(`/admin/vendors/${vendorId}/approve`).then((r) => r.data),
+    adminApi.patch(`/vendors/${vendorId}/approve`).then((r) => r.data),
 
   reject: (vendorId: string, reason: string) =>
-    adminApi.post(`/admin/vendors/${vendorId}/reject`, { reason }).then((r) => r.data),
+    adminApi.patch(`/vendors/${vendorId}/reject`, { reason }).then((r) => r.data),
 
   suspend: (vendorId: string, reason: string) =>
-    adminApi.post(`/admin/vendors/${vendorId}/suspend`, { reason }).then((r) => r.data),
+    adminApi.patch(`/vendors/${vendorId}/suspend`, { note: reason }).then((r) => r.data),
 
   getById: (vendorId: string) =>
     adminApi.get<{ success: boolean; data: { vendor: Vendor } }>(`/vendors/${vendorId}`).then((r) => r.data.data.vendor),
@@ -189,9 +196,10 @@ export const vendorsApi = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const bookingsApi = {
+  // Routes through Vite proxy: /api/bookings/* → booking-service /bookings/*
   list: (params: { page?: number; limit?: number; status?: string }) =>
     adminApi
-      .get<PaginatedResponse<{ bookings: Booking[] }>>('/admin/bookings', { params })
+      .get<PaginatedResponse<{ bookings: Booking[] }>>('/bookings/admin/list', { params })
       .then((r) => r.data),
 };
 
@@ -200,9 +208,10 @@ export const bookingsApi = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const paymentsApi = {
+  // Routes through Vite proxy: /api/payments/* → payment-service /payments/*
   list: (params: { page?: number; limit?: number; status?: string }) =>
     adminApi
-      .get<PaginatedResponse<{ payments: Payment[] }>>('/admin/payments', { params })
+      .get<PaginatedResponse<{ payments: Payment[] }>>('/payments/admin/list', { params })
       .then((r) => r.data),
 
   refund: (paymentId: string, reason: string, note?: string) =>
@@ -217,9 +226,10 @@ export const paymentsApi = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const usersApi = {
+  // Routes through Vite proxy: /api/users/* → user-service /users/*
   list: (params: { page?: number; limit?: number; role?: string; q?: string }) =>
     adminApi
-      .get<PaginatedResponse<{ users: AdminUser[] }>>('/admin/users', { params })
+      .get<PaginatedResponse<{ users: AdminUser[] }>>('/users/admin/list', { params })
       .then((r) => r.data),
 };
 
@@ -244,13 +254,14 @@ export interface Dispute {
 }
 
 export const disputesApi = {
+  // Routes through Vite proxy: /api/payments/* → payment-service /payments/*
   list: (params: { page?: number; limit?: number; status?: string }) =>
     adminApi
-      .get<PaginatedResponse<{ disputes: Dispute[] }>>('/admin/disputes', { params })
+      .get<PaginatedResponse<{ disputes: Dispute[] }>>('/payments/admin/disputes', { params })
       .then((r) => r.data),
 
   resolve: (disputeId: string, body: { status: string; refundAmountPaise?: number; adminNotes: string }) =>
-    adminApi.post(`/admin/disputes/${disputeId}/resolve`, body).then((r) => r.data),
+    adminApi.post(`/payments/admin/disputes/${disputeId}/resolve`, body).then((r) => r.data),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -268,6 +279,7 @@ export interface ReportSummary {
 }
 
 export const reportsApi = {
+  // Routes through /api/admin/* → user-service /users/admin/*
   getSummary: (params?: { from?: string; to?: string }) =>
     adminApi
       .get<{ success: boolean; data: ReportSummary }>('/admin/reports/summary', { params })

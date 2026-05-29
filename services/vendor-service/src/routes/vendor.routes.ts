@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { vendorService } from '../services/vendor.service';
 import { searchService } from '../services/search.service';
-import { authenticate, requireRole } from '../middleware/auth.middleware';
+import { authenticate, requireRole, requireInternalOrAdmin } from '../middleware/auth.middleware';
 import { validate } from '../middleware/validate';
 import { getPresignedUploadUrl } from '../utils/s3';
 import { z } from 'zod';
@@ -187,9 +187,44 @@ vendorRouter.post('/me/submit-review', authenticate, requireRole('vendor', 'admi
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 
+const AdminListSchema = z.object({
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(20),
+  status: z.string().optional(),
+  category: z.string().optional(),
+  q: z.string().optional(),
+});
+
+vendorRouter.get('/admin/list', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const params = AdminListSchema.parse(req.query);
+    const result = await vendorService.adminList(params);
+    res.json({
+      success: true,
+      data: { vendors: result.vendors },
+      meta: { total: result.total, page: result.page, limit: result.limit, pages: result.pages, ...meta(req) },
+    });
+  } catch (err) { next(err); }
+});
+
+vendorRouter.get('/admin/stats', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const stats = await vendorService.getStats();
+    res.json({ success: true, data: stats, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
 vendorRouter.patch('/:id/approve', authenticate, requireRole('admin'), async (req, res, next) => {
   try {
     const vendor = await vendorService.approveVendor(req.params.id);
+    res.json({ success: true, data: { vendor }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+vendorRouter.patch('/:id/reject', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const reason = typeof req.body.reason === 'string' ? req.body.reason : 'KYC rejected by admin';
+    const vendor = await vendorService.rejectVendor(req.params.id, reason);
     res.json({ success: true, data: { vendor }, meta: meta(req) });
   } catch (err) { next(err); }
 });
@@ -198,6 +233,27 @@ vendorRouter.patch('/:id/suspend', authenticate, requireRole('admin'), async (re
   try {
     const vendor = await vendorService.suspendVendor(req.params.id, req.body.note);
     res.json({ success: true, data: { vendor }, meta: meta(req) });
+  } catch (err) { next(err); }
+});
+
+// ── GET /vendors/internal/:id/bank-details (service-to-service) ───────────────
+
+vendorRouter.get('/internal/:id/bank-details', requireInternalOrAdmin, async (req, res, next) => {
+  try {
+    const vendor = await vendorService.getById(req.params.id);
+    if (!vendor) return res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Vendor not found' }, meta: meta(req) });
+    res.json({
+      success: true,
+      data: {
+        vendor: {
+          id: vendor.id,
+          bankAccountNo: vendor.bankAccountNo,
+          bankIfsc: vendor.bankIfsc,
+          bankAccountName: vendor.bankAccountName,
+        },
+      },
+      meta: meta(req),
+    });
   } catch (err) { next(err); }
 });
 

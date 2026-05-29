@@ -5,6 +5,8 @@ import '../../core/theme.dart';
 import '../../models/vendor_analytics.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/vendor_analytics_provider.dart';
+import '../../shared/widgets/error_state_widget.dart';
+import '../../shared/widgets/shimmer_state_widget.dart';
 
 class VendorDashboardScreen extends ConsumerWidget {
   const VendorDashboardScreen({super.key});
@@ -24,8 +26,11 @@ class VendorDashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: analyticsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const ShimmerStateWidget(itemCount: 6, itemHeight: 120),
+        error: (e, _) => ErrorStateWidget(
+          message: 'Vendor dashboard could not load. Pull to retry in a moment.',
+          onRetry: () => ref.refresh(vendorAnalyticsProvider.future),
+        ),
         data: (analytics) => _DashboardBody(
           analytics: analytics,
           vendorName: user?.name ?? 'Vendor',
@@ -149,7 +154,7 @@ class _HeaderSection extends StatelessWidget {
                     ),
                     child: Stack(
                       children: [
-                        IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22), onPressed: () {}),
+                        IconButton(icon: const Icon(Icons.notifications_outlined, color: Colors.white, size: 22), onPressed: () => context.push('/notifications')),
                         Positioned(
                           right: 8, top: 8,
                           child: Container(

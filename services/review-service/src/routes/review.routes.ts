@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { reviewController } from '../controllers/review.controller';
 import { authenticate, requireRole } from '../middleware/auth';
 import { validate } from '../middleware/validate';
+import { prisma } from '../config/database';
 
 // ── Zod Schemas ─────────────────────────────────────────────────────────────
 
@@ -45,5 +46,23 @@ router.post('/:reviewId/reply', authenticate, requireRole('vendor'), validate(Re
 
 // POST /reviews/:reviewId/helpful — mark helpful
 router.post('/:reviewId/helpful', authenticate, reviewController.markHelpful);
+
+// GET /reviews/admin/stats — aggregate rating stats (admin only)
+router.get('/admin/stats', authenticate, requireRole('admin'), async (req, res, next) => {
+  try {
+    const result = await prisma.review.aggregate({
+      where: { isPublished: true },
+      _avg: { rating: true },
+      _count: { id: true },
+    });
+    res.json({
+      success: true,
+      data: {
+        avgRating: result._avg.rating != null ? Math.round(result._avg.rating * 100) / 100 : 0,
+        totalReviews: result._count.id,
+      },
+    });
+  } catch (err) { next(err); }
+});
 
 export { router as reviewRouter };

@@ -4,6 +4,7 @@ import { config } from '../config';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import { logger } from '../utils/logger';
 import { NotFoundError, ConflictError } from '@wedding-os/shared-errors';
+import type { VendorProfile } from '@wedding-os/shared-types';
 
 function publishEvent(type: DomainEventType, aggregateId: string, payload: Record<string, unknown>) {
   try {

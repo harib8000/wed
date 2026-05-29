@@ -7,6 +7,10 @@ import { reviewRouter } from './routes/review.routes';
 import { errorHandler, requestIdMiddleware } from './middleware/errorHandler';
 import { logger } from './utils/logger';
 import { config } from './config';
+import { register, collectDefaultMetrics } from 'prom-client';
+
+collectDefaultMetrics();
+
 
 export function createApp(): Application {
   const app = express();
@@ -18,6 +22,15 @@ export function createApp(): Application {
   app.use(express.urlencoded({ extended: true }));
   app.use(requestIdMiddleware);
   app.use(pinoHttp({ logger }));
+
+  app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(String(err));
+  }
+});
 
   app.get('/reviews/health', (_, res) => res.json({ status: 'ok', service: 'review-service', timestamp: new Date().toISOString() }));
   app.use('/reviews', reviewRouter);

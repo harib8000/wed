@@ -11,6 +11,20 @@ import { config } from './config';
 import { connectDatabase, disconnectDatabase } from './config/database';
 import { notificationService } from './services/notification.service';
 import { createEventBus } from '@wedding-os/shared-events';
+import * as Sentry from '@sentry/node';
+import { register, collectDefaultMetrics } from 'prom-client';
+
+collectDefaultMetrics();
+
+
+if (config.sentryDsn) {
+  Sentry.init({
+    dsn: config.sentryDsn,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 0,
+  });
+}
+
 
 async function bootstrap() {
   await connectDatabase();
@@ -27,6 +41,15 @@ async function bootstrap() {
   app.use(requestId);
   app.use(pinoHttp({ logger }));
   app.use('/notifications', notificationRouter);
+  app.get('/metrics', async (_req, res) => {
+  try {
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err) {
+    res.status(500).end(String(err));
+  }
+});
+
   app.get('/health', (_req, res) => res.json({ status: 'ok' }));
   app.use((_req, res) => res.status(404).json({ success: false, error: { code: 'RES_3001', message: 'Not found' } }));
   app.use(errorHandler);

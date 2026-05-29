@@ -8,6 +8,186 @@ import '../../providers/vendor_analytics_provider.dart';
 class VendorProfileScreen extends ConsumerWidget {
   const VendorProfileScreen({super.key});
 
+  void _showMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _showQrDialog(BuildContext context, String vendorName) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Share your profile'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 180,
+              height: 180,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.qr_code_2, size: 88, color: AppColors.brand.withOpacity(0.8)),
+                  const SizedBox(height: 8),
+                  Text(vendorName, style: const TextStyle(fontWeight: FontWeight.w700)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Let couples scan this QR code to discover and book your profile.',
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showShareSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Share profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.link, color: AppColors.brand),
+                title: const Text('Copy profile link'),
+                subtitle: const Text('Share your public vendor page instantly'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _showMessage(context, 'Profile link copied!');
+                },
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.share_outlined, color: AppColors.brand),
+                title: const Text('Share with clients'),
+                subtitle: const Text('Send your profile through your preferred app'),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _showMessage(context, 'Profile link copied!');
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showEditBusinessInfoDialog(BuildContext context, String initialName) async {
+    final nameController = TextEditingController(text: initialName);
+    final descriptionController = TextEditingController(
+      text: 'Elegant experiences, thoughtful planning, and trusted service for every celebration.',
+    );
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Edit Business Info'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Business name'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: descriptionController,
+                maxLines: 4,
+                decoration: const InputDecoration(labelText: 'Business description'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              _showMessage(context, 'Business info updated');
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showHelpSupportSheet(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Help & Support', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 12),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.support_agent, color: AppColors.brand),
+                title: Text('Vendor Success Team'),
+                subtitle: Text('support@weddingos.in · +91 98765 43210'),
+              ),
+              const ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.schedule, color: AppColors.brand),
+                title: Text('Support hours'),
+                subtitle: Text('Mon-Sat · 9:00 AM to 7:00 PM'),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    _showMessage(context, 'Support team will contact you shortly');
+                  },
+                  child: const Text('Request a callback'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
@@ -42,9 +222,9 @@ class VendorProfileScreen extends ConsumerWidget {
                           const Text('My Profile', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)),
                           Row(
                             children: [
-                              _TopButton(icon: Icons.qr_code, onTap: () {}),
+                              _TopButton(icon: Icons.qr_code, onTap: () => _showQrDialog(context, user?.name ?? 'Vendor')),
                               const SizedBox(width: 8),
-                              _TopButton(icon: Icons.share, onTap: () {}),
+                              _TopButton(icon: Icons.share, onTap: () => _showShareSheet(context)),
                               const SizedBox(width: 8),
                               _TopButton(icon: Icons.settings_outlined, onTap: () => context.push('/vendor/settings')),
                             ],
@@ -175,9 +355,9 @@ class VendorProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Expanded(child: _QuickLink(icon: Icons.photo_library, label: 'Portfolio', color: AppColors.brand, onTap: () {})),
+                      Expanded(child: _QuickLink(icon: Icons.photo_library, label: 'Portfolio', color: AppColors.brand, onTap: () => _showMessage(context, 'Portfolio management coming soon'))),
                       const SizedBox(width: 10),
-                      Expanded(child: _QuickLink(icon: Icons.inventory_2, label: 'Packages', color: const Color(0xFF3B82F6), onTap: () {})),
+                      Expanded(child: _QuickLink(icon: Icons.inventory_2, label: 'Packages', color: const Color(0xFF3B82F6), onTap: () => _showMessage(context, 'Package management coming soon'))),
                       const SizedBox(width: 10),
                       Expanded(child: _QuickLink(icon: Icons.calendar_month, label: 'Calendar', color: const Color(0xFF10B981), onTap: () => context.push('/vendor/calendar'))),
                       const SizedBox(width: 10),
@@ -315,11 +495,11 @@ class VendorProfileScreen extends ConsumerWidget {
               ),
               child: Column(
                 children: [
-                  _MenuItem(icon: Icons.edit_outlined, label: 'Edit Business Info', onTap: () {}),
+                  _MenuItem(icon: Icons.edit_outlined, label: 'Edit Business Info', onTap: () => _showEditBusinessInfoDialog(context, user?.name ?? 'Vendor')),
                   _MenuItem(icon: Icons.calendar_month, label: 'Availability Calendar', onTap: () => context.push('/vendor/calendar')),
                   _MenuItem(icon: Icons.star_outline, label: 'Reviews & Ratings', onTap: () => context.push('/vendor/reviews')),
                   _MenuItem(icon: Icons.bar_chart, label: 'Analytics', onTap: () => context.push('/vendor/analytics')),
-                  _MenuItem(icon: Icons.help_outline, label: 'Help & Support', onTap: () {}),
+                  _MenuItem(icon: Icons.help_outline, label: 'Help & Support', onTap: () => _showHelpSupportSheet(context)),
                   _MenuItem(
                     icon: Icons.logout,
                     label: 'Logout',
