@@ -33,6 +33,7 @@
     "bullmq": "^5.7.0",
     "@wedding-os/shared-events": "workspace:*",
     "@wedding-os/shared-errors": "workspace:*",
+    "@wedding-os/shared-types": "workspace:*",
     "@sentry/node": "^8.0.0",
     "prom-client": "^15.0.0"
   },

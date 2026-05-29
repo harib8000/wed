@@ -1,0 +1,66 @@
+import { expect, test } from '@playwright/test';
+
+const CONSENT_KEY = 'weddingos_cookie_consent';
+
+async function preparePage(page: import('@playwright/test').Page) {
+  await page.addInitScript((key: string) => {
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        mode: 'all',
+        essential: true,
+        analytics: true,
+        personalization: true,
+        marketing: true,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }),
+    );
+  }, CONSENT_KEY);
+}
+
+test.describe('Basic accessibility checks', () => {
+  test('core pages expose a visible primary heading', async ({ page }) => {
+    await preparePage(page);
+
+    for (const path of ['/', '/vendors', '/privacy']) {
+      await page.goto(path);
+      await expect(page.locator('h1').first()).toBeVisible();
+    }
+  });
+
+  test('vendor browsing pages provide alt text for images', async ({ page }) => {
+    await preparePage(page);
+
+    await page.goto('/vendors');
+    await expect(page.locator('img:not([alt])')).toHaveCount(0);
+    await expect(page.locator('img[alt]').first()).toBeVisible();
+
+    await page.goto('/vendors/vendor-1');
+    await expect(page.locator('img:not([alt])')).toHaveCount(0);
+    await expect(page.locator('img[alt]').first()).toBeVisible();
+  });
+
+  test('auth and enquiry forms expose labels', async ({ page }) => {
+    await preparePage(page);
+    await page.route('**/api/auth/send-otp', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ data: { success: true } }),
+      });
+    });
+
+    await page.goto('/login/couple');
+    await expect(page.getByLabel('Mobile Number')).toBeVisible();
+
+    await page.getByLabel('Mobile Number').fill('9876543210');
+    await page.getByRole('button', { name: /Get OTP/i }).click();
+    await expect(page.getByLabel('6-Digit OTP')).toBeVisible();
+
+    await page.goto('/vendors/vendor-1');
+    await page.getByRole('button', { name: /Quick Enquiry/i }).first().click();
+    await expect(page.getByLabel('Event Date')).toBeVisible();
+    await expect(page.getByLabel('Expected Guests')).toBeVisible();
+    await expect(page.getByLabel(/Message/i)).toBeVisible();
+  });
+});

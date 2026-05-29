@@ -125,7 +125,7 @@ export function jsonParams(token, extraHeaders = {}) {
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      ...(token ? { Authorization: `****** } : {}),
+      ...(token ? { Authorization: 'Bearer ' + token } : {}),
       ...extraHeaders,
     },
     timeout: REQUEST_TIMEOUT,
@@ -136,7 +136,7 @@ export function getParams(token, extraHeaders = {}) {
   return {
     headers: {
       Accept: 'application/json',
-      ...(token ? { Authorization: `****** } : {}),
+      ...(token ? { Authorization: 'Bearer ' + token } : {}),
       ...extraHeaders,
     },
     timeout: REQUEST_TIMEOUT,

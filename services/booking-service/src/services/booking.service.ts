@@ -6,6 +6,7 @@ import { config } from '../config';
 import { NotFoundError, ForbiddenError, BookingAlreadyConfirmedError, BookingCancellationError, ConflictError } from '@wedding-os/shared-errors';
 import { generateBookingNumber } from '@wedding-os/shared-utils';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
+import type { BookingDetail } from '@wedding-os/shared-types';
 import { Prisma } from '@prisma/client';
 
 // ── Event publishing helper ────────────────────────────────────────────────────

@@ -3,7 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import './globals.css';
 import { Providers } from './providers';
 import { BottomNav } from '@/components/layout/BottomNav';
-import { CookieConsent } from '@/components/layout/CookieConsent';
+import { CookieConsent } from '@/components/legal/CookieConsent';
 import { NetworkStatus } from '@/components/layout/NetworkStatus';
 import { ErrorBoundary } from '@/components/layout/ErrorBoundary';
 import { ScrollToTop } from '@/components/layout/ScrollToTop';

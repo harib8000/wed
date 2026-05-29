@@ -383,7 +383,8 @@ paymentRouter.get('/vendor/stats', authenticate, requireRole('vendor'), async (r
   } catch (err) { next(err); }
 });
 
-// ── Admin: disputes ───────────────────────────────────────────────────────────const DisputeListSchema = z.object({
+// ── Admin: disputes ───────────────────────────────────────────────────────────
+const DisputeListSchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
   status: z.string().optional(),
