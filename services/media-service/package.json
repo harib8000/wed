@@ -27,6 +27,7 @@
     "express-rate-limit": "^7.2.0",
     "sharp": "^0.33.0",
     "@wedding-os/shared-errors": "workspace:*",
+    "@wedding-os/shared-types": "workspace:*",
     "@sentry/node": "^8.0.0",
     "prom-client": "^15.0.0"
   },

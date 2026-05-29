@@ -6,6 +6,7 @@ import { logger } from '../utils/logger';
 import { config } from '../config';
 import { NotFoundError, PaymentVerificationError, ConflictError } from '@wedding-os/shared-errors';
 import { calculatePlatformFee } from '@wedding-os/shared-utils';
+import type { BookingDetail } from '@wedding-os/shared-types';
 import { getEventBus, type DomainEventType } from '@wedding-os/shared-events';
 import axios from 'axios';
 import { randomUUID } from 'crypto';

@@ -5,6 +5,7 @@ import { sendSms, sendWhatsApp } from '../utils/sms';
 import { sendEmail } from '../channels/email.channel';
 import { logger } from '../utils/logger';
 import { NotFoundError } from '@wedding-os/shared-errors';
+import type { NotificationItem } from '@wedding-os/shared-types';
 
 export interface NotifyPayload {
   userId: string;
